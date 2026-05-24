@@ -1,2 +1,0 @@
-[console_scripts]
-nono-sports = nono_sports.__main__:main
