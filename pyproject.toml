@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nono-sports"
+version = "0.1.0"
+description = "Sincronizador e integrador de datos deportivos desde Strava y otras fuentes."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [
+  { name = "Tu Nombre", email = "tu@ejemplo.com" }
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent"
+]
+keywords = ["strava", "sync", "normalización", "integración", "datos deportivos"]
+
+dependencies = [
+  "httpx>=0.27.0,<0.29.0",
+  "python-dotenv>=1.0.0,<2.0.0"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/<usuario>/nono-sports"
+"Source" = "https://github.com/<usuario>/nono-sports"
+
+[project.scripts]
+nono-sports = "nono_sports.__main__:main"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+select = ["E", "F", "I", "Q", "R", "S"]
+exclude = ["tests/", ".git/"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
