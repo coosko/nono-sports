@@ -1,0 +1,1 @@
+"""Strava HTTP client scaffold."""

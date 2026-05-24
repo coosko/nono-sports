@@ -10,9 +10,20 @@ __pycache__/
 htmlcov/
 .env
 .env.*
+!.env.example
+
+# Secrets and local auth state
+strava_tokens.json
+*.pem
+*.key
+.local/
 .DS_Store
 .idea/
 .vscode/
+*:Zone.Identifier
+
+# Local generated/reference assets
+docs/requirements/resources/nono-sports-icon.png
 
 # Build artifacts
 *.egg-info

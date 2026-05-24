@@ -1,38 +1,253 @@
-# Plan de trabajo
+# Plan de trabajo Strava v1
 
-## Fase 1: Base del proyecto
+Este documento define los pasos de implementación de la primera versión. Cada paso debe completarse y validarse antes de pasar al siguiente.
 
-- Establecer la estructura del repositorio.
-- Configurar `pyproject.toml`, `pre-commit` y CI.
-- Crear documentación inicial en `docs/`.
+## Paso 1. Cierre de arquitectura Strava v1
 
-## Fase 2: Sincronización Strava
+Objetivo:
 
-- Implementar `StravaSync`.
-- Gestionar tokens y refresco.
-- Guardar raw data en la estructura de carpetas.
+- revisar y aprobar la arquitectura de `docs/technical/architecture.md`
+- confirmar endpoints, scopes y estructura de datos
 
-## Fase 3: Normalización
+Entregables:
 
-- Implementar `DataNormalizer`.
-- Definir esquema normalizado.
-- Generar archivos `activities.jsonl` y `activities.csv`.
+- arquitectura aprobada
+- lista de módulos confirmada
+- alcance v1 cerrado
 
-## Fase 4: Consolidación
+Validación de usuario:
 
-- Implementar `DataIntegrator`.
-- Añadir deduplicación y merge.
-- Generar `20_consolidado/`.
+- completado: el usuario confirma que el alcance de Strava v1 es correcto
 
-## Fase 5: Producción y despliegue
+## Paso 2. Scaffold de módulos
 
-- Definir el root de datos como parámetro de instalación.
-- Documentar instalación y uso en `docs/usage/`.
-- Añadir versiones y changelog.
+Objetivo:
 
-## Cronograma sugerido
+- crear la estructura de paquetes propuesta
+- añadir módulos vacíos con responsabilidades claras
+- mantener el código sin lógica de negocio todavía
 
-- Semana 1: estructura, docs, entorno, primeros scripts.
-- Semana 2: sincronización Strava y raw storage.
-- Semana 3: normalización y datos consolidados.
-- Semana 4: integración, pruebas, documentación final.
+Entregables:
+
+- paquetes `core`, `auth`, `strava`, `storage`, `domain`, `normalization`, `consolidation` y `validation`
+- tests mínimos de importación
+
+Validación:
+
+- completado: `python3 scripts/check.py`
+
+## Paso 3. Configuración y rutas
+
+Objetivo:
+
+- cargar `.env`
+- validar `NONO_SPORT_DATA_ROOT`
+- resolver rutas de datos
+- preparar estructura de directorios Strava v1
+
+Entregables:
+
+- módulo `core.config`
+- módulo `core.paths`
+- tests de configuración y rutas
+- comando `nono-sports strava prepare-dirs`
+
+Validación de usuario:
+
+- local confirmado: `/mnt/h/Mi unidad/01_ambitos/02_personal/40_deporte`
+- pendiente: confirmar ruta real de datos en Nono
+
+## Paso 4. Autenticación Strava con intervención del usuario
+
+Objetivo:
+
+- implementar OAuth de Strava
+- generar URL de autorización
+- capturar o aceptar el `code`
+- intercambiar `code` por tokens
+- validar scopes concedidos
+- guardar refresh token vigente fuera del repositorio y del root de datos
+
+Scopes esperados:
+
+- `read`
+- `read_all`
+- `profile:read_all`
+- `activity:read_all`
+
+Entregables:
+
+- comando `nono-sports strava auth`
+- `auth.strava_oauth`
+- `auth.token_store`
+- tests unitarios con mocks
+- guía `docs/usage/strava-auth.md`
+
+Validación de usuario:
+
+- el usuario entra en Strava
+- acepta permisos
+- confirma que el comando guarda tokens correctamente
+- confirma que el token queda en `~/.local/state/nono-sports/strava_tokens.json`
+- confirma que los scopes concedidos son suficientes
+
+## Paso 5. Cliente Strava base
+
+Objetivo:
+
+- implementar cliente HTTP de solo lectura
+- refrescar access token cuando caduque
+- paginar endpoints
+- registrar cabeceras de rate limit
+- normalizar errores de API
+
+Entregables:
+
+- `strava.client`
+- `strava.rate_limits`
+- tests con respuestas mock
+
+Validación:
+
+- tests unitarios de token refresh, errores, paginación y rate limits
+
+## Paso 6. Descarga raw de perfil y contexto
+
+Objetivo:
+
+- descargar atleta autenticado
+- descargar zonas del atleta si el scope lo permite
+- descargar estadísticas agregadas
+- descargar clubes y rutas disponibles
+- descargar equipo referenciado cuando aparezca
+
+Entregables:
+
+- `strava.endpoints`
+- `storage.raw_store`
+- ficheros raw en `10_fuentes/strava/raw/`
+
+Validación de usuario:
+
+- el usuario revisa que los ficheros raw esperados existen
+- el usuario confirma que no se ha escrito nada en Strava
+
+## Paso 7. Descarga raw de actividades con máximo detalle
+
+Objetivo:
+
+- listar todas las actividades disponibles
+- descargar detalle completo de cada actividad
+- descargar streams de cada actividad
+- descargar zonas de actividad cuando existan
+- guardar errores recuperables sin abortar toda la sincronización
+
+Entregables:
+
+- `strava.sync`
+- `storage.state_store`
+- raw por actividad
+- estado de sincronización reanudable
+
+Validación de usuario:
+
+- el usuario compara el número de actividades descargadas con Strava
+- el usuario revisa una actividad concreta en Strava y en raw
+
+## Paso 8. Normalización Strava
+
+Objetivo:
+
+- definir modelos comunes en `domain`
+- convertir atleta, actividades y streams a formato normalizado
+- conservar referencias a ficheros raw
+
+Entregables:
+
+- `domain.activity`
+- `domain.athlete`
+- `domain.stream`
+- `normalization.strava_activity`
+- `normalization.strava_athlete`
+- `normalization.strava_stream`
+- JSONL normalizados
+
+Validación:
+
+- tests de normalización con fixtures raw
+- revisión manual de una actividad representativa
+
+## Paso 9. Consolidación inicial
+
+Objetivo:
+
+- crear una vista consolidada desde Strava como única fuente
+- generar `activity_source_link`
+- dejar preparado el modelo para futuras fuentes
+
+Entregables:
+
+- `consolidation.single_source`
+- ficheros en `20_consolidado/`
+
+Validación de usuario:
+
+- el usuario confirma que Nono debe consumir `20_consolidado/` como entrada principal
+
+## Paso 10. Validación de datos
+
+Objetivo:
+
+- comprobar estructura de carpetas
+- comprobar conteos
+- comprobar actividades sin detalle, sin stream o con errores
+- generar informe de validación
+
+Entregables:
+
+- `validation.checks`
+- `validation.reports`
+- comando `nono-sports strava validate`
+
+Validación de usuario:
+
+- el usuario revisa el informe
+- el usuario decide si se repite sincronización, se acepta el resultado o se ajusta alcance
+
+## Paso 11. Instalación en Nono
+
+Objetivo:
+
+- preparar instalación en el entorno Linux de Nono
+- configurar `.env`
+- configurar `NONO_SPORT_DATA_ROOT`
+- ejecutar autenticación si es necesaria
+- ejecutar primera sincronización completa
+
+Entregables:
+
+- instrucciones de despliegue
+- verificación en entorno Nono
+- primer dataset real accesible por Nono
+
+Validación de usuario:
+
+- el usuario confirma que Nono ve los datos consolidados
+
+## Paso 12. Automatización controlada
+
+Objetivo:
+
+- definir ejecución manual o programada
+- preparar logs
+- dejar pendiente webhook para una versión posterior
+
+Entregables:
+
+- comando de sincronización repetible
+- propuesta de `systemd timer` o tarea equivalente
+
+Validación:
+
+- una ejecución incremental no duplica datos
+- el informe muestra cambios esperados

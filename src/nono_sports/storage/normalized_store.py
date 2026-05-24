@@ -1,0 +1,1 @@
+"""Normalized dataset storage scaffold."""

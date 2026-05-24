@@ -35,8 +35,10 @@ nono-sports = "nono_sports.__main__:main"
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+exclude = ["deprecated/", ".git/"]
+src = ["src"]
 select = ["E", "F", "I", "Q", "R", "S"]
-exclude = ["deprecated/", "tests/", ".git/"]
+per-file-ignores = { "tests/**/*.py" = ["S101", "S105", "S106"] }
 
 [tool.pytest.ini_options]
 minversion = "7.0"

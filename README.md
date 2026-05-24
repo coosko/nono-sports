@@ -1,25 +1,31 @@
 # nono-sports
 
-Proyecto Python para sincronizar datos deportivos desde Strava, normalizarlos y combinarlos con otras fuentes. No incluye interfaz gráfica; el foco está en integración de datos y procesamiento backend.
+Proyecto Python para construir la base de datos deportiva de Nono a partir de Strava y futuras fuentes como Garmin, Komoot o importaciones manuales.
 
-## Estructura inicial
+El proyecto está en fase de definición de arquitectura y diseño documental. El código activo contiene solo un scaffold mínimo.
 
-- `src/nono_sports/`
-  - `strava_sync.py`: sincronizador con Strava
-  - `normalizer.py`: normalización de datos
-  - `integrator.py`: integración entre orígenes
-  - `config.py`: carga de variables de entorno
-- `tests/`: pruebas unitarias básicas
-- `.github/workflows/`: configuración de CI para GitHub Actions
-- `.gitignore`: exclusiones de Git
-- `pyproject.toml`: configuración de empaquetado y dependencias
-- `requirements-dev.txt`: dependencias de desarrollo
-- `.pre-commit-config.yaml`: hooks de calidad
-- `.env.example`: ejemplo de variables sensibles
+## Estado actual
+
+- paquete Python mínimo en `src/nono_sports/`
+- scripts para crear la estructura base de datos
+- documentación canónica de requisitos y arquitectura
+- código bootstrap anterior archivado en `deprecated/initial-bootstrap/`
+
+Documento de referencia del estado real:
+
+- `docs/current-state.md`
+
+## Documentación principal
+
+- `docs/requirements/requirements.md`: requisitos funcionales y no funcionales
+- `docs/technical/architecture.md`: arquitectura técnica objetivo
+- `docs/current-state.md`: estado real del repositorio
+- `docs/index.md`: índice y jerarquía documental
+- `docs/requirements/resources/Descripcion_inicial.md`: documento de entrada y descubrimiento
 
 ## Requisitos
 
-- Python 3.11 o superior
+- Python 3.11 o 3.12
 - `git`
 - `python3 -m venv .venv`
 
@@ -47,25 +53,39 @@ python3 -m pip install -e .
 python3 -m pip install -r requirements-dev.txt
 ```
 
-3. Copiar el archivo de ejemplo y configurar credenciales seguras:
+4. Copiar el archivo de ejemplo si necesitas preparar variables de entorno para futuras integraciones:
 
 ```bash
 cp .env.example .env
 ```
 
-4. Ejecutar los tests iniciales:
+5. Ejecutar la verificación básica:
 
 ```bash
-python -m pytest
+python3 -m pytest
+```
+
+También puedes ejecutar los tests directamente contra el entorno virtual del repositorio:
+
+```bash
+./.venv/bin/python -m pytest
+```
+
+Si aparece `No module named pytest`, faltan las dependencias de desarrollo o no estás usando el entorno virtual del proyecto.
+
+Para ejecutar toda la validación local con un único comando:
+
+```bash
+python3 scripts/check.py
 ```
 
 ## Estructura de datos
 
-Para los datos usaremos una carpeta raíz configurada en el entorno. En desarrollo podemos usar un ejemplo como:
+El proyecto usará una carpeta raíz de datos configurada fuera del repositorio. En desarrollo puede usarse una ruta como:
 
 `H:\Mi unidad\01_ambitos\02_personal\40_deporte`
 
-Dentro de ese directorio la estructura esperada es:
+La estructura objetivo es:
 
 ```text
 H:\Mi unidad\01_ambitos\02_personal\40_deporte
@@ -74,8 +94,7 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   ├── strava/
 │   │   ├── raw/
 │   │   │   ├── athlete.json
-│   │   │   ├── activities/
-│   │   │   └── streams/
+│   │   │   └── activities/
 │   │   ├── normalizado/
 │   │   │   ├── activities.jsonl
 │   │   │   ├── activities.csv
@@ -99,9 +118,9 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 └── 90_archivo/
 ```
 
-### Crear la estructura
+### Crear la estructura base
 
-Se ha añadido un script en `scripts/create_data_directories.py` y otro en `scripts/create_data_directories.ps1`.
+Se incluyen `scripts/create_data_directories.py` y `scripts/create_data_directories.ps1`.
 
 Estos scripts usan la variable de entorno `NONO_SPORT_DATA_ROOT` si no se indica una ruta explícita.
 
@@ -127,36 +146,11 @@ También puedes pasar la ruta directamente:
 python3 scripts/create_data_directories.py --root '/mnt/h/Mi unidad/01_ambitos/02_personal/40_deporte'
 ```
 
-Si la ruta no está montada, ejecuta el script desde el sistema Windows donde la unidad `H:` exista.
-
-## GitHub
-
-1. Inicializa el repositorio si aún no está creado:
-
-```bash
-git init
-```
-
-2. Crea el primer commit:
-
-```bash
-git add .
-git commit -m "chore: inicializar proyecto nono-sports"
-```
-
-3. Crea el repositorio remoto en GitHub y conéctalo:
-
-```bash
-git remote add origin git@github.com:<usuario>/nono-sports.git
-git branch -M main
-git push -u origin main
-```
-
-> Si necesitas crear el repositorio desde la CLI, usa `gh repo create <usuario>/nono-sports --public --source=. --remote=origin`.
+Si la ruta no está montada, ejecuta el script desde Windows o usa una ruta local válida.
 
 ## Buenas prácticas
 
 - No subir el archivo `.env` ni variables secretas al repositorio.
-- Usar CI en GitHub Actions para tests automatizados.
+- Mantener alineados `requirements.md`, `architecture.md` y `current-state.md`.
 - Aplicar `pre-commit` antes de cada commit.
-- Mantener dependencias actualizadas con revisiones de seguridad.
+- Mantener el código activo separado del código archivado en `deprecated/`.

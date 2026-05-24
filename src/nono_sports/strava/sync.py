@@ -1,0 +1,1 @@
+"""Strava synchronization orchestration scaffold."""

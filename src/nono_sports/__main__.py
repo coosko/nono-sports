@@ -1,10 +1,13 @@
-"""Minimal CLI entrypoint for the nono-sports project."""
+"""CLI entrypoint for the nono-sports project."""
 
+import sys
 
-def main() -> None:
-    """Run the project scaffold entrypoint."""
-    print("nono-sports scaffold: no commands implemented yet.")
-
+from nono_sports.cli import main
+from nono_sports.core.errors import NonoSportsError
 
 if __name__ == "__main__":
-    main()
+    try:
+        raise SystemExit(main())
+    except NonoSportsError as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        raise SystemExit(1) from error

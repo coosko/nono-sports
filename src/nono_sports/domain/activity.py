@@ -1,0 +1,1 @@
+"""Activity domain model scaffold."""

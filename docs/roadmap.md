@@ -1,35 +1,37 @@
-# Roadmap del proyecto nono-sports
+# Roadmap
 
-## Objetivo general
-Crear una plataforma backend para sincronizar datos deportivos desde Strava y otras fuentes, normalizar esa información y mantener un conjunto consolidado listo para análisis.
+Este roadmap deriva de `docs/requirements/requirements.md` y `docs/technical/architecture.md`.
 
-## Fases principales
+## Fase 0. Definición
 
-1. **Infraestructura y base del proyecto**
-   - Estructura Python y packaging
-   - Configuración de CI/CD
-   - Documentación inicial
+- cerrar arquitectura documental
+- definir alcance exacto de la v1
+- fijar contrato mínimo de datos normalizados
 
-2. **Sincronización con Strava**
-   - Obtención de token de acceso
-   - Descarga de actividades y streams
-   - Almacenamiento raw y logs
+## Fase 1. Base técnica
 
-3. **Normalización de datos**
-   - Transformación de actividades a un esquema común
-   - Normalización de métricas, tiempos y tipos
+- consolidar el scaffold del proyecto
+- definir módulos y responsabilidades
+- estabilizar configuración, calidad y estructura de datos
 
-4. **Integración multiplataforma**
-   - Consolidación de fuentes (Strava, Garmin, Komoot, manual)
-   - Dedupe y merge de registros
+## Fase 2. Strava v1
 
-5. **Salida y análisis**
-   - Generación de CSV/JSONL consolidados
-   - Preparación de data para análisis y visualización
+- implementar ingesta desde Strava
+- almacenar `raw`
+- generar `normalizado`
 
-## Próximos hitos
+## Fase 3. Consolidación inicial
 
-- [ ] Definir el contrato de datos normalizados.
-- [ ] Añadir soporte para Garmin Connect.
-- [ ] Implementar validación de integridad de datos.
-- [ ] Crear procesos automáticos de ingestión y estado.
+- definir el modelo de actividad consolidada
+- preparar `20_consolidado`
+- resolver la consolidación simple para una única fuente
+
+## Fase 4. Extensibilidad
+
+- preparar la entrada de Garmin, Komoot y fuentes manuales
+- definir reglas de deduplicación multifuente
+
+## Fase 5. Explotación
+
+- habilitar salidas útiles para Nono
+- preparar análisis e informes posteriores

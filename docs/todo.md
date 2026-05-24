@@ -1,21 +1,21 @@
-# TODO y roadmap inmediato
+# TODO inmediato
 
-## Prioridades a corto plazo
+## Pendiente de definición
 
-- [x] Definir estructura de documentación.
-- [x] Preparar entorno Python, CI y hooks de calidad.
-- [ ] Documentar requisitos funcionales y no funcionales.
-- [ ] Añadir un comando CLI mínimo para ejecutar sincronizaciones.
-- [ ] Definir el proceso de instalación y configuración de rutas de datos.
+- [ ] cerrar la arquitectura de software de la v1
+- [ ] definir el contrato mínimo de `normalized_activity`
+- [ ] definir el modelo mínimo de `consolidated_activity`
+- [ ] decidir la primera estructura de paquetes del código activo
 
-## Pendientes técnicos
+## Pendiente de implementación
 
-- [ ] Validar compatibilidad con WSL y rutas Windows/WSL.
-- [ ] Añadir tests para `StravaSync` y `DataNormalizer`.
-- [ ] Documentar los formatos de salida `JSONL` y `CSV`.
+- [ ] crear los módulos vacíos alineados con la arquitectura aprobada
+- [ ] implementar la primera ingesta Strava
+- [ ] persistir `raw`
+- [ ] persistir `normalizado`
 
-## Ideas de mejoras
+## Pendiente de validación
 
-- [ ] Añadir `state.json` con estado de ingestión histórico.
-- [ ] Soporte para múltiples orígenes y fuentes de entrenamiento.
-- [ ] Generar reportes de actividad automática.
+- [ ] revisar compatibilidad entre Windows, WSL y Linux
+- [ ] definir tests mínimos por capa
+- [ ] validar la estructura real de `NONO_SPORT_DATA_ROOT`

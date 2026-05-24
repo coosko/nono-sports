@@ -11,3 +11,8 @@ Esta carpeta puede contener:
 - resultados de investigaciones previas
 
 Cuando se consoliden, estos recursos deben transformarse en requisitos formales dentro de `docs/requirements/requirements.md`.
+
+Convención usada en este repositorio:
+
+- `Descripcion_inicial.md`: versión limpia del documento de entrada y descubrimiento
+- `Descripcion_inicial.md.20260524.back`: respaldo literal del texto original

@@ -1,0 +1,1 @@
+"""Strava athlete normalization scaffold."""

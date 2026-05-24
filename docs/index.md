@@ -1,20 +1,30 @@
-# Documentación de nono-sports
+# Índice de documentación
 
-Este repositorio incluye la documentación principal del proyecto en la carpeta `docs/`.
+La documentación se organiza por niveles de autoridad.
 
-- `docs/releases/CHANGELOG.md`: historial de versiones y entregables.
-- `docs/roadmap.md`: visión del roadmap y las próximas entregas.
-- `docs/todo.md`: tareas actuales, prioridades y próximos pasos.
-- `docs/usage/quickstart.md`: manual de uso y puesta en marcha.
-- `docs/technical/architecture.md`: documentación técnica del proyecto.
-- `docs/requirements/requirements.md`: documentación de requisitos.
-- `docs/requirements/resources/README.md`: recursos y documentos desestructurados para crear requisitos.
-- `docs/planning/features.md`: lista de funcionalidades y descomposición de alcance.
-- `docs/planning/workplan.md`: plan de trabajo y fases de desarrollo.
+## Documentos canónicos
 
-## Cómo usar esta documentación
+- `docs/requirements/requirements.md`: fuente de verdad funcional y no funcional
+- `docs/technical/architecture.md`: fuente de verdad técnica
+- `docs/current-state.md`: estado real del repositorio en cada momento
 
-1. Revisa `docs/README.md` para ver la estructura general.
-2. Actualiza `docs/releases/CHANGELOG.md` con cada versión entregada.
-3. Mantén `docs/roadmap.md` alineado con las prioridades reales.
-4. Usa `docs/planning` para capturar funcionalidades y plan de trabajo.
+## Documento de entrada
+
+- `docs/requirements/resources/Descripcion_inicial.md`: visión inicial y razonamiento de partida
+
+## Documentos derivados
+
+- `docs/roadmap.md`: hitos y evolución prevista
+- `docs/planning/features.md`: backlog funcional derivado de requisitos y arquitectura
+- `docs/planning/workplan.md`: secuencia de trabajo derivada
+- `docs/todo.md`: tareas inmediatas
+- `docs/usage/quickstart.md`: puesta en marcha del estado actual
+- `docs/usage/strava-auth.md`: guía de autenticación Strava
+- `docs/releases/CHANGELOG.md`: historial de cambios relevantes
+
+## Regla de mantenimiento
+
+1. Actualizar primero `requirements.md` si cambia el alcance.
+2. Actualizar `architecture.md` si cambia el diseño técnico.
+3. Ajustar después `roadmap`, `features`, `workplan` y `todo`.
+4. Mantener `README.md` y `current-state.md` alineados con el estado real.
