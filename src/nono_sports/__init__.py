@@ -1,3 +1,2 @@
-"""Paquete principal de nono-sports."""
+"""Base package for the nono-sports project."""
 
-__version__ = "0.1.0"

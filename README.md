@@ -59,6 +59,76 @@ cp .env.example .env
 python -m pytest
 ```
 
+## Estructura de datos
+
+Para los datos usaremos una carpeta raíz configurada en el entorno. En desarrollo podemos usar un ejemplo como:
+
+`H:\Mi unidad\01_ambitos\02_personal\40_deporte`
+
+Dentro de ese directorio la estructura esperada es:
+
+```text
+H:\Mi unidad\01_ambitos\02_personal\40_deporte
+├── 00_referencia/
+├── 10_fuentes/
+│   ├── strava/
+│   │   ├── raw/
+│   │   │   ├── athlete.json
+│   │   │   ├── activities/
+│   │   │   └── streams/
+│   │   ├── normalizado/
+│   │   │   ├── activities.jsonl
+│   │   │   ├── activities.csv
+│   │   │   ├── streams_index.jsonl
+│   │   │   └── state.json
+│   │   └── logs/
+│   ├── garmin_connect/
+│   ├── komoot/
+│   └── manual/
+├── 20_consolidado/
+│   ├── activities.jsonl
+│   ├── activities.csv
+│   ├── activity_sources.jsonl
+│   ├── streams_index.jsonl
+│   └── state.json
+├── 30_analisis/
+│   ├── informes/
+│   ├── planes/
+│   ├── seguimiento/
+│   └── graficas/
+└── 90_archivo/
+```
+
+### Crear la estructura
+
+Se ha añadido un script en `scripts/create_data_directories.py` y otro en `scripts/create_data_directories.ps1`.
+
+Estos scripts usan la variable de entorno `NONO_SPORT_DATA_ROOT` si no se indica una ruta explícita.
+
+- En Windows PowerShell:
+
+```powershell
+$env:NONO_SPORT_DATA_ROOT = 'H:\Mi unidad\01_ambitos\02_personal\40_deporte'
+cd \path\al\repositorio\nono-sport
+powershell.exe -ExecutionPolicy Bypass -File scripts\create_data_directories.ps1
+```
+
+- En WSL o Linux si la unidad está montada en `/mnt/h`:
+
+```bash
+export NONO_SPORT_DATA_ROOT='H:\Mi unidad\01_ambitos\02_personal\40_deporte'
+cd /home/carlos/dev/nono-sport
+python3 scripts/create_data_directories.py
+```
+
+También puedes pasar la ruta directamente:
+
+```bash
+python3 scripts/create_data_directories.py --root '/mnt/h/Mi unidad/01_ambitos/02_personal/40_deporte'
+```
+
+Si la ruta no está montada, ejecuta el script desde el sistema Windows donde la unidad `H:` exista.
+
 ## GitHub
 
 1. Inicializa el repositorio si aún no está creado:

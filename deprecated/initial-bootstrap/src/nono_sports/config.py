@@ -5,6 +5,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+def get_project_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
 def configure_logging() -> None:
     logging.basicConfig(
         level=os.getenv("LOG_LEVEL", "INFO"),
@@ -13,9 +17,15 @@ def configure_logging() -> None:
 
 
 def load_environment() -> None:
-    env_path = Path(__file__).resolve().parent.parent / ".env"
+    env_path = get_project_root() / ".env"
     if env_path.exists():
         load_dotenv(env_path)
+
+
+def get_data_root() -> Path | None:
+    load_environment()
+    root = os.getenv("NONO_SPORT_DATA_ROOT")
+    return Path(root) if root else None
 
 
 def get_strava_credentials() -> dict[str, str]:

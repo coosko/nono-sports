@@ -1,13 +1,10 @@
-import logging
-
-from .config import configure_logging
+"""Minimal CLI entrypoint for the nono-sports project."""
 
 
 def main() -> None:
-    """Punto de entrada principal del paquete nono-sports."""
-    configure_logging()
-    logging.info("nono-sports cargado correctamente")
-    logging.info(
-        "Ejecute los módulos de sincronización, normalización o integración "
-        "según su flujo de trabajo."
-    )
+    """Run the project scaffold entrypoint."""
+    print("nono-sports scaffold: no commands implemented yet.")
+
+
+if __name__ == "__main__":
+    main()

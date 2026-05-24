@@ -1,0 +1,765 @@
+# Descripcion_inicial.md
+
+
+Esta aplicación permite a un susrio de Strava 
+
+En el futuro se podrá utilizar también con otros sistemas como Garmin Connect, Strava, Komoot, ficheros GPX, etc.
+La aplicación debe funcionar con las versiones gratuitas de las aplicaciones. No haace falta pagar premium en ninguna.
+
+## Análisis
+
+### Análisis de las posibilidades para recabar información
+
+Esta es la visión global, en la primera versión no se toma en cuenta:
+1. Strava API oficial con OAuth.
+2. Exportaciones periódicas de ficheros FIT/GPX/TCX/CSV hacia sistema de archivos local.
+3. Acceso por navegador headless solo si hace falta, con sesión controlada.
+4. Garmin API oficial solo como exploración, porque parece más orientada a integraciones aprobadas.
+5. Komoot mediante exportación GPX/manual o navegador, porque no ofrece API pública.
+6. “Nono como amigo” solo como complemento social, no como fuente de datos.
+7. Credenciales completas de tus cuentas: última opción.
+
+#### Opción A — APIs oficiales
+
+Hay que dividirla por plataforma.
+
+##### A1. Strava API oficial
+
+Es la mejor candidata para empezar. Strava tiene API pública documentada, requiere autenticación, permite acceder a actividades del atleta autorizado y tiene límites por aplicación: por defecto 200 peticiones cada 15 minutos y 2.000 al día, con límites separados para endpoints no-upload.
+
+Ventajas:
+
+- OAuth, sin compartir contraseña.
+- API oficial.
+- Suficiente para leer actividades recientes.
+- Buen punto de entrada para análisis de bici.
+- No requiere premium para lo básico.
+
+Limitaciones:
+
+- Límites de API.
+- Cambios recientes en políticas de API de Strava han endurecido el uso de datos de terceros.
+- Puede no dar todos los datos que tiene Garmin.
+- Si la app es solo para ti, normalmente basta; si luego quisieras más usuarios, Strava limita nuevas apps inicialmente a 1 atleta conectado salvo revisión.
+
+Para Nono, esta sería la vía más limpia.
+
+##### A2. Garmin Connect API oficial
+
+Garmin tiene un “Garmin Connect Developer Program” y una Activity API para acceder a datos detallados capturados en dispositivos Garmin.
+
+Pero no lo veo como primera opción para uso personal. La documentación y el acuerdo de Garmin Connect Developer Program están pensados para integraciones de terceros con autorización de usuario; además, el acuerdo deja claro que el integrador debe implementar el sistema de autorización de Garmin y no intentar obtener credenciales del usuario.
+
+Ventajas:
+
+- Fuente primaria de tus datos Garmin.
+- Potencialmente la información más completa.
+- API oficial.
+
+Limitaciones:
+
+- Acceso más “partner/developer program”, no tan directo como Strava.
+- Probable fricción de aprobación.
+- No lo veo ideal para una integración personal rápida.
+
+
+##### A3. Komoot API oficial
+
+Komoot dice explícitamente que no proporciona una API pública accesible. 
+
+
+#### Opción B — IA crea usuario y lo tienes como amigo
+
+Ventajas:
+
+- No le das tus credenciales.
+- Riesgo bajo.
+- Puede ver lo que cualquier amigo pueda ver.
+- Sirve para seguimiento social: actividad, títulos, comentarios, fotos públicas/para amigos.
+
+Limitaciones:
+
+- No verá todos tus datos privados.
+- No verá métricas completas, salud, sueño, carga, FC detallada, zonas, training readiness, etc.
+- Depende de privacidad y de lo que cada plataforma enseñe a amigos.
+- No es una integración de datos, es una vista social.
+
+
+#### Opción C — Dar a una IA credenciales de una cuenta
+
+Esta opción hay que desglosarla:
+
+##### C1. Darle tus credenciales reales
+
+Implica que podría acceder a cambios de perfil, privacidad, conexiones, borrado de actividades, exportaciones, integraciones, etc. Además, muchas plataformas tienen 2FA, detección de dispositivo, sesiones caducables y términos que pueden no permitir automatización con credenciales.
+
+##### C2. Crear una cuenta “proxy” o secundaria
+
+En Strava/Komoot/Garmin no suele resolver el problema, porque los datos están en tu cuenta real. Serviría solo para la opción “amigo”, no para datos completos.
+
+##### C3. Sesión web controlada en navegador headless
+
+Esto es distinto a darle la contraseña de forma permanente. Tú iniciarías sesión manualmente una vez, la IA no conocería la contraseña, y podría usar esa sesión para consultar o exportar mientras la cookie siga viva.
+
+Ventajas:
+
+- Nono no conoce la contraseña.
+- Puede acceder a lo mismo que ves tú en la web.
+- Puede servir para Garmin o Komoot, donde la API es peor o no existe.
+
+Riesgos:
+
+- Sigue teniendo una sesión autenticada.
+- Podría hacer acciones si no lo limitas.
+- Las cookies son sensibles.
+- Puede romperse por cambios de web, 2FA, captchas o caducidad.
+
+Esto lo consideraría una opción real, pero con reglas estrictas: leer/exportar, no modificar, no borrar, no publicar, no cambiar privacidad ni conectar apps.
+
+#### D — Exportación de datos a ficheros 
+
+En vez de que acceder a las plataformas, el usuario o un proceso controlado deja archivos:
+  - FIT
+  - GPX
+  - TCX
+  - CSV
+  - ZIP de exportación
+
+Por ejemplo, Garmin permite exportar datos desde Garmin Connect; oficialmente documenta exportación CSV de actividades y exportación de todos los datos mediante Account Management Center.
+
+Strava permite exportar GPX desde actividades y también bulk export de datos desde la cuenta.
+
+Komoot permite exportar rutas y actividades completadas como GPX desde la app o la web, aunque advierte que el GPX exportado incluye la geometría de la ruta y no incluye ciertos elementos como waypoints añadidos durante la planificación o navegación por voz.
+
+Ventajas:
+
+- Muy seguro.
+- Muy estándar.
+- Nono analiza ficheros, no cuentas.
+- No depende tanto de APIs.
+- Encaja perfecto con Google Drive montado.
+- Permite histórico propio.
+
+Limitaciones:
+
+- Menos automático si no se programa.
+- Puede perder algunos datos específicos de plataforma.
+- Exportar todo puede ser manual o periódico.
+
+#### E — Garmin como fuente primaria + sincronización a Strava
+
+Si las actividades Garmin ya sincronizan a Strava, puedes usar Strava API como “vista normalizada” y Garmin export como fuente profunda cuando haga falta.
+
+Modelo:
+
+Strava API → seguimiento diario/semanal sencillo
+Garmin export/FIT → análisis profundo cuando haga falta
+Komoot GPX → rutas planificadas y recorridos
+
+Esto reduce complejidad.
+
+#### F — Archivo local desde dispositivo Garmin
+
+Según tu dispositivo, los .FIT originales pueden estar disponibles si conectas el Garmin por USB o si exportas “original” desde Garmin Connect. Es menos cloud y más manual, pero para análisis serio los FIT originales son muy buenos.
+
+#### G — Servicios agregadores de terceros
+
+Existen plataformas que agregan Garmin/Strava/Komoot, pero aquí sería cauto: normalmente implican dar permisos a un tercero, a veces pago, y pueden tener límites. No lo usaría de entrada si el objetivo es privacidad y control.
+
+
+### Conclusiones de análisis previo
+
+#### Fases s implentar en la versión actual
+
+Empezar por la integración con Strava. A largo plazo se puede avanzar
+
+Fase 1 — Creación de entorno de trabajo con la creación de árbol de directorios y definición de modelos
+
+Fase 2 — Strava API: Crear app Strava, OAuth, token de solo lectura cuando sea posible, y Nono consulta actividades recientes. Descargar en entorno creado anteriormente
+
+Fase 3 — Normalización o Estandarización de datos. Consolidación básica (con una fuente la consolidación es trivial).
+
+#### Fases s implentar en versiones futuras
+
+Fase 4 — Garmin/Komoot/Ficheros/Otros.
+
+Fase 5 — Consolidación para cada fuente.
+
+### Análisis de API Strava
+
+La página principal de la documentación de Strava es la **Strava API Reference**, donde están los endpoints por bloques: athlete, activities, routes, segments, clubs, gear, uploads, etc. Strava indica que todas las peticiones requieren autenticación y enlaza desde ahí a webhooks, uploads y rate limits. ([developers.strava.com][1])
+
+También mira primero el **Getting Started Guide**, porque ahí Strava aclara dos puntos importantes para tu caso: la API es gratuita, permite datos de atletas, segmentos, rutas, clubes y material/equipamiento, pero para acceder a datos de atletas necesitas crear una aplicación y usar OAuth 2.0. ([developers.strava.com][2])
+
+#### Lo más relevante para este proyecto
+
+Para un uso personal, Strava encaja bastante bien porque las apps nuevas tienen “Single Player Mode”: capacidad de **1 atleta**, pensado precisamente para que el desarrollador use la app consigo mismo y acceda a sus propios datos. ([developers.strava.com][3])
+
+Eso para este proyecto no es un problema, porque al principio Nono solo necesita conectarse a los datos de un usuario de Strava.
+
+Los límites gratuitos por defecto son suficientes para un asistente personal: Strava documenta 200 peticiones cada 15 minutos y 2.000 al día como límite general por aplicación; además existe un límite separado para endpoints “non-upload” de 100 cada 15 minutos y 1.000 al día. ([developers.strava.com][3])
+
+#### Acces Points y datos importantes del API
+
+Los datos importantes serán:
+
+```text
+Activities
+Athletes
+Routes
+Gear
+Clubs
+Streams
+Webhooks
+Authentication / OAuth
+Rate Limits
+```
+
+Para Este proyecto, los endpoints más interesantes serán probablemente:
+
+```text
+GET /athlete
+GET /athlete/activities
+GET /activities/{id}
+GET /activities/{id}/streams
+GET /athlete/routes
+GET /routes/{id}
+GET /gear/{id}
+```
+
+Con eso se podría, en principio, leer tus actividades, distancia, desnivel, tiempos, tipo de deporte, dispositivo/equipo asociado, detalles de una actividad y series temporales/streams si el scope lo permite.
+
+#### Scopes
+
+Al conectar a Strava, se necesitará decidir permisos. Se deberán revisar estos scopes en la documentación de autenticación:
+
+```text
+read
+activity:read
+activity:read_all
+profile:read_all
+```
+
+El sistema debe permitir revisar actividades privadas para que sea realmente útil (`activity:read_all`).
+
+#### Cautela por políticas de Strava
+
+Hay un matiz importante: desde cambios recientes en las políticas de Strava, hay restricciones sobre uso y visualización de datos por terceros, especialmente alrededor de mostrar datos a otras personas o usarlos para entrenar modelos de IA. Para este caso, donde se muestra los datos del usuario a él mismo y no los redistribuye, parece mucho menos problemático, pero conviene documentar que el uso es personal, privado y no para entrenar modelos. ([The Verge][4])
+
+#### Tareas pendientes de este análisis 
+
+El siguiente paso sería investiguar la documentación oficial y prepare una pequeña matriz:
+
+```text
+endpoint
+qué dato da
+scope necesario
+sirve para este proyecto sí/no
+limitaciones
+ejemplo de uso
+```
+
+Hacer una primera prueba creamos una app de Strava y una prueba de solo lectura con una cuenta.
+
+#### Referencias API Strava
+
+Consultadas a 24/05/2026
+
+[1]: https://developers.strava.com/docs/reference/?utm_source=chatgpt.com "Strava API v3"
+[2]: https://developers.strava.com/docs/getting-started/?utm_source=chatgpt.com "Getting Started with the Strava API"
+[3]: https://developers.strava.com/docs/rate-limits/?utm_source=chatgpt.com "Rate Limits"
+[4]: https://www.theverge.com/2024/11/19/24301056/strava-api-ai-data-sharing-policy-change-fitness-tracking?utm_source=chatgpt.com "Strava closes the gates to sharing fitness data with other apps"
+
+### Modelo de datos
+
+Modelo de datos inicial:
+
+```text
+fuentes originales → normalización (por fuente) → datos consolidados → análisis/salidas
+```
+Es una arquitectura más preparada para el futuro.
+
+#### Estructura de directorios
+
+Usaría una estructura tipo “bronze / silver / gold”, aunque con nombres más claros:
+
+```text
+/<directorio_base>/
+├── 00_referencia/
+├── 10_fuentes/
+│   ├── strava/
+│   │   ├── raw/
+│   │   ├── normalizado/
+│   │   └── logs/
+│   ├── garmin_connect/
+│   │   ├── raw/
+│   │   ├── normalizado/
+│   │   └── logs/
+│   ├── komoot/
+│   │   ├── raw/
+│   │   ├── normalizado/
+│   │   └── logs/
+│   └── manual/
+│       ├── raw/
+│       ├── normalizado/
+│       └── logs/
+├── 20_consolidado/
+│   ├── activity_index.sqlite
+│   ├── activities.jsonl
+│   ├── activity_sources.jsonl
+│   ├── activity_streams/
+│   ├── routes/
+│   └── summaries/
+├── 30_analisis/
+│   ├── informes/
+│   ├── planes/
+│   ├── seguimiento/
+│   └── graficas/
+└── 90_archivo/
+
+```
+
+De esta forma cada fuente conserva sus datos originales en su sitio:
+
+```text
+10_fuentes/strava/raw/
+10_fuentes/garmin_connect/raw/
+10_fuentes/komoot/raw/
+```
+
+Pero cualquier sistema posterior no debería recoger los datos principalmente contra esos datos crudos, sino contra una capa común:
+
+```text
+10_fuentes/<nombre_fuente>/normalizado/
+20_consolidado/
+```
+
+Así evitas que todo el sistema quede “stravizado”.
+
+
+**Ejemplo para la primera versión**
+
+Así cada fuente mantiene su trazabilidad:
+
+```text
+10_fuentes/strava/raw/
+10_fuentes/strava/normalizado/
+```
+
+y el consolidado responde a otra pregunta:
+
+```text
+20_consolidado/
+```
+
+
+
+#### Conclusión
+
+Normalizado debe ser por fuente.
+
+Pero con una condición importante: todos los normalizados deben usar **el mismo esquema común**, para que el consolidator pueda leerlos sin lógica especial excesiva.
+
+La arquitectura buena sería:
+
+```text
+10_fuentes/<fuente>/raw
+10_fuentes/<fuente>/normalizado
+20_consolidado
+30_analisis
+```
+
+Y el programa común:
+
+```text
+nono-sport-consolidate
+```
+
+lee todos los `normalizado/`, detecta actividades equivalentes, elige fuentes preferentes por tipo de dato, evita duplicar streams y genera una vista única para que Nono pueda razonar bien.
+
+
+
+### Implementación carga de datos
+
+Paso 1.- sincronizadores o importadores - `10_fuentes/<>/raw`
+
+Datos originales, lo más fieles posible:
+
+```text
+- JSON de Strava
+- FIT/TCX/CSV de Garmin
+- GPX de Komoot
+- exportaciones manuales
+```
+
+Aquí no corregimos demasiado. Guardamos procedencia.
+
+
+Debe recoger los datos, almacenarlos en 'raw' normalizarlos en 'normalizado'
+
+En esta versión
+```text
+nono-strava-sync
+```
+
+En futuras versiones
+```text
+nono-strava-sync
+nono-garmin-import
+nono-komoot-import
+nono-sport-manual-import
+```
+
+Paso 2.- modelo común - `10_fuentes/<>/normalizado`
+
+Datos convertidos a un modelo común (esta es una primera idea, debe analizarse mejor lso datos existentes para garantizar que no se pierde información de diferntes depertes):
+
+```text
+activity_id
+source
+source_activity_id
+start_time
+sport_type
+distance_m
+moving_time_s
+elapsed_time_s
+elevation_gain_m
+average_hr
+max_hr
+average_power
+normalized_power
+average_cadence
+calories
+route_id
+gear_id
+privacy
+raw_file
+```
+
+Aquí todavía puede haber duplicados: la misma salida puede estar en Strava y Garmin.
+
+
+
+
+Paso 3. proceso consolidación común:
+
+```text
+nono-sport-build-index
+```
+
+Ese proceso haría el merge entre fuentes y generaría la vista consolidada. En esta primera versión, copia el contenido.
+
+En versiones futuras
+```text
+10_fuentes/strava/       ← lo que viene de Strava
+10_fuentes/garmin/       ← lo que viene de Garmin
+10_fuentes/komoot/       ← lo que viene de Komoot
+20_consolidado/          ← verdad operativa
+```
+
+Aquí está la vista buena para los sistemas que explotan los datos:
+
+```text
+una actividad real = un registro consolidado
+```
+
+Si una salida aparece en Garmin y Strava, el sistema la une. Se conserva la procedencia:
+
+```text
+sources = ["garmin_connect", "strava"]
+primary_source = "garmin_connect"
+```
+
+Para bici, Garmin sea mejor fuente primaria si tienes datos de sensor, frecuencia, potencia, cadencia, etc. Strava puede ser mejor para visión social, segmentos o actividad ya sincronizada.
+
+
+**Cómo evitar duplicidades**
+
+El sistema de consolidación no debería copiar todo sin más. Debería crear una entidad propia:
+
+```text
+actividad_consolidada
+```
+
+y debajo registrar fuentes:
+
+```text
+sources = [
+  {source: "garmin_connect", source_activity_id: "..."},
+  {source: "strava", source_activity_id: "..."},
+  {source: "komoot", source_activity_id: "..."}
+]
+```
+
+La actividad consolidada tendría un identificador propio, por ejemplo:
+
+```text
+activity_uid = "ride_2026-05-20_0832_madrid"
+```
+
+o un UUID interno. 
+
+**Regla para fusionar actividades**
+
+El consolidator debería detectar coincidencias usando varios criterios:
+
+```text
+- hora de inicio;
+- duración;
+- distancia;
+- tipo de actividad;
+- coordenadas iniciales/finales;
+- dispositivo;
+- external_id si existe;
+- fichero original FIT/GPX/TCX;
+- tolerancia temporal razonable.
+```
+
+Y asignar una confianza:
+
+```text
+match_confidence = high / medium / low
+```
+
+Si la confianza es baja, no fusiona automáticamente; lo deja como posible duplicado para revisión.
+
+**Streams: punto crítico**
+
+Hay que evitar duplicar streams.
+
+El consolidado no copia todos los streams de todas las fuentes. Realiza el siguiente proceso:
+
+```text
+10_fuentes/garmin_connect/normalizado/streams/
+10_fuentes/strava/normalizado/streams/
+```
+
+Y en `20_consolidado/activity_streams/` solo queda:
+
+```text
+- el stream canónico elegido como stream por defecto; 
+- lista de referencias a los streams fuente; o
+- streams derivados cuando realmente se calculen (descartado en esta versión, epro documentado para futuras releases).
+```
+
+Por ejemplo, para una salida en bici:
+
+```text
+GPS / latlng       → Garmin/FIT si existe; si no, Strava; si no, Komoot
+heart_rate         → Garmin/FIT si existe; si no, Strava
+power              → Garmin/FIT si existe; si no, Strava
+cadence            → Garmin/FIT si existe; si no, Strava
+segments/social    → Strava
+planned_route      → Komoot
+```
+
+El consolidado no debe decir “tengo dos streams de pulso”; debe decir:
+
+```text
+heart_rate_stream_source = garmin_connect
+```
+
+y conservar las otras fuentes como trazabilidad, no como señal duplicada.
+
+**Mejor diseño de datos**
+
+Este punto requiere de un análisis más profundo. Las ideas marcadas deben utilizarse como punto de partida en el razonamiento:
+
+Se detectan cuatro conceptos:
+
+```text
+source_activity
+```
+
+Actividad tal como viene de una fuente.
+
+```text
+normalized_activity
+```
+
+Actividad de una fuente convertida al modelo común.
+
+```text
+consolidated_activity
+```
+
+Actividad real única del usuario.
+
+```text
+activity_source_link
+```
+
+Relación entre la actividad consolidada y cada fuente.
+
+Ejemplo:
+
+```json
+{
+  "activity_uid": "2026-05-20-ride-001",
+  "sport": "ride",
+  "start_time": "2026-05-20T08:32:00+02:00",
+  "primary_source": "garmin_connect",
+  "sources": [
+    {
+      "source": "garmin_connect",
+      "source_activity_id": "garmin-123",
+      "role": "primary_metrics"
+    },
+    {
+      "source": "strava",
+      "source_activity_id": "strava-456",
+      "role": "social_and_segments"
+    },
+    {
+      "source": "komoot",
+      "source_activity_id": "komoot-789",
+      "role": "planned_route"
+    }
+  ]
+}
+```
+
+
+
+
+### Proceso de análisis y explotación de los datos `40_analisis`
+
+Este punto se escapa al alcance del presente proyecto. Se describe lo que hay que hacer después y los datos que se generan con el fin de tener una visiónn completa del proceso:
+
+```text
+- resumen semanal
+- evolución mensual
+- alertas de sedentarismo
+- propuesta de próxima actividad
+- planes
+- seguimiento de objetivos
+- informes para el usuario
+- otras propuestas
+```
+
+
+#### Resumen
+
+La carpeta de cada fuente responde a:
+
+¿Qué dijo Strava/Garmin/Komoot?
+```
+
+La capa normalizado por fuente responde a:
+
+```text
+¿Qué dice Strava, expresado en nuestro formato común?
+¿Qué dice Garmin, expresado en nuestro formato común?
+¿Qué dice Komoot, expresado en nuestro formato común?
+```
+La capa consolidada responde a:
+
+```text
+¿Qué hizo realmente el usuario?
+```
+
+Y la capa de análisis responde a:
+
+```text
+¿Qué significa esto y qué debería hacer ahora el usuario?
+```
+
+Resumen del proceso
+```text
+1. nono-strava-sync descarga Strava.
+2. Guarda raw en 10_fuentes/strava/raw.
+3. Normaliza a 10_fuentes/strava/normalizado.
+4. Un proceso común fusiona todo en 20_consolidado.
+5. Nono analiza 30_consolidado y escribe informes en 30_analisis.
+```
+
+Así estás preparado para Garmin, Komoot, datos manuales, peso, sueño, lesiones, objetivos o cualquier otra fuente futura sin rehacer la arquitectura.
+
+
+
+
+### Stack tecnológico
+
+Python
+requests 
+Pydantic
+JSON / JSONL / CSV
+Markdown
+pytest
+ruff
+systemd timer
+
+
+
+## Entorno de desarrollo y despliegue
+
+- El entorno de desarrollo es en local utilizando WSL sobre windows
+- El entorno de despliegue y porducción es un ordenador distinto con Linux/Ubuntu, con el siguiente entorno;
+### OS
+Linux ubuntu 7.0.0-15-generic #15-Ubuntu SMP PREEMPT_DYNAMIC Wed Apr 22 16:06:43 UTC 2026 x86_64 GNU/Linux
+Distributor ID: Ubuntu
+Description:    Ubuntu 26.04 LTS
+Release:        26.04
+Codename:       resolute
+
+### Recursos
+               total        used        free      shared  buff/cache   available
+Mem:           1.8Gi       1.2Gi       286Mi        10Mi       602Mi       648Mi
+Swap:          2.0Gi       1.1Gi       922Mi
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda1        58G  9.8G   48G  18% /
+/dev/vda1        58G  9.8G   48G  18% /
+drive:           15G  525M   15G   4% /home/<user>/drive
+/home/<user>/drive is a mountpoint
+
+### Python
+/usr/bin/python3
+Python 3.14.4
+venv OK
+sqlite3 3.46.1
+openssl OpenSSL 3.5.5 27 Jan 2026
+python 3.14.4 (main, Apr  8 2026, 04:02:31) [GCC 15.2.0]
+
+### Herramientas
+git: /usr/bin/git
+git version 2.53.0
+rclone: /usr/bin/rclone
+rclone v1.60.1-DEV
+gog: /home/nono/.local/bin/gog
+v0.17.0-13-g5afc19f (5afc19fe68bf 2026-05-19T11:34:46Z)
+openclaw: /home/nono/.npm-global/bin/openclaw
+OpenClaw 2026.5.19 (a185ca2)
+sqlite3: pip3: pipx: uv:
+### Servicios relevantes
+● openclaw-gateway.service - OpenClaw Gateway (v2026.5.19)
+     Memory: 987.1M (peak: 1.4G, swap: 1G, swap peak: 1.2G)
+        CPU: 58min 15.884s
+● nono-drive.service - Mount Google Drive for Nono with rclone
+     Memory: 54.1M (peak: 277.7M, swap: 6.8M, swap peak: 17.3M)
+        CPU: 27.942s
+
+May 21 20:51:56 ubuntu systemd[xxxx]: Started drive.service - Mount Google Drive for <> with rclone.
+
+### Drive
+total 5
+drwx------  1 nono nono    0 May 21 20:51 .
+drwxr-x--- 14 nono nono 4096 May 21 20:56 ..
+drwx------  1 nono nono    0 May 22 19:31 .Trash-1000
+drwx------  1 nono nono    0 May 21 21:27 00_xx
+drwx------  1 nono nono    0 May 21 21:27 01_yy
+drwx------  1 nono nono    0 May 21 21:27 02_zz
+drwx------  1 nono nono    0 May 21 21:27 03_ww
+drwx------  1 nono nono    0 May 21 21:27 90_aa
+-rw-------  1 nono nono  896 May 21 21:35 README.md
+
+### Rclone
+nono-backup-crypt:
+nono-drive:
+Total:   15 GiB
+Used:    521.347 MiB
+Free:    14.488 GiB
+Trashed: 157.681 MiB
+Other:   2.974 MiB
+
+
+

@@ -36,7 +36,7 @@ nono-sports = "nono_sports.__main__:main"
 line-length = 88
 target-version = "py311"
 select = ["E", "F", "I", "Q", "R", "S"]
-exclude = ["tests/", ".git/"]
+exclude = ["deprecated/", "tests/", ".git/"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
