@@ -2,12 +2,12 @@
 
 Proyecto Python para construir la base de datos deportiva de Nono a partir de Strava y futuras fuentes como Garmin, Komoot o importaciones manuales.
 
-El proyecto está en fase de definición de arquitectura y diseño documental. El código activo contiene solo un scaffold mínimo.
+El proyecto está en fase de implementación incremental de Strava v1. El código activo ya permite autenticación OAuth, cliente Strava base y descarga raw de perfil/contexto y actividades.
 
 ## Estado actual
 
-- paquete Python mínimo en `src/nono_sports/`
-- scripts para crear la estructura base de datos
+- paquete Python en `src/nono_sports/`
+- comandos para preparar directorios, autenticar Strava y descargar raw de perfil/contexto y actividades
 - documentación canónica de requisitos y arquitectura
 - código bootstrap anterior archivado en `deprecated/initial-bootstrap/`
 
@@ -93,14 +93,27 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 ├── 10_fuentes/
 │   ├── strava/
 │   │   ├── raw/
-│   │   │   ├── athlete.json
-│   │   │   └── activities/
+│   │   │   ├── athlete/
+│   │   │   ├── activities/
+│   │   │   ├── clubs/
+│   │   │   ├── errors/
+│   │   │   ├── gear/
+│   │   │   ├── laps/
+│   │   │   ├── routes/
+│   │   │   ├── route_exports/
+│   │   │   ├── route_streams/
+│   │   │   ├── segments/
+│   │   │   ├── segment_streams/
+│   │   │   ├── streams/
+│   │   │   ├── zones/
+│   │   │   └── manifest.jsonl
 │   │   ├── normalizado/
 │   │   │   ├── activities.jsonl
 │   │   │   ├── activities.csv
 │   │   │   ├── streams_index.jsonl
 │   │   │   └── state.json
 │   │   └── logs/
+│   │       └── activity_sync_state.json
 │   ├── garmin_connect/
 │   ├── komoot/
 │   └── manual/

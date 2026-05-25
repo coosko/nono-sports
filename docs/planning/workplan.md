@@ -90,6 +90,7 @@ Validación de usuario:
 - confirma que el comando guarda tokens correctamente
 - confirma que el token queda en `~/.local/state/nono-sports/strava_tokens.json`
 - confirma que los scopes concedidos son suficientes
+- completado: validado por el usuario
 
 ## Paso 5. Cliente Strava base
 
@@ -110,6 +111,7 @@ Entregables:
 Validación:
 
 - tests unitarios de token refresh, errores, paginación y rate limits
+- completado: `python3 scripts/check.py`
 
 ## Paso 6. Descarga raw de perfil y contexto
 
@@ -119,6 +121,9 @@ Objetivo:
 - descargar zonas del atleta si el scope lo permite
 - descargar estadísticas agregadas
 - descargar clubes y rutas disponibles
+- descargar detalle de clubes
+- descargar streams y export GPX/TCX de rutas
+- descargar segmentos favoritos y segmentos referenciados por rutas
 - descargar equipo referenciado cuando aparezca
 
 Entregables:
@@ -126,11 +131,14 @@ Entregables:
 - `strava.endpoints`
 - `storage.raw_store`
 - ficheros raw en `10_fuentes/strava/raw/`
+- comando `nono-sports strava fetch-context`
+- guía `docs/usage/strava-fetch-context.md`
 
 Validación de usuario:
 
 - el usuario revisa que los ficheros raw esperados existen
 - el usuario confirma que no se ha escrito nada en Strava
+- completado: el usuario confirma que el Paso 6 está completo
 
 ## Paso 7. Descarga raw de actividades con máximo detalle
 
@@ -138,9 +146,14 @@ Objetivo:
 
 - listar todas las actividades disponibles
 - descargar detalle completo de cada actividad
+- descargar laps de cada actividad
 - descargar streams de cada actividad
-- descargar zonas de actividad cuando existan
+- descargar equipo referenciado por actividades
+- descargar segmentos referenciados por actividades y sus streams
+- no descargar zonas de actividad por defecto porque Strava las documenta como Summit Feature
+- permitir zonas de actividad solo bajo demanda
 - guardar errores recuperables sin abortar toda la sincronización
+- parar de forma preventiva antes de superar el presupuesto de rate limit de lectura
 
 Entregables:
 
@@ -148,11 +161,16 @@ Entregables:
 - `storage.state_store`
 - raw por actividad
 - estado de sincronización reanudable
+- comando `nono-sports strava fetch-activities`
+- flags de protección `--max-read-requests-15min`, `--max-read-requests-daily` y `--rate-limit-reserve`
+- guía `docs/usage/strava-fetch-activities.md`
 
 Validación de usuario:
 
 - el usuario compara el número de actividades descargadas con Strava
 - el usuario revisa una actividad concreta en Strava y en raw
+- validación técnica: prueba real por lotes ejecutada contra Strava
+- pendiente: completar lotes restantes y revisión manual del usuario
 
 ## Paso 8. Normalización Strava
 

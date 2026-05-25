@@ -20,6 +20,8 @@ La documentación se organiza por niveles de autoridad.
 - `docs/todo.md`: tareas inmediatas
 - `docs/usage/quickstart.md`: puesta en marcha del estado actual
 - `docs/usage/strava-auth.md`: guía de autenticación Strava
+- `docs/usage/strava-fetch-context.md`: guía de descarga raw de perfil y contexto Strava
+- `docs/usage/strava-fetch-activities.md`: guía de descarga raw de actividades Strava
 - `docs/releases/CHANGELOG.md`: historial de cambios relevantes
 
 ## Regla de mantenimiento

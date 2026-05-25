@@ -101,6 +101,8 @@ src/nono_sports/
 Expone comandos de usuario:
 
 - `nono-sports strava auth`
+- `nono-sports strava fetch-context`
+- `nono-sports strava fetch-activities`
 - `nono-sports strava sync`
 - `nono-sports strava validate`
 - `nono-sports build-consolidated`
@@ -144,14 +146,27 @@ Endpoints v1:
 - `GET /athlete`
 - `GET /athlete/zones`
 - `GET /athletes/{id}/stats`
+- `GET /clubs/{id}`
 - `GET /athlete/activities`
 - `GET /activities/{id}`
+- `GET /activities/{id}/laps`
 - `GET /activities/{id}/streams`
-- `GET /activities/{id}/zones`
+- `GET /activities/{id}/zones` solo bajo demanda; Strava Summit Feature
 - `GET /gear/{id}`
-- `GET /athlete/routes`
+- `GET /athletes/{id}/routes`
 - `GET /routes/{id}`
+- `GET /routes/{id}/streams`
+- `GET /routes/{id}/export_gpx`
+- `GET /routes/{id}/export_tcx`
 - `GET /athlete/clubs`
+- `GET /segments/starred`
+- `GET /segments/{id}`
+- `GET /segments/{id}/streams`
+
+No se usan en v1:
+
+- `GET /segment_efforts` ni `GET /segment_efforts/{id}` porque requieren suscripción
+- `GET /activities/{id}/comments` ni `GET /activities/{id}/kudos` porque son datos sociales/de terceros
 
 ### `storage`
 
@@ -233,12 +248,21 @@ auth usuario
 │       ├── raw/
 │       │   ├── athlete/
 │       │   ├── activities/
+│       │   ├── clubs/
+│       │   ├── errors/
 │       │   ├── streams/
 │       │   ├── zones/
 │       │   ├── gear/
-│       │   └── routes/
+│       │   ├── laps/
+│       │   ├── routes/
+│       │   ├── route_exports/
+│       │   ├── route_streams/
+│       │   ├── segments/
+│       │   ├── segment_streams/
+│       │   └── manifest.jsonl
 │       ├── normalizado/
 │       └── logs/
+│           └── activity_sync_state.json
 ├── 20_consolidado/
 ├── 30_analisis/
 └── 90_archivo/

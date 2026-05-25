@@ -21,7 +21,7 @@ python3 -m pip install -r requirements-dev.txt
 
 ## Estado actual
 
-Actualmente el paquete solo contiene un scaffold mínimo. No existen todavía comandos funcionales de sincronización.
+Actualmente el paquete permite preparar directorios, autenticar Strava, descargar raw de perfil/contexto y descargar raw de actividades con detalle, streams y zonas.
 
 ## Estructura de datos
 
@@ -29,7 +29,7 @@ Si quieres preparar la estructura de datos futura:
 
 ```bash
 export NONO_SPORT_DATA_ROOT='/mnt/h/Mi unidad/01_ambitos/02_personal/40_deporte'
-python3 scripts/create_data_directories.py
+./.venv/bin/python -m nono_sports strava prepare-dirs
 ```
 
 ## Verificación básica
@@ -55,3 +55,7 @@ python3 scripts/check.py
 ```
 
 La autenticación Strava se describe en `docs/usage/strava-auth.md`.
+
+La primera descarga raw de perfil y contexto se describe en `docs/usage/strava-fetch-context.md`.
+
+La descarga raw de actividades se describe en `docs/usage/strava-fetch-activities.md`.
