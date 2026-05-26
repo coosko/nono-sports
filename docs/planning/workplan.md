@@ -292,6 +292,8 @@ Entregables:
 
 - comando de sincronización repetible
 - propuesta de `systemd timer` o tarea equivalente
+- reprogramación adaptativa con `systemd-run --user`
+- bloqueo de solapes con `--lock-file`
 - guía `docs/usage/automation.md`
 
 Validación:

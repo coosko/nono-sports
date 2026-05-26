@@ -3,18 +3,25 @@
 from __future__ import annotations
 
 import argparse
+import sys
+from pathlib import Path
 
 from nono_sports.auth.strava_oauth import (
     build_authorization_url,
     exchange_code_for_token,
 )
 from nono_sports.auth.token_store import StravaTokenStore
+from nono_sports.automation.adaptive import (
+    build_adaptive_schedule_decision,
+    schedule_with_systemd,
+)
 from nono_sports.consolidation.single_source import build_single_source_consolidated
 from nono_sports.core.config import (
     ProjectConfig,
     load_config,
     load_strava_client_config,
 )
+from nono_sports.core.file_lock import acquire_file_lock
 from nono_sports.core.paths import ensure_strava_v1_directories, strava_token_path
 from nono_sports.normalization.strava_dataset import normalize_strava_dataset
 from nono_sports.storage.raw_store import RawStore
@@ -53,6 +60,13 @@ def build_parser() -> argparse.ArgumentParser:
     _add_activity_fetch_options(activities_parser)
     sync_parser = strava_subparsers.add_parser("sync")
     sync_parser.add_argument("--skip-fetch", action="store_true")
+    sync_parser.add_argument("--schedule-next-if-pending", action="store_true")
+    sync_parser.add_argument("--schedule-delay-minutes", type=int, default=20)
+    sync_parser.add_argument(
+        "--schedule-unit",
+        default="nono-sports-strava-sync-adaptive",
+    )
+    sync_parser.add_argument("--lock-file", default=None)
     _add_activity_fetch_options(sync_parser)
 
     return parser
@@ -160,34 +174,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "strava" and args.strava_command == "sync":
         project_config = load_config()
         ensure_strava_v1_directories(project_config.data_root)
-        if args.skip_fetch:
-            print("Skipped Strava fetch. Running offline pipeline only.")
-        else:
-            result, raw_store, last_rate_limit = _run_strava_fetch_activities(
-                args,
-                project_config,
-            )
-            _print_fetch_activities_result(result, raw_store, last_rate_limit)
-        normalize_result = normalize_strava_dataset(project_config.data_root)
-        print(
-            "Normalized Strava raw data: "
-            f"{normalize_result.athletes} athletes, "
-            f"{normalize_result.activities} activities, "
-            f"{normalize_result.streams} streams, "
-            f"{len(normalize_result.written)} files written."
-        )
-        consolidated_result = build_single_source_consolidated(
-            project_config.data_root,
-        )
-        print(
-            "Built consolidated dataset: "
-            f"{consolidated_result.activities} activities, "
-            f"{consolidated_result.activity_sources} activity source links, "
-            f"{consolidated_result.streams_index} stream index records, "
-            f"{len(consolidated_result.written)} files written."
-        )
-        summary = _run_validation(project_config)
-        return 1 if summary.status == "fail" else 0
+        if args.lock_file:
+            with acquire_file_lock(Path(args.lock_file)):
+                return _run_strava_sync(args, project_config)
+        return _run_strava_sync(args, project_config)
 
     parser.print_help()
     return 0
@@ -221,6 +211,115 @@ def _add_activity_fetch_options(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=5,
     )
+
+
+def _run_strava_sync(args: argparse.Namespace, project_config: ProjectConfig) -> int:
+    last_rate_limit = None
+    if args.skip_fetch:
+        print("Skipped Strava fetch. Running offline pipeline only.")
+    else:
+        result, raw_store, last_rate_limit = _run_strava_fetch_activities(
+            args,
+            project_config,
+        )
+        _print_fetch_activities_result(result, raw_store, last_rate_limit)
+
+    normalize_result = normalize_strava_dataset(project_config.data_root)
+    print(
+        "Normalized Strava raw data: "
+        f"{normalize_result.athletes} athletes, "
+        f"{normalize_result.activities} activities, "
+        f"{normalize_result.streams} streams, "
+        f"{len(normalize_result.written)} files written."
+    )
+    consolidated_result = build_single_source_consolidated(project_config.data_root)
+    print(
+        "Built consolidated dataset: "
+        f"{consolidated_result.activities} activities, "
+        f"{consolidated_result.activity_sources} activity source links, "
+        f"{consolidated_result.streams_index} stream index records, "
+        f"{len(consolidated_result.written)} files written."
+    )
+    summary = _run_validation(project_config)
+    if args.schedule_next_if_pending:
+        _schedule_next_sync_if_needed(args, summary, last_rate_limit)
+    return 1 if summary.status == "fail" else 0
+
+
+def _schedule_next_sync_if_needed(
+    args: argparse.Namespace,
+    summary: ValidationSummary,
+    last_rate_limit: RateLimitSnapshot | None,
+) -> None:
+    decision = build_adaptive_schedule_decision(
+        summary=summary,
+        rate_limit=last_rate_limit,
+        configured_daily_cap=args.max_read_requests_daily,
+        reserve_requests=args.rate_limit_reserve,
+        skip_fetch=args.skip_fetch,
+    )
+    print(f"Adaptive schedule: {decision.reason}")
+    if not decision.should_schedule:
+        return
+
+    schedule_with_systemd(
+        command=tuple(_build_adaptive_sync_command(args)),
+        delay_minutes=args.schedule_delay_minutes,
+        unit_name=args.schedule_unit,
+    )
+    print(
+        "Adaptive schedule: next sync scheduled "
+        f"in {args.schedule_delay_minutes} minutes as {args.schedule_unit}."
+    )
+
+
+def _build_adaptive_sync_command(args: argparse.Namespace) -> list[str]:
+    command = [
+        sys.executable,
+        "-m",
+        "nono_sports",
+        "strava",
+        "sync",
+        "--schedule-next-if-pending",
+        "--schedule-delay-minutes",
+        str(args.schedule_delay_minutes),
+        "--schedule-unit",
+        args.schedule_unit,
+        "--max-read-requests-15min",
+        str(args.max_read_requests_15min),
+        "--max-read-requests-daily",
+        str(args.max_read_requests_daily),
+        "--rate-limit-reserve",
+        str(args.rate_limit_reserve),
+    ]
+    if args.lock_file:
+        command.extend(["--lock-file", args.lock_file])
+    _append_optional_activity_fetch_options(command, args)
+    return command
+
+
+def _append_optional_activity_fetch_options(
+    command: list[str],
+    args: argparse.Namespace,
+) -> None:
+    for flag_name, value in (
+        ("--after", args.after),
+        ("--before", args.before),
+        ("--max-activities", args.max_activities),
+    ):
+        if value is not None:
+            command.extend([flag_name, str(value)])
+    for flag_name, enabled in (
+        ("--force", args.force),
+        ("--skip-gear", args.skip_gear),
+        ("--skip-laps", args.skip_laps),
+        ("--skip-segments", args.skip_segments),
+        ("--skip-segment-streams", args.skip_segment_streams),
+        ("--skip-streams", args.skip_streams),
+        ("--include-zones", args.include_zones),
+    ):
+        if enabled:
+            command.append(flag_name)
 
 
 def _run_strava_fetch_activities(

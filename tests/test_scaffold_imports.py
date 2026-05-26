@@ -3,6 +3,7 @@ import importlib
 SCAFFOLD_MODULES = [
     "nono_sports.cli",
     "nono_sports.core.config",
+    "nono_sports.core.file_lock",
     "nono_sports.core.paths",
     "nono_sports.core.logging",
     "nono_sports.core.errors",
@@ -28,6 +29,7 @@ SCAFFOLD_MODULES = [
     "nono_sports.consolidation.single_source",
     "nono_sports.validation.checks",
     "nono_sports.validation.reports",
+    "nono_sports.automation.adaptive",
 ]
 
 

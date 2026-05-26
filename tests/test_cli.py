@@ -87,6 +87,13 @@ def test_parser_accepts_strava_sync_options() -> None:
             "strava",
             "sync",
             "--skip-fetch",
+            "--schedule-next-if-pending",
+            "--schedule-delay-minutes",
+            "20",
+            "--schedule-unit",
+            "nono-sports-strava-sync-adaptive",
+            "--lock-file",
+            "/home/nono/.local/state/nono-sports/strava-sync.lock",
             "--max-activities",
             "10",
             "--max-read-requests-15min",
@@ -101,6 +108,10 @@ def test_parser_accepts_strava_sync_options() -> None:
     assert args.command == "strava"
     assert args.strava_command == "sync"
     assert args.skip_fetch is True
+    assert args.schedule_next_if_pending is True
+    assert args.schedule_delay_minutes == 20
+    assert args.schedule_unit == "nono-sports-strava-sync-adaptive"
+    assert args.lock_file == "/home/nono/.local/state/nono-sports/strava-sync.lock"
     assert args.max_activities == 10
     assert args.max_read_requests_15min == 80
     assert args.max_read_requests_daily == 900

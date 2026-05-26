@@ -62,6 +62,7 @@ src/nono_sports/
 ├── cli.py
 ├── core/
 │   ├── config.py
+│   ├── file_lock.py
 │   ├── paths.py
 │   ├── logging.py
 │   └── errors.py
@@ -91,6 +92,8 @@ src/nono_sports/
 │   └── strava_stream.py
 ├── consolidation/
 │   └── single_source.py
+├── automation/
+│   └── adaptive.py
 └── validation/
     ├── checks.py
     └── reports.py
@@ -117,6 +120,7 @@ Responsable de configuración común:
 - validar variables obligatorias
 - resolver `NONO_SPORT_DATA_ROOT`
 - cargar configuración desde entorno, `~/.config/nono-sports/env` o `.env` de desarrollo
+- ofrecer bloqueo de fichero para comandos operativos automatizados
 - configurar logging
 - definir errores comunes
 
@@ -247,6 +251,14 @@ Responsable de comprobar la calidad del resultado:
 
 La validación de datos es offline: no llama a Strava ni consume rate limit. La validación de tokens/scopes se realiza durante autenticación y cliente HTTP.
 
+### `automation`
+
+Responsable de automatización operativa:
+
+- decidir si una sincronización debe reprogramar otra tanda
+- usar `systemd-run --user` para una única ejecución diferida
+- evitar loops permanentes cuando no quedan pendientes o no hay cuota diaria suficiente
+
 ## Flujo de datos Strava v1
 
 ```text
@@ -322,6 +334,7 @@ Los secretos de autenticación no viven en `<data_root>`. Los tokens OAuth de St
 - Los tokens OAuth deben tratarse como estado sensible local, no como datos deportivos.
 - La v1 debe ejecutarse como usuario `nono`; un webhook futuro expuesto a Internet debe separar listener sin secretos y worker con permisos de sincronización.
 - La automatización debe usar presupuestos preventivos de rate limit y generar siempre informe de validación.
+- La puesta al día histórica debe usar reprogramación adaptativa, no un timer cada 15 minutos permanente.
 
 ## Fuera de alcance de la v1
 

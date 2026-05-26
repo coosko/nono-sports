@@ -24,6 +24,8 @@
 - [x] confirmar que Nono ve `20_consolidado`
 - [x] definir comando repetible de sincronización controlada
 - [x] documentar propuesta de `systemd timer`
+- [x] implementar reprogramación adaptativa para backfill histórico
+- [x] añadir bloqueo de solapes para sincronización automatizada
 
 ## Pendiente de validación
 
