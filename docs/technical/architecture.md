@@ -260,6 +260,8 @@ auth usuario
   -> validation report
 ```
 
+El comando operativo `nono-sports strava sync` encadena descarga incremental, normalización, consolidación y validación. Con `--skip-fetch` ejecuta solo la parte offline.
+
 ## Estructura de datos objetivo
 
 ```text
@@ -319,6 +321,7 @@ Los secretos de autenticación no viven en `<data_root>`. Los tokens OAuth de St
 - La configuración persistente en Nono debe vivir en `~/.config/nono-sports/env` con permisos restrictivos.
 - Los tokens OAuth deben tratarse como estado sensible local, no como datos deportivos.
 - La v1 debe ejecutarse como usuario `nono`; un webhook futuro expuesto a Internet debe separar listener sin secretos y worker con permisos de sincronización.
+- La automatización debe usar presupuestos preventivos de rate limit y generar siempre informe de validación.
 
 ## Fuera de alcance de la v1
 

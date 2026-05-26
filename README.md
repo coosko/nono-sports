@@ -22,6 +22,7 @@ Documento de referencia del estado real:
 - `docs/current-state.md`: estado real del repositorio
 - `docs/index.md`: índice y jerarquía documental
 - `docs/usage/install-nono.md`: instalación en el host Nono
+- `docs/usage/automation.md`: automatización controlada en Nono
 - `docs/requirements/resources/Descripcion_inicial.md`: documento de entrada y descubrimiento
 
 ## Requisitos

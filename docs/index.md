@@ -26,6 +26,7 @@ La documentación se organiza por niveles de autoridad.
 - `docs/usage/build-consolidated.md`: guía de consolidación inicial
 - `docs/usage/strava-validate.md`: guía de validación de datos Strava
 - `docs/usage/install-nono.md`: guía de instalación en el host Nono
+- `docs/usage/automation.md`: guía de automatización controlada en Nono
 - `docs/releases/CHANGELOG.md`: historial de cambios relevantes
 
 ## Regla de mantenimiento

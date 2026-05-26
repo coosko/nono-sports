@@ -286,13 +286,17 @@ Objetivo:
 - definir ejecución manual o programada
 - preparar logs
 - dejar pendiente webhook para una versión posterior
+- mantener salvaguardas de rate limit en ejecución diaria
 
 Entregables:
 
 - comando de sincronización repetible
 - propuesta de `systemd timer` o tarea equivalente
+- guía `docs/usage/automation.md`
 
 Validación:
 
 - una ejecución incremental no duplica datos
 - el informe muestra cambios esperados
+- pendiente: ejecutar `strava sync` con descarga cuando se libere cuota diaria
+- completado: comando `strava sync --skip-fetch` permite probar la parte offline sin llamar a Strava

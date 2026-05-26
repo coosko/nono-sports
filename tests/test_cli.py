@@ -79,3 +79,29 @@ def test_parser_accepts_strava_validate_command() -> None:
 
     assert args.command == "strava"
     assert args.strava_command == "validate"
+
+
+def test_parser_accepts_strava_sync_options() -> None:
+    args = build_parser().parse_args(
+        [
+            "strava",
+            "sync",
+            "--skip-fetch",
+            "--max-activities",
+            "10",
+            "--max-read-requests-15min",
+            "80",
+            "--max-read-requests-daily",
+            "900",
+            "--rate-limit-reserve",
+            "10",
+        ]
+    )
+
+    assert args.command == "strava"
+    assert args.strava_command == "sync"
+    assert args.skip_fetch is True
+    assert args.max_activities == 10
+    assert args.max_read_requests_15min == 80
+    assert args.max_read_requests_daily == 900
+    assert args.rate_limit_reserve == 10

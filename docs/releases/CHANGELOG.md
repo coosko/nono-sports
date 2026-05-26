@@ -19,8 +19,10 @@ Todas las versiones y entregables se documentan aquí.
 - Añadida normalización Strava a JSONL de atleta, actividades y streams con trazabilidad a raw.
 - Añadida consolidación inicial single-source en `20_consolidado` con enlaces a actividades fuente.
 - Añadida validación offline del dataset Strava con informe Markdown en `30_analisis/informes`.
+- Añadido comando `nono-sports strava sync` para encadenar descarga, normalización, consolidación y validación.
 - Añadidas guías de uso para autenticación, descarga de contexto, descarga de actividades, normalización, consolidación y validación.
 - Añadida guía de instalación en Nono con estrategia de usuario, permisos, tokens y preparación para webhooks futuros.
+- Añadida guía de automatización controlada con propuesta de `systemd timer` de usuario.
 
 ### Changed
 
@@ -41,7 +43,8 @@ Todas las versiones y entregables se documentan aquí.
 - Ejecutada validación real con estado `warning` por descarga incompleta esperada debido a rate limit.
 - Ejecutada validación de compatibilidad en Nono con Python 3.14.4: `scripts/check.py` con 67 tests pasados y `strava validate` correcto.
 - Ejecutada instalación persistente en Nono con configuración XDG, tokens copiados con permisos `600` y prueba real de autenticación Strava detenida correctamente por cuota diaria `996/1000`.
-- Verificación local actual: `python3 scripts/check.py` con 67 tests pasados y `pre-commit run --all-files` correcto.
+- Ejecutada prueba local de `strava sync --skip-fetch` sin llamar a Strava.
+- Verificación local actual: `python3 scripts/check.py` con 68 tests pasados y `pre-commit run --all-files` correcto.
 
 ## 0.1.0 - 2026-05-24
 - Creación del repositorio inicial.

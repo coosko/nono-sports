@@ -67,3 +67,5 @@ La consolidación inicial se describe en `docs/usage/build-consolidated.md`.
 La validación de datos se describe en `docs/usage/strava-validate.md`.
 
 La instalación en Nono se describe en `docs/usage/install-nono.md`.
+
+La automatización controlada se describe en `docs/usage/automation.md`.

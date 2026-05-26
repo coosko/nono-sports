@@ -22,6 +22,7 @@ Existe actualmente:
 - compatibilidad validada con Python 3.14.4 en Nono
 - instalación persistente validada en `/home/nono/apps/nono-sport`
 - tokens OAuth copiados en Nono con permisos restrictivos
+- comando `strava sync` para sincronización controlada manual o programada
 - scripts para crear la estructura base de directorios de datos
 - documentación de visión, requisitos, arquitectura y planificación
 - integración básica de calidad con `ruff`, `pytest` y GitHub Actions
@@ -33,10 +34,10 @@ No existe todavía:
 
 ## Estado del código activo
 
-El código activo contiene el scaffold de paquetes de Strava v1, configuración inicial, resolución de rutas, creación de directorios de datos, autenticación OAuth, cliente HTTP base para Strava, descarga raw de perfil/contexto, descarga raw de actividades con control preventivo de límites de lectura, normalización local de raw Strava, consolidación inicial desde una sola fuente, validación offline de conteos/coherencia y carga de configuración desde entorno, XDG o `.env` local.
+El código activo contiene el scaffold de paquetes de Strava v1, configuración inicial, resolución de rutas, creación de directorios de datos, autenticación OAuth, cliente HTTP base para Strava, descarga raw de perfil/contexto, descarga raw de actividades con control preventivo de límites de lectura, normalización local de raw Strava, consolidación inicial desde una sola fuente, validación offline de conteos/coherencia, carga de configuración desde entorno/XDG/`.env` local y comando operativo `strava sync`.
 
 El código previo se conserva en `deprecated/initial-bootstrap/` solo como referencia histórica y no forma parte de la implementación vigente.
 
 ## Próximo objetivo
 
-Continuar con la descarga incremental cuando se libere cuota diaria de Strava y preparar el Paso 12 de automatización controlada.
+Ejecutar `strava sync` con descarga cuando se libere cuota diaria de Strava y decidir si se activa el `systemd timer` en Nono.

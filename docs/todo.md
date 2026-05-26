@@ -22,6 +22,8 @@
 - [x] validar ruta real de datos en Nono
 - [x] validar instalación del proyecto en Nono
 - [x] confirmar que Nono ve `20_consolidado`
+- [x] definir comando repetible de sincronización controlada
+- [x] documentar propuesta de `systemd timer`
 
 ## Pendiente de validación
 
@@ -31,3 +33,5 @@
 - [x] validar ficheros raw de perfil y contexto generados por Strava
 - [ ] validar ficheros raw de actividades generados por Strava
 - [ ] revisar el informe `30_analisis/informes/strava_validation_report.md`
+- [ ] ejecutar `strava sync` con descarga cuando se libere cuota diaria
+- [ ] decidir si activar `systemd timer` en Nono

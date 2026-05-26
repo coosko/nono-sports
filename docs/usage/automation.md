@@ -1,0 +1,128 @@
+# Automatización controlada
+
+Esta guía define la ejecución repetible de Strava v1 en Nono.
+
+## Comando recomendado
+
+Para el día a día:
+
+```bash
+cd /home/nono/apps/nono-sport
+./.venv/bin/python -m nono_sports strava sync \
+  --max-activities 25 \
+  --max-read-requests-15min 100 \
+  --max-read-requests-daily 1000 \
+  --rate-limit-reserve 10
+```
+
+El comando ejecuta:
+
+- descarga incremental raw de actividades
+- normalización Strava
+- consolidación inicial
+- validación offline e informe
+
+Si quieres ejecutar solo la parte offline, sin llamar a Strava:
+
+```bash
+./.venv/bin/python -m nono_sports strava sync --skip-fetch
+```
+
+## Salvaguardas de rate limit
+
+La descarga usa límites preventivos:
+
+- límite de lectura cada 15 minutos
+- límite de lectura diario
+- reserva de seguridad antes del límite efectivo
+- respeto del menor valor entre la configuración local y las cabeceras reportadas por Strava
+
+Importante: en un proceso nuevo no se conoce el uso real de Strava hasta recibir la primera respuesta con cabeceras de rate limit. Si la cuota diaria ya está agotada o casi agotada, el comando puede consumir una única llamada para conocer el estado y detenerse antes de continuar. Esto es aceptable y evita descargas largas fuera de presupuesto.
+
+## Servicio systemd de usuario
+
+Crear el servicio:
+
+```bash
+mkdir -p /home/nono/.config/systemd/user
+nano /home/nono/.config/systemd/user/nono-sports-strava-sync.service
+```
+
+Contenido:
+
+```ini
+[Unit]
+Description=Nono Sports Strava controlled sync
+ConditionPathIsDirectory=/home/nono/drive/01_ambitos/02_personal/40_deporte
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/nono/apps/nono-sport
+ExecStart=/home/nono/apps/nono-sport/.venv/bin/python -m nono_sports strava sync --max-activities 25 --max-read-requests-15min 100 --max-read-requests-daily 1000 --rate-limit-reserve 10
+```
+
+Crear el timer:
+
+```bash
+nano /home/nono/.config/systemd/user/nono-sports-strava-sync.timer
+```
+
+Contenido:
+
+```ini
+[Unit]
+Description=Run Nono Sports Strava sync daily
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target
+```
+
+Activar:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now nono-sports-strava-sync.timer
+systemctl --user list-timers nono-sports-strava-sync.timer
+```
+
+Si el timer debe ejecutarse aunque el usuario `nono` no tenga sesión abierta, ejecutar una vez con privilegios:
+
+```bash
+sudo loginctl enable-linger nono
+```
+
+## Logs
+
+Ver últimas ejecuciones:
+
+```bash
+journalctl --user -u nono-sports-strava-sync.service -n 100 --no-pager
+```
+
+Seguir logs en vivo:
+
+```bash
+journalctl --user -u nono-sports-strava-sync.service -f
+```
+
+El informe de validación se escribe siempre en:
+
+```text
+/home/nono/drive/01_ambitos/02_personal/40_deporte/30_analisis/informes/strava_validation_report.md
+```
+
+## Webhooks futuros
+
+La v1 no instala listener público.
+
+Si se añaden webhooks más adelante:
+
+- el listener debe tener el mínimo privilegio posible
+- el listener no debería tener tokens Strava si solo recibe eventos
+- la descarga real debería delegarse en el mismo pipeline controlado
+- si otro usuario escribe en Drive, habrá que introducir grupo compartido o ACLs explícitas
