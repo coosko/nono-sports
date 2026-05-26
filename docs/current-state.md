@@ -19,6 +19,7 @@ Existe actualmente:
 - validación offline del dataset local con informe Markdown en `30_analisis/informes`
 - soporte de configuración persistente en `~/.config/nono-sports/env`
 - guía de instalación en el host Nono
+- compatibilidad validada con Python 3.14.4 en Nono
 - scripts para crear la estructura base de directorios de datos
 - documentación de visión, requisitos, arquitectura y planificación
 - integración básica de calidad con `ruff`, `pytest` y GitHub Actions
@@ -36,4 +37,4 @@ El código previo se conserva en `deprecated/initial-bootstrap/` solo como refer
 
 ## Próximo objetivo
 
-Validar la instalación en `nono.carlos.prades.name` y confirmar que Nono ve la capa `20_consolidado` desde `/home/nono/drive/01_ambitos/02_personal/40_deporte`.
+Completar la instalación persistente en `nono.carlos.prades.name`, configurar secretos/tokens y confirmar que Nono ejecuta la versión instalada contra la capa `20_consolidado`.

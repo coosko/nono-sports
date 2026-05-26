@@ -4,7 +4,7 @@ Esta guía describe el estado actual del repositorio, no una versión funcional 
 
 ## Requisitos
 
-- Python 3.11 o 3.12
+- Python 3.11, 3.12, 3.13 o 3.14
 - `git`
 - entorno virtual
 

@@ -55,23 +55,18 @@ Valores esperados:
 - `whoami` debe devolver `nono`
 - el data root debe existir
 - `20_consolidado` debe contener los ficheros ya generados en desarrollo
-- Python debe ser 3.11 o 3.12 para esta versión del proyecto
+- Python debe estar dentro del rango soportado `>=3.11,<3.15`
 
-Si `python3 --version` devuelve una versión no soportada, por ejemplo `3.14`, no uses ese intérprete para crear el entorno virtual. Comprueba primero si existe una versión compatible:
+El host Nono actual usa Python 3.14.4 y se ha validado correctamente con tests y `strava validate`, por lo que puede usarse `python3` directamente.
 
-```bash
-command -v python3.12 || true
-command -v python3.11 || true
-```
-
-Si no existe, instala una versión compatible antes de continuar. En Ubuntu/Debian, si está disponible en tus repositorios:
+Si en el futuro `python3 --version` devuelve una versión fuera de rango, instala una versión compatible antes de continuar. En Ubuntu/Debian, si está disponible en tus repositorios:
 
 ```bash
 sudo apt update
 sudo apt install python3.12 python3.12-venv
 ```
 
-Si el paquete no está disponible, usa `uv` como gestor de Python de usuario. Esta opción no modifica el Python del sistema y no requiere `sudo`:
+Si el paquete no está disponible, `uv` es una alternativa razonable como gestor de Python de usuario. Esta opción no modifica el Python del sistema y no requiere `sudo`:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -90,8 +85,10 @@ mkdir -p "$HOME/apps"
 cd "$HOME/apps"
 git clone git@github.com:coosko/nono-sports.git nono-sport
 cd "$HOME/apps/nono-sport"
-uv venv --python 3.12 .venv
-uv pip install --python .venv/bin/python -e .
+python3 -m venv .venv
+./.venv/bin/python --version
+./.venv/bin/python -m pip install --upgrade pip
+./.venv/bin/python -m pip install -e .
 ```
 
 Si el repositorio ya existe:
@@ -99,13 +96,13 @@ Si el repositorio ya existe:
 ```bash
 cd "$HOME/apps/nono-sport"
 git pull
-uv pip install --python .venv/bin/python -e .
+./.venv/bin/python -m pip install -e .
 ```
 
 Para poder ejecutar tests en Nono, instala dependencias de desarrollo de forma opcional:
 
 ```bash
-uv pip install --python .venv/bin/python -r requirements-dev.txt
+./.venv/bin/python -m pip install -r requirements-dev.txt
 ```
 
 ## 3. Configurar entorno

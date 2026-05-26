@@ -9,6 +9,7 @@ Todas las versiones y entregables se documentan aquí.
 - Añadida carga de `.env`, validación de configuración y resolución de `NONO_SPORT_DATA_ROOT`.
 - Añadido comando `nono-sports strava prepare-dirs` para crear la estructura de datos Strava v1.
 - Añadido soporte de configuración persistente en `~/.config/nono-sports/env`.
+- Ampliado soporte Python declarado a `>=3.11,<3.15` tras validación en Python 3.14.4.
 - Añadida autenticación OAuth Strava con almacenamiento XDG de tokens en `~/.local/state/nono-sports/strava_tokens.json`.
 - Añadido cliente Strava base de solo lectura con refresh de token, paginación, rate limits y errores normalizados.
 - Añadida descarga raw de perfil y contexto Strava con manifiesto de trazabilidad.
@@ -38,7 +39,8 @@ Todas las versiones y entregables se documentan aquí.
 - Ejecutada normalización real de 34 actividades descargadas.
 - Ejecutada consolidación real de 34 actividades normalizadas.
 - Ejecutada validación real con estado `warning` por descarga incompleta esperada debido a rate limit.
-- Verificación local actual: `python3 scripts/check.py` con 66 tests pasados y `pre-commit run --all-files` correcto.
+- Ejecutada validación de compatibilidad en Nono con Python 3.14.4: `scripts/check.py` con 67 tests pasados y `strava validate` correcto.
+- Verificación local actual: `python3 scripts/check.py` con 67 tests pasados y `pre-commit run --all-files` correcto.
 
 ## 0.1.0 - 2026-05-24
 - Creación del repositorio inicial.

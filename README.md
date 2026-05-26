@@ -26,7 +26,7 @@ Documento de referencia del estado real:
 
 ## Requisitos
 
-- Python 3.11 o 3.12
+- Python 3.11, 3.12, 3.13 o 3.14
 - `git`
 - `python3 -m venv .venv`
 

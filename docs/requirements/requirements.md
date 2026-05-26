@@ -35,7 +35,7 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 ## Requisitos no funcionales
 
 - RNF1: El proyecto debe ser portable entre Windows, WSL y Linux.
-- RNF2: El proyecto debe usar Python 3.11 o 3.12 mientras no se revise oficialmente la compatibilidad con versiones posteriores, y empaquetado PEP 621.
+- RNF2: El proyecto debe usar Python `>=3.11,<3.15` y empaquetado PEP 621. La instalación en Nono se ha validado con Python 3.14.4.
 - RNF3: El código debe poder evolucionar por capas, sin quedar acoplado a una única fuente.
 - RNF4: El proyecto debe incluir validación automática mínima mediante lint y tests.
 - RNF5: La documentación debe diferenciar con claridad estado actual, arquitectura objetivo y backlog.

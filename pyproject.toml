@@ -7,7 +7,7 @@ name = "nono-sports"
 version = "0.1.0"
 description = "Sincronizador e integrador de datos deportivos desde Strava y otras fuentes."
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.15"
 license = { text = "MIT" }
 authors = [
   { name = "Tu Nombre", email = "tu@ejemplo.com" }
@@ -15,6 +15,9 @@ authors = [
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent"
 ]

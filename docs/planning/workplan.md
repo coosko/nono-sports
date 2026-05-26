@@ -275,6 +275,7 @@ Validación de usuario:
 - pendiente: ejecutar comprobación en `nono.carlos.prades.name`
 - pendiente: confirmar que `NONO_SPORT_DATA_ROOT` resuelve a `/home/nono/drive/01_ambitos/02_personal/40_deporte`
 - pendiente: confirmar permisos de configuración y tokens
+- completado: validación temporal en Nono con Python 3.14.4, 67 tests pasados y `strava validate` correcto
 
 ## Paso 12. Automatización controlada
 
