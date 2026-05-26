@@ -4,18 +4,19 @@ Este backlog deriva de `requirements.md` y `architecture.md`.
 
 ## Prioridad alta
 
-- [ ] Definir el contrato mínimo de `normalized_activity`
-- [ ] Definir el modelo de `consolidated_activity`
-- [ ] Implementar la ingesta Strava v1
-- [ ] Persistir datos `raw` de Strava
-- [ ] Persistir datos `normalizado` de Strava
-- [ ] Mantener trazabilidad entre dato normalizado y origen
+- [x] Definir el contrato mínimo de `normalized_activity`
+- [x] Definir el modelo de `consolidated_activity`
+- [x] Implementar la ingesta Strava v1
+- [x] Persistir datos `raw` de Strava
+- [x] Persistir datos `normalizado` de Strava
+- [x] Mantener trazabilidad entre dato normalizado y origen
 
 ## Prioridad media
 
-- [ ] Diseñar la estructura de `20_consolidado`
-- [ ] Definir reglas simples de consolidación para una única fuente
-- [ ] Registrar estado de ingestión
+- [x] Diseñar la estructura de `20_consolidado`
+- [x] Definir reglas simples de consolidación para una única fuente
+- [x] Registrar estado de ingestión
+- [x] Generar informe de validación de datos
 - [ ] Registrar logs operativos por fuente
 
 ## Prioridad futura

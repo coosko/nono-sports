@@ -2,12 +2,12 @@
 
 Proyecto Python para construir la base de datos deportiva de Nono a partir de Strava y futuras fuentes como Garmin, Komoot o importaciones manuales.
 
-El proyecto está en fase de implementación incremental de Strava v1. El código activo ya permite autenticación OAuth, cliente Strava base y descarga raw de perfil/contexto y actividades.
+El proyecto está en fase de implementación incremental de Strava v1. El código activo ya permite autenticación OAuth, cliente Strava base, descarga raw de perfil/contexto y actividades, normalización Strava a JSONL, consolidación inicial en `20_consolidado` y validación offline del dataset local.
 
 ## Estado actual
 
 - paquete Python en `src/nono_sports/`
-- comandos para preparar directorios, autenticar Strava y descargar raw de perfil/contexto y actividades
+- comandos para preparar directorios, autenticar Strava, descargar raw de perfil/contexto y actividades, normalizar raw Strava, construir `20_consolidado` y validar datos
 - documentación canónica de requisitos y arquitectura
 - código bootstrap anterior archivado en `deprecated/initial-bootstrap/`
 
@@ -21,6 +21,7 @@ Documento de referencia del estado real:
 - `docs/technical/architecture.md`: arquitectura técnica objetivo
 - `docs/current-state.md`: estado real del repositorio
 - `docs/index.md`: índice y jerarquía documental
+- `docs/usage/install-nono.md`: instalación en el host Nono
 - `docs/requirements/resources/Descripcion_inicial.md`: documento de entrada y descubrimiento
 
 ## Requisitos
@@ -108,10 +109,9 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   │   │   ├── zones/
 │   │   │   └── manifest.jsonl
 │   │   ├── normalizado/
+│   │   │   ├── athletes.jsonl
 │   │   │   ├── activities.jsonl
-│   │   │   ├── activities.csv
-│   │   │   ├── streams_index.jsonl
-│   │   │   └── state.json
+│   │   │   └── streams.jsonl
 │   │   └── logs/
 │   │       └── activity_sync_state.json
 │   ├── garmin_connect/
@@ -119,12 +119,12 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   └── manual/
 ├── 20_consolidado/
 │   ├── activities.jsonl
-│   ├── activities.csv
 │   ├── activity_sources.jsonl
 │   ├── streams_index.jsonl
 │   └── state.json
 ├── 30_analisis/
 │   ├── informes/
+│   │   └── strava_validation_report.md
 │   ├── planes/
 │   ├── seguimiento/
 │   └── graficas/
@@ -164,6 +164,7 @@ Si la ruta no está montada, ejecuta el script desde Windows o usa una ruta loca
 ## Buenas prácticas
 
 - No subir el archivo `.env` ni variables secretas al repositorio.
+- En Nono, usar `~/.config/nono-sports/env` para configuración sensible y `~/.local/state/nono-sports/` para tokens.
 - Mantener alineados `requirements.md`, `architecture.md` y `current-state.md`.
 - Aplicar `pre-commit` antes de cada commit.
 - Mantener el código activo separado del código archivado en `deprecated/`.

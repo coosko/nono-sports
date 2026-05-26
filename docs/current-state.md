@@ -1,6 +1,6 @@
 # Estado actual del proyecto
 
-Fecha de referencia: 2026-05-25
+Fecha de referencia: 2026-05-26
 
 ## Situación actual
 
@@ -14,24 +14,26 @@ Existe actualmente:
 - un cliente Strava base de solo lectura con refresh de token, paginación, rate limits y errores normalizados
 - descarga raw de perfil y contexto Strava con rutas, clubs, segmentos favoritos, exports y manifiesto de trazabilidad
 - descarga raw de actividades Strava con detalle, laps, streams, gear, segmentos, estado reanudable, zonas opcionales bajo demanda y parada preventiva por presupuesto de rate limit
+- normalización Strava a JSONL de atleta, actividades y streams con trazabilidad a raw
+- consolidación inicial single-source en `20_consolidado` para consumo de Nono
+- validación offline del dataset local con informe Markdown en `30_analisis/informes`
+- soporte de configuración persistente en `~/.config/nono-sports/env`
+- guía de instalación en el host Nono
 - scripts para crear la estructura base de directorios de datos
 - documentación de visión, requisitos, arquitectura y planificación
 - integración básica de calidad con `ruff`, `pytest` y GitHub Actions
 
 No existe todavía:
 
-- normalización de los raw descargados desde Strava
 - importadores para Garmin, Komoot o ficheros manuales
-- modelo común implementado
-- proceso de consolidación
-- escritura de datasets `normalizado` o `20_consolidado`
+- consolidación multi-fuente con deduplicación
 
 ## Estado del código activo
 
-El código activo contiene el scaffold de paquetes de Strava v1, configuración inicial, resolución de rutas, creación de directorios de datos, autenticación OAuth, cliente HTTP base para Strava, descarga raw de perfil/contexto y descarga raw de actividades con control preventivo de límites de lectura.
+El código activo contiene el scaffold de paquetes de Strava v1, configuración inicial, resolución de rutas, creación de directorios de datos, autenticación OAuth, cliente HTTP base para Strava, descarga raw de perfil/contexto, descarga raw de actividades con control preventivo de límites de lectura, normalización local de raw Strava, consolidación inicial desde una sola fuente, validación offline de conteos/coherencia y carga de configuración desde entorno, XDG o `.env` local.
 
 El código previo se conserva en `deprecated/initial-bootstrap/` solo como referencia histórica y no forma parte de la implementación vigente.
 
 ## Próximo objetivo
 
-Validar con el usuario los ficheros generados por el Paso 7 y pasar después a la normalización Strava.
+Validar la instalación en `nono.carlos.prades.name` y confirmar que Nono ve la capa `20_consolidado` desde `/home/nono/drive/01_ambitos/02_personal/40_deporte`.

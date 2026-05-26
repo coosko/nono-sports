@@ -75,6 +75,7 @@ src/nono_sports/
 │   └── rate_limits.py
 ├── storage/
 │   ├── raw_store.py
+│   ├── consolidated_store.py
 │   ├── normalized_store.py
 │   ├── state_store.py
 │   └── manifest.py
@@ -86,6 +87,7 @@ src/nono_sports/
 ├── normalization/
 │   ├── strava_activity.py
 │   ├── strava_athlete.py
+│   ├── strava_dataset.py
 │   └── strava_stream.py
 ├── consolidation/
 │   └── single_source.py
@@ -114,6 +116,7 @@ Responsable de configuración común:
 - leer `.env`
 - validar variables obligatorias
 - resolver `NONO_SPORT_DATA_ROOT`
+- cargar configuración desde entorno, `~/.config/nono-sports/env` o `.env` de desarrollo
 - configurar logging
 - definir errores comunes
 
@@ -204,6 +207,14 @@ Convierte raw de Strava a modelos comunes:
 
 La normalización nunca debe borrar la trazabilidad hacia el fichero raw original.
 
+La salida normalizada Strava v1 se escribe como JSONL en:
+
+- `10_fuentes/strava/normalizado/athletes.jsonl`
+- `10_fuentes/strava/normalizado/activities.jsonl`
+- `10_fuentes/strava/normalizado/streams.jsonl`
+
+Los modelos usan identificadores estables `strava:<tipo>:<id>`, unidades SI y campos opcionales para deportes sin distancia clara o para datos complementarios de futuras fuentes.
+
 ### `consolidation`
 
 En la v1 solo trabaja con una fuente.
@@ -214,16 +225,27 @@ Responsabilidad:
 - conservar `source = strava`
 - dejar preparado el modelo para futuras fuentes
 
+La salida consolidada inicial se escribe en:
+
+- `20_consolidado/activities.jsonl`
+- `20_consolidado/activity_sources.jsonl`
+- `20_consolidado/streams_index.jsonl`
+- `20_consolidado/state.json`
+
+En la v1 la estrategia es `single_source`: cada actividad consolidada procede de una única actividad normalizada Strava con `match_confidence = 1.0`.
+
 ### `validation`
 
 Responsable de comprobar la calidad del resultado:
 
-- tokens y scopes válidos
 - estructura de carpetas correcta
 - número de actividades esperadas frente a descargadas
 - presencia de detalles y streams por actividad cuando proceda
 - errores de API y rate limits registrados
+- coherencia entre raw, normalizado y consolidado
 - informe legible para revisión del usuario
+
+La validación de datos es offline: no llama a Strava ni consume rate limit. La validación de tokens/scopes se realiza durante autenticación y cliente HTTP.
 
 ## Flujo de datos Strava v1
 
@@ -261,10 +283,22 @@ auth usuario
 │       │   ├── segment_streams/
 │       │   └── manifest.jsonl
 │       ├── normalizado/
+│       │   ├── athletes.jsonl
+│       │   ├── activities.jsonl
+│       │   └── streams.jsonl
 │       └── logs/
 │           └── activity_sync_state.json
 ├── 20_consolidado/
+│   ├── activities.jsonl
+│   ├── activity_sources.jsonl
+│   ├── streams_index.jsonl
+│   └── state.json
 ├── 30_analisis/
+│   ├── informes/
+│   │   └── strava_validation_report.md
+│   ├── planes/
+│   ├── seguimiento/
+│   └── graficas/
 └── 90_archivo/
 ```
 
@@ -282,7 +316,9 @@ Los secretos de autenticación no viven en `<data_root>`. Los tokens OAuth de St
 - El usuario debe participar explícitamente en la autorización OAuth inicial.
 - La v1 debe ser de solo lectura.
 - La instalación en Nono debe usar variables de entorno y datos fuera del repositorio.
+- La configuración persistente en Nono debe vivir en `~/.config/nono-sports/env` con permisos restrictivos.
 - Los tokens OAuth deben tratarse como estado sensible local, no como datos deportivos.
+- La v1 debe ejecutarse como usuario `nono`; un webhook futuro expuesto a Internet debe separar listener sin secretos y worker con permisos de sincronización.
 
 ## Fuera de alcance de la v1
 

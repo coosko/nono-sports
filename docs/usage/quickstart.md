@@ -21,7 +21,7 @@ python3 -m pip install -r requirements-dev.txt
 
 ## Estado actual
 
-Actualmente el paquete permite preparar directorios, autenticar Strava, descargar raw de perfil/contexto y descargar raw de actividades con detalle, streams y zonas.
+Actualmente el paquete permite preparar directorios, autenticar Strava, descargar raw de perfil/contexto, descargar raw de actividades con detalle, normalizar esos raw a JSONL, construir una primera capa `20_consolidado` y validar la coherencia del dataset local.
 
 ## Estructura de datos
 
@@ -59,3 +59,11 @@ La autenticación Strava se describe en `docs/usage/strava-auth.md`.
 La primera descarga raw de perfil y contexto se describe en `docs/usage/strava-fetch-context.md`.
 
 La descarga raw de actividades se describe en `docs/usage/strava-fetch-activities.md`.
+
+La normalización Strava se describe en `docs/usage/strava-normalize.md`.
+
+La consolidación inicial se describe en `docs/usage/build-consolidated.md`.
+
+La validación de datos se describe en `docs/usage/strava-validate.md`.
+
+La instalación en Nono se describe en `docs/usage/install-nono.md`.

@@ -1,6 +1,12 @@
 from nono_sports.cli import build_parser
 
 
+def test_parser_accepts_build_consolidated_command() -> None:
+    args = build_parser().parse_args(["build-consolidated"])
+
+    assert args.command == "build-consolidated"
+
+
 def test_parser_accepts_strava_fetch_context_options() -> None:
     args = build_parser().parse_args(
         [
@@ -59,3 +65,17 @@ def test_parser_accepts_strava_fetch_activities_options() -> None:
     assert args.max_read_requests_15min == 180
     assert args.max_read_requests_daily == 1500
     assert args.rate_limit_reserve == 10
+
+
+def test_parser_accepts_strava_normalize_command() -> None:
+    args = build_parser().parse_args(["strava", "normalize"])
+
+    assert args.command == "strava"
+    assert args.strava_command == "normalize"
+
+
+def test_parser_accepts_strava_validate_command() -> None:
+    args = build_parser().parse_args(["strava", "validate"])
+
+    assert args.command == "strava"
+    assert args.strava_command == "validate"

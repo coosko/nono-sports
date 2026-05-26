@@ -22,6 +22,10 @@ La documentación se organiza por niveles de autoridad.
 - `docs/usage/strava-auth.md`: guía de autenticación Strava
 - `docs/usage/strava-fetch-context.md`: guía de descarga raw de perfil y contexto Strava
 - `docs/usage/strava-fetch-activities.md`: guía de descarga raw de actividades Strava
+- `docs/usage/strava-normalize.md`: guía de normalización Strava
+- `docs/usage/build-consolidated.md`: guía de consolidación inicial
+- `docs/usage/strava-validate.md`: guía de validación de datos Strava
+- `docs/usage/install-nono.md`: guía de instalación en el host Nono
 - `docs/releases/CHANGELOG.md`: historial de cambios relevantes
 
 ## Regla de mantenimiento

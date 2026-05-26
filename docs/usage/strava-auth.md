@@ -39,6 +39,14 @@ STRAVA_CLIENT_SECRET="<client_secret>"
 STRAVA_REDIRECT_URI="http://localhost/exchange_token"
 ```
 
+En Nono o en instalaciones persistentes, usa preferentemente:
+
+```text
+~/.config/nono-sports/env
+```
+
+con permisos `600`. El formato del fichero es el mismo que `.env`.
+
 ## Paso 1. Preparar carpetas
 
 ```bash

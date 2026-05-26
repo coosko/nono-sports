@@ -16,6 +16,9 @@ ENV_LOG_LEVEL = "LOG_LEVEL"
 ENV_STRAVA_CLIENT_ID = "STRAVA_CLIENT_ID"
 ENV_STRAVA_CLIENT_SECRET = "STRAVA_CLIENT_SECRET"  # noqa: S105
 ENV_STRAVA_REDIRECT_URI = "STRAVA_REDIRECT_URI"
+ENV_XDG_CONFIG_HOME = "XDG_CONFIG_HOME"
+APP_CONFIG_DIR = "nono-sports"
+APP_CONFIG_ENV = "env"
 DEFAULT_STRAVA_REDIRECT_URI = "http://localhost/exchange_token"
 
 
@@ -37,9 +40,21 @@ def get_project_root() -> Path:
 
 
 def load_environment(env_file: Path | None = None) -> None:
-    env_path = env_file or get_project_root() / ".env"
-    if env_path.exists():
-        load_dotenv(env_path, override=False)
+    if env_file is not None:
+        if env_file.exists():
+            load_dotenv(env_file, override=False)
+        return
+
+    for env_path in (user_config_env_path(), get_project_root() / ".env"):
+        if env_path.exists():
+            load_dotenv(env_path, override=False)
+
+
+def user_config_env_path() -> Path:
+    config_home = os.getenv(ENV_XDG_CONFIG_HOME)
+    if config_home:
+        return Path(config_home).expanduser() / APP_CONFIG_DIR / APP_CONFIG_ENV
+    return Path.home() / ".config" / APP_CONFIG_DIR / APP_CONFIG_ENV
 
 
 def load_config(env_file: Path | None = None) -> ProjectConfig:

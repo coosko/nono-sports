@@ -8,10 +8,12 @@ from nono_sports.core.config import (
     ENV_STRAVA_CLIENT_ID,
     ENV_STRAVA_CLIENT_SECRET,
     ENV_STRAVA_REDIRECT_URI,
+    ENV_XDG_CONFIG_HOME,
     ProjectConfig,
     StravaClientConfig,
     load_config,
     load_strava_client_config,
+    user_config_env_path,
 )
 from nono_sports.core.errors import ConfigurationError
 
@@ -48,6 +50,19 @@ def test_load_config_reads_env_file(monkeypatch, tmp_path) -> None:
     env_file.write_text(f"{ENV_DATA_ROOT}={tmp_path}\nLOG_LEVEL=DEBUG\n")
 
     config = load_config(env_file)
+
+    assert config == ProjectConfig(data_root=Path(tmp_path), log_level="DEBUG")
+
+
+def test_load_config_reads_xdg_user_config_env(monkeypatch, tmp_path) -> None:
+    monkeypatch.delenv(ENV_DATA_ROOT, raising=False)
+    monkeypatch.delenv(ENV_LOG_LEVEL, raising=False)
+    monkeypatch.setenv(ENV_XDG_CONFIG_HOME, str(tmp_path / "config"))
+    env_path = user_config_env_path()
+    env_path.parent.mkdir(parents=True)
+    env_path.write_text(f"{ENV_DATA_ROOT}={tmp_path}\nLOG_LEVEL=DEBUG\n")
+
+    config = load_config()
 
     assert config == ProjectConfig(data_root=Path(tmp_path), log_level="DEBUG")
 

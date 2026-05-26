@@ -188,12 +188,17 @@ Entregables:
 - `normalization.strava_activity`
 - `normalization.strava_athlete`
 - `normalization.strava_stream`
+- `normalization.strava_dataset`
+- `storage.normalized_store`
+- comando `nono-sports strava normalize`
 - JSONL normalizados
 
 Validación:
 
 - tests de normalización con fixtures raw
-- revisión manual de una actividad representativa
+- completado: `python3 scripts/check.py`
+- completado: normalización real local de raw disponibles a JSONL
+- pendiente: revisión manual de una actividad representativa por el usuario
 
 ## Paso 9. Consolidación inicial
 
@@ -206,7 +211,18 @@ Objetivo:
 Entregables:
 
 - `consolidation.single_source`
-- ficheros en `20_consolidado/`
+- `storage.consolidated_store`
+- comando `nono-sports build-consolidated`
+- `20_consolidado/activities.jsonl`
+- `20_consolidado/activity_sources.jsonl`
+- `20_consolidado/streams_index.jsonl`
+- `20_consolidado/state.json`
+
+Validación:
+
+- completado: `python3 scripts/check.py`
+- completado: consolidación real local desde normalizados disponibles
+- pendiente: el usuario confirma que Nono debe consumir `20_consolidado/` como entrada principal
 
 Validación de usuario:
 
@@ -226,6 +242,11 @@ Entregables:
 - `validation.checks`
 - `validation.reports`
 - comando `nono-sports strava validate`
+
+Validación técnica:
+
+- completado: `python3 scripts/check.py`
+- completado: informe real generado en `30_analisis/informes/strava_validation_report.md`
 
 Validación de usuario:
 
@@ -251,6 +272,9 @@ Entregables:
 Validación de usuario:
 
 - el usuario confirma que Nono ve los datos consolidados
+- pendiente: ejecutar comprobación en `nono.carlos.prades.name`
+- pendiente: confirmar que `NONO_SPORT_DATA_ROOT` resuelve a `/home/nono/drive/01_ambitos/02_personal/40_deporte`
+- pendiente: confirmar permisos de configuración y tokens
 
 ## Paso 12. Automatización controlada
 

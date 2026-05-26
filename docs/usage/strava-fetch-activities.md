@@ -51,10 +51,12 @@ Si Strava devuelve `429 Too Many Requests`, el proceso guarda el estado y termin
 
 Además, el comando lleva una protección preventiva por defecto para no apurar los límites de lectura:
 
-- máximo configurado de `200` peticiones de lectura cada 15 minutos
-- máximo configurado de `2000` peticiones de lectura al día
+- máximo configurado de `100` peticiones de lectura cada 15 minutos
+- máximo configurado de `1000` peticiones de lectura al día
 - reserva de seguridad de `5` peticiones antes del límite efectivo
 - si Strava informa límites menores en sus cabeceras, se respeta el menor de ambos valores
+
+Strava documenta dos límites por aplicación: el límite global por defecto (`200` cada 15 minutos y `2000` al día) y un límite separado para endpoints de lectura o "non-upload" (`100` cada 15 minutos y `1000` al día). La descarga de actividades usa endpoints de lectura, por lo que el límite operativo de este proceso es `100/1000`.
 
 Cuando se alcanza el umbral preventivo, el proceso termina con `Stopped early: rate_limit_budget:...` antes de enviar la siguiente petición. El estado queda guardado para reanudar más tarde sin repetir partes ya completadas.
 
@@ -117,8 +119,8 @@ Para ajustar la protección de límites:
 
 ```bash
 ./.venv/bin/python -m nono_sports strava fetch-activities \
-  --max-read-requests-15min 200 \
-  --max-read-requests-daily 2000 \
+  --max-read-requests-15min 100 \
+  --max-read-requests-daily 1000 \
   --rate-limit-reserve 5
 ```
 

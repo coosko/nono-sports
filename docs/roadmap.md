@@ -25,6 +25,8 @@ Este roadmap deriva de `docs/requirements/requirements.md` y `docs/technical/arc
 - definir el modelo de actividad consolidada
 - preparar `20_consolidado`
 - resolver la consolidación simple para una única fuente
+- validar conteos y coherencia del dataset local
+- estado: implementado para Strava como fuente única
 
 ## Fase 4. Extensibilidad
 
