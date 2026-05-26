@@ -71,7 +71,15 @@ sudo apt update
 sudo apt install python3.12 python3.12-venv
 ```
 
-Si el paquete no está disponible, para este paso necesitamos decidir una vía de instalación de Python 3.12 apropiada para ese host antes de continuar.
+Si el paquete no está disponible, usa `uv` como gestor de Python de usuario. Esta opción no modifica el Python del sistema y no requiere `sudo`:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv --version
+uv python install 3.12
+uv python find 3.12
+```
 
 ## 2. Instalar proyecto
 
@@ -82,9 +90,8 @@ mkdir -p "$HOME/apps"
 cd "$HOME/apps"
 git clone git@github.com:coosko/nono-sports.git nono-sport
 cd "$HOME/apps/nono-sport"
-python3.12 -m venv .venv
-./.venv/bin/python -m pip install --upgrade pip
-./.venv/bin/python -m pip install -e .
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -e .
 ```
 
 Si el repositorio ya existe:
@@ -92,13 +99,13 @@ Si el repositorio ya existe:
 ```bash
 cd "$HOME/apps/nono-sport"
 git pull
-./.venv/bin/python -m pip install -e .
+uv pip install --python .venv/bin/python -e .
 ```
 
 Para poder ejecutar tests en Nono, instala dependencias de desarrollo de forma opcional:
 
 ```bash
-./.venv/bin/python -m pip install -r requirements-dev.txt
+uv pip install --python .venv/bin/python -r requirements-dev.txt
 ```
 
 ## 3. Configurar entorno
