@@ -20,6 +20,8 @@ Existe actualmente:
 - soporte de configuración persistente en `~/.config/nono-sports/env`
 - guía de instalación en el host Nono
 - compatibilidad validada con Python 3.14.4 en Nono
+- instalación persistente validada en `/home/nono/apps/nono-sport`
+- tokens OAuth copiados en Nono con permisos restrictivos
 - scripts para crear la estructura base de directorios de datos
 - documentación de visión, requisitos, arquitectura y planificación
 - integración básica de calidad con `ruff`, `pytest` y GitHub Actions
@@ -37,4 +39,4 @@ El código previo se conserva en `deprecated/initial-bootstrap/` solo como refer
 
 ## Próximo objetivo
 
-Completar la instalación persistente en `nono.carlos.prades.name`, configurar secretos/tokens y confirmar que Nono ejecuta la versión instalada contra la capa `20_consolidado`.
+Continuar con la descarga incremental cuando se libere cuota diaria de Strava y preparar el Paso 12 de automatización controlada.

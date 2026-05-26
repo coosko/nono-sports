@@ -258,10 +258,10 @@ Validación de usuario:
 Objetivo:
 
 - preparar instalación en el entorno Linux de Nono
-- configurar `.env`
+- configurar `~/.config/nono-sports/env`
 - configurar `NONO_SPORT_DATA_ROOT`
-- ejecutar autenticación si es necesaria
-- ejecutar primera sincronización completa
+- copiar tokens OAuth si se reutiliza autorización existente
+- ejecutar validación y prueba de autenticación contenida
 
 Entregables:
 
@@ -271,11 +271,13 @@ Entregables:
 
 Validación de usuario:
 
-- el usuario confirma que Nono ve los datos consolidados
-- pendiente: ejecutar comprobación en `nono.carlos.prades.name`
-- pendiente: confirmar que `NONO_SPORT_DATA_ROOT` resuelve a `/home/nono/drive/01_ambitos/02_personal/40_deporte`
-- pendiente: confirmar permisos de configuración y tokens
 - completado: validación temporal en Nono con Python 3.14.4, 67 tests pasados y `strava validate` correcto
+- completado: instalación persistente en `/home/nono/apps/nono-sport`
+- completado: `NONO_SPORT_DATA_ROOT` resuelve a `/home/nono/drive/01_ambitos/02_personal/40_deporte`
+- completado: `20_consolidado` es visible para Nono desde Google Drive
+- completado: configuración XDG en `/home/nono/.config/nono-sports/env`
+- completado: tokens copiados a `/home/nono/.local/state/nono-sports/strava_tokens.json` con permisos `600`
+- completado: prueba real de autenticación Strava ejecutada; parada preventiva por cuota diaria `996/1000`
 
 ## Paso 12. Automatización controlada
 

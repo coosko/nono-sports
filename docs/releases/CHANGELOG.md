@@ -40,6 +40,7 @@ Todas las versiones y entregables se documentan aquí.
 - Ejecutada consolidación real de 34 actividades normalizadas.
 - Ejecutada validación real con estado `warning` por descarga incompleta esperada debido a rate limit.
 - Ejecutada validación de compatibilidad en Nono con Python 3.14.4: `scripts/check.py` con 67 tests pasados y `strava validate` correcto.
+- Ejecutada instalación persistente en Nono con configuración XDG, tokens copiados con permisos `600` y prueba real de autenticación Strava detenida correctamente por cuota diaria `996/1000`.
 - Verificación local actual: `python3 scripts/check.py` con 67 tests pasados y `pre-commit run --all-files` correcto.
 
 ## 0.1.0 - 2026-05-24

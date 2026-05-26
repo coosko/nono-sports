@@ -159,6 +159,18 @@ cd "$HOME/apps/nono-sport"
 
 La validación no llama a Strava y no consume cuota. Si el estado es `warning` por descarga incompleta, es aceptable mientras los avisos coincidan con el estado conocido.
 
+Para validar que configuración, client secret y tokens funcionan contra Strava, ejecuta una prueba contenida:
+
+```bash
+./.venv/bin/python -m nono_sports strava fetch-activities \
+  --max-activities 1 \
+  --max-read-requests-15min 20 \
+  --max-read-requests-daily 50 \
+  --rate-limit-reserve 2
+```
+
+Si Strava informa una cuota diaria ya cercana al límite, el proceso puede parar antes de listar o descargar actividades. Eso es correcto: confirma autenticación y protección de rate limit sin apurar la cuota.
+
 Para verificar que Nono puede reconstruir las capas derivadas:
 
 ```bash
@@ -176,3 +188,4 @@ El Paso 11 queda validado cuando:
 - el comando `strava validate` genera informe en `30_analisis/informes`
 - Nono ve `20_consolidado/activities.jsonl`
 - los tokens quedan en `/home/nono/.local/state/nono-sports/strava_tokens.json` con permisos `600`
+- una llamada contenida a Strava autentica correctamente o se detiene por rate limit preventivo

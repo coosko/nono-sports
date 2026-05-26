@@ -19,6 +19,9 @@
 - [x] definir el informe mínimo de validación de datos
 - [x] implementar validación de datos offline
 - [x] definir instalación recomendada en Nono
+- [x] validar ruta real de datos en Nono
+- [x] validar instalación del proyecto en Nono
+- [x] confirmar que Nono ve `20_consolidado`
 
 ## Pendiente de validación
 
@@ -28,6 +31,3 @@
 - [x] validar ficheros raw de perfil y contexto generados por Strava
 - [ ] validar ficheros raw de actividades generados por Strava
 - [ ] revisar el informe `30_analisis/informes/strava_validation_report.md`
-- [ ] validar ruta real de datos en Nono
-- [ ] validar instalación del proyecto en Nono
-- [ ] confirmar que Nono ve `20_consolidado`
