@@ -83,7 +83,7 @@ En Nono:
 ```bash
 mkdir -p "$HOME/apps"
 cd "$HOME/apps"
-git clone git@github.com:coosko/nono-sports.git nono-sport
+git clone https://github.com/coosko/nono-sports.git nono-sport
 cd "$HOME/apps/nono-sport"
 python3 -m venv .venv
 ./.venv/bin/python --version
