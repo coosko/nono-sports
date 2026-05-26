@@ -23,6 +23,7 @@ Documento de referencia del estado real:
 - `docs/index.md`: índice y jerarquía documental
 - `docs/usage/install-nono.md`: instalación en el host Nono
 - `docs/usage/automation.md`: automatización controlada en Nono
+- `docs/usage/nono-operator-guide.md`: guía operativa y prompt sugerido para Nono
 - `docs/requirements/resources/Descripcion_inicial.md`: documento de entrada y descubrimiento
 
 ## Requisitos

@@ -25,6 +25,7 @@ Todas las versiones y entregables se documentan aquí.
 - Añadidas guías de uso para autenticación, descarga de contexto, descarga de actividades, normalización, consolidación y validación.
 - Añadida guía de instalación en Nono con estrategia de usuario, permisos, tokens y preparación para webhooks futuros.
 - Añadida guía de automatización controlada con propuesta de `systemd timer` de usuario.
+- Añadida guía operativa y prompt sugerido para que Nono entienda, consulte y opere `nono-sports`.
 
 ### Changed
 

@@ -69,3 +69,5 @@ La validación de datos se describe en `docs/usage/strava-validate.md`.
 La instalación en Nono se describe en `docs/usage/install-nono.md`.
 
 La automatización controlada se describe en `docs/usage/automation.md`.
+
+La guía operativa para el agente Nono se describe en `docs/usage/nono-operator-guide.md`.

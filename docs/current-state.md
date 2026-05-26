@@ -24,6 +24,7 @@ Existe actualmente:
 - tokens OAuth copiados en Nono con permisos restrictivos
 - comando `strava sync` para sincronización controlada manual o programada
 - reprogramación adaptativa de `strava sync` con `systemd-run --user`
+- guía operativa para que Nono entienda y use su sistema deportivo
 - scripts para crear la estructura base de directorios de datos
 - documentación de visión, requisitos, arquitectura y planificación
 - integración básica de calidad con `ruff`, `pytest` y GitHub Actions
