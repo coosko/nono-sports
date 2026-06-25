@@ -25,6 +25,31 @@ Hace cuatro cosas principales:
 
 La versión actual se centra en Strava. En el futuro puede ampliarse con Garmin, Komoot o ficheros manuales.
 
+## Fuentes auxiliares para planificar rutas
+
+`nono-sports` no ingiere todavía rutas externas como fuente normalizada, pero
+Nono puede usar herramientas externas para preparar propuestas de salida.
+
+Desde el 2026-06-25, Wikiloc queda validado como fuente secundaria para
+descubrir rutas reales de senderismo, paseos, ciclismo, gravel, MTB y otras
+actividades al aire libre. Su uso operativo recomendado es:
+
+- Wikiloc: descubrir candidatos, tracks, desnivel, waypoints y fotos.
+- Open-Meteo: validar lluvia, calor, viento, horas razonables y riesgos
+  meteorológicos.
+- Google Maps: validar accesos, tiempo de desplazamiento, aparcamiento y
+  logística real.
+- Datos deportivos consolidados de Carlos: ajustar distancia, desnivel y
+  exigencia a la forma física reciente, carga acumulada, descanso y objetivo.
+- Fuentes oficiales: contrastar cierres, permisos, riesgo de incendio,
+  normativa de parques o cualquier decisión con implicaciones de seguridad.
+
+Wikiloc es contenido comunitario. No debe tratarse como fuente única ni como
+verdad operativa: una ruta puede estar desactualizada, mal clasificada, pasar
+por terrenos privados, tener tramos cortados o incluir pasos más difíciles de
+lo que aparenta. Para planes con familia, calor, montaña, poca luz o zonas
+aisladas, ser conservador.
+
 ## Dónde está instalado
 
 Código:

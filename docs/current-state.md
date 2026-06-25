@@ -26,6 +26,9 @@ Existe actualmente:
 - reprogramación adaptativa de `strava sync` con `systemd-run --user`, limitada
   a trabajo descargable real
 - guía operativa para que Nono entienda y use su sistema deportivo
+- Wikiloc validado como fuente auxiliar externa para descubrir rutas reales,
+  tracks, desnivel, waypoints y fotos antes de cruzar con meteo, logística y
+  estado deportivo de Carlos
 - scripts para crear la estructura base de directorios de datos
 - documentación de visión, requisitos, arquitectura y planificación
 - integración básica de calidad con `ruff`, `pytest` y GitHub Actions
@@ -33,6 +36,8 @@ Existe actualmente:
 No existe todavía:
 
 - importadores para Garmin, Komoot o ficheros manuales
+- ingesta normalizada de rutas Wikiloc dentro de `10_fuentes` o
+  `20_consolidado`
 - consolidación multi-fuente con deduplicación
 
 ## Estado del código activo
@@ -51,6 +56,8 @@ Cambios operativos realizados por Nono hasta el 2026-06-25:
   colisiones entre ejecuciones adaptativas.
 - Añadida tolerancia a líneas JSON corruptas en el índice de manifiesto raw
   durante normalización.
+- Validado Wikiloc como herramienta auxiliar dinámica para planificación de
+  rutas. No forma parte todavía de la ingesta ni de la capa consolidada.
 
 Estado observado el 2026-06-25:
 

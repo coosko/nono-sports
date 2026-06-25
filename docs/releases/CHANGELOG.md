@@ -26,6 +26,9 @@ Todas las versiones y entregables se documentan aquí.
 - Añadida guía de instalación en Nono con estrategia de usuario, permisos, tokens y preparación para webhooks futuros.
 - Añadida guía de automatización controlada con propuesta de `systemd timer` de usuario.
 - Añadida guía operativa y prompt sugerido para que Nono entienda, consulte y opere `nono-sports`.
+- Nono documentó el 2026-06-25 el uso de Wikiloc como fuente auxiliar externa
+  para planificación de rutas, cruzada con Open-Meteo, Google Maps, datos
+  deportivos consolidados y fuentes oficiales cuando proceda.
 
 ### Changed
 
