@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import uuid
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -12,8 +13,6 @@ from nono_sports.validation.checks import ValidationSummary
 
 PENDING_DOWNLOAD_FINDING_CODES = {
     "raw.activities_incomplete",
-    "raw.streams_incomplete",
-    "raw.laps_incomplete",
     "state.activities_pending_completion",
     "state.segments_pending",
 }
@@ -117,11 +116,15 @@ def build_systemd_run_command(
     command: tuple[str, ...],
     delay_minutes: int,
     unit_name: str,
+    unit_suffix: str | None = None,
 ) -> list[str]:
+    scheduled_unit_name = unit_name
+    if unit_suffix is not None:
+        scheduled_unit_name = f"{unit_name}-{unit_suffix}"
     return [
         "systemd-run",
         "--user",
-        f"--unit={unit_name}",
+        f"--unit={scheduled_unit_name}",
         f"--on-active={delay_minutes}m",
         "--collect",
         *command,
@@ -140,6 +143,7 @@ def schedule_with_systemd(
             command=command,
             delay_minutes=delay_minutes,
             unit_name=unit_name,
+            unit_suffix=uuid.uuid4().hex,
         ),
         capture_output=True,
         text=True,

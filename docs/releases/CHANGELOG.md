@@ -35,6 +35,15 @@ Todas las versiones y entregables se documentan aquí.
 - Cambiada la descarga de zonas de actividad a opt-in porque Strava la documenta como Summit Feature.
 - Ampliado el raw gratuito con laps, gear desde actividades, segmentos favoritos/referenciados, club detail, route streams y exports GPX/TCX.
 - Actualizada la arquitectura técnica para reflejar capas raw, normalizado, consolidado y validación.
+- Nono ajustó el 2026-06-25 la reprogramación adaptativa para que `raw.streams_incomplete`,
+  `raw.laps_incomplete` y `raw.recoverable_errors` no provoquen por sí solos
+  nuevas ejecuciones si no hay actividades realmente pendientes.
+- Nono cambió las unidades transient de `systemd-run` para usar sufijos únicos y
+  evitar colisiones entre ejecuciones adaptativas.
+- Nono hizo la lectura del índice de manifiesto raw más tolerante a líneas JSON
+  corruptas durante la normalización.
+- Nono documentó el uso de Drive como raíz operativa única y la recuperación
+  segura de `nono-drive.service` si el mount FUSE queda inconsistente.
 
 ### Verified
 
@@ -48,6 +57,12 @@ Todas las versiones y entregables se documentan aquí.
 - Ejecutada instalación persistente en Nono con configuración XDG, tokens copiados con permisos `600` y prueba real de autenticación Strava detenida correctamente por cuota diaria `996/1000`.
 - Ejecutada prueba local de `strava sync --skip-fetch --schedule-next-if-pending` sin llamar a Strava.
 - Verificación local actual: `python3 scripts/check.py` con 74 tests pasados y `pre-commit run --all-files` correcto.
+- Nono verificó el 2026-06-25 que, con el estado real actual (`state.last_run_stopped`,
+  `raw.streams_incomplete`, `raw.recoverable_errors`), la nueva decisión
+  adaptativa es no programar otra ejecución.
+- Nono verificó el 2026-06-25 que `raw.activities_incomplete` y
+  `state.activities_pending_completion` sí siguen programando otra ejecución si
+  hay cuota diaria.
 
 ## 0.1.0 - 2026-05-24
 - Creación del repositorio inicial.

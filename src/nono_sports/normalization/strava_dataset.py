@@ -236,7 +236,10 @@ def _read_manifest_index(path: Path) -> dict[str, dict[str, Any]]:
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        payload = json.loads(line)
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
         if isinstance(payload, dict) and isinstance(payload.get("path"), str):
             index[payload["path"]] = payload
     return index

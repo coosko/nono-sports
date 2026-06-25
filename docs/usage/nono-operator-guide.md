@@ -45,6 +45,46 @@ Datos deportivos:
 /home/nono/drive/01_ambitos/02_personal/40_deporte
 ```
 
+## Modo operativo elegido
+
+Desde el 2026-06-03, el modo operativo elegido para Nono es usar Drive
+montado como raíz única de datos deportivos:
+
+```text
+NONO_SPORT_DATA_ROOT=/home/nono/drive/01_ambitos/02_personal/40_deporte
+```
+
+El montaje `/home/nono/drive` debe estar servido por `nono-drive.service`
+con rclone en modo VFS cache de lectura/escritura persistente. La
+configuración validada es:
+
+```text
+--vfs-cache-mode full
+--vfs-cache-max-size off
+--vfs-cache-max-age 9999h
+--vfs-read-ahead 128M
+--dir-cache-time 9999h
+--buffer-size 32M
+--cache-dir /home/nono/.cache/rclone
+```
+
+Esta decisión evita mantener una segunda raíz operativa local y reduce el
+riesgo de incoherencia entre datos locales y Drive. La antigua copia local
+`/home/nono/.local/share/nono-sports/40_deporte` no debe mantenerse como
+fuente paralela; si hace falta una prueba local, se volverá a generar de
+forma explícita.
+
+Prueba validada el 2026-06-03, con caché precargada:
+
+```text
+strava normalize: 145 activities, 145 streams, 50.01 s
+build-consolidated: 145 activities, 145 source links, 145 stream index records, 0.95 s
+strava validate: errors=0, warnings=5, 2.25 s
+```
+
+Los avisos de validación eran coherentes con backfill incompleto y límites
+de cuota de Strava, no con un fallo de normalización o consolidación.
+
 Configuración sensible:
 
 ```text
@@ -138,6 +178,24 @@ Para consultas normales, usa primero:
 
 ## Validar el estado sin llamar a Strava
 
+Antes de ejecutar operaciones sobre Drive, comprueba que el montaje responde:
+
+```bash
+systemctl --user is-active nono-drive.service
+findmnt -no SOURCE,FSTYPE,OPTIONS /home/nono/drive
+timeout 5s ls /home/nono/drive >/dev/null && echo DRIVE_OK
+```
+
+Si aparece `Transport endpoint is not connected`, no arranques otro rclone
+encima. Recupera el montaje con:
+
+```bash
+systemctl --user stop nono-drive.service
+fusermount3 -uz /home/nono/drive
+systemctl --user reset-failed nono-drive.service
+systemctl --user start nono-drive.service
+```
+
 Este comando no consume cuota de Strava:
 
 ```bash
@@ -177,9 +235,32 @@ Este comando:
 - se detiene antes de apurar límites de Strava
 - reconstruye normalizado y consolidado
 - genera informe de validación
-- si quedan pendientes y hay cuota diaria, programa otra tanda para 20 minutos después
+- si quedan descargas pendientes de actividad y hay cuota diaria, programa otra tanda para 20 minutos después
 
 Si Strava ya está cerca del límite diario, puede consumir una llamada para conocer el estado y detenerse. Eso es correcto.
+
+Desde el ajuste realizado por Nono el 2026-06-25, `--schedule-next-if-pending`
+solo encadena otra ejecución cuando la validación indique trabajo descargable:
+
+- `raw.activities_incomplete`
+- `state.activities_pending_completion`
+- `state.segments_pending`
+
+No encadena otra ejecución solo por `raw.streams_incomplete`,
+`raw.laps_incomplete` o `raw.recoverable_errors`. Esto evita repetir llamadas de
+listado cuando Strava ya ha indicado que ciertos streams no existen (`404`) o
+que ciertas zonas requieren una capacidad no disponible (`402`).
+
+Si se detecta una unidad adaptativa programada que solo está repitiendo listados
+sin procesar actividades, puede pararse sin tocar el timer diario:
+
+```bash
+systemctl --user list-timers 'nono-sports*' --all --no-pager
+systemctl --user stop '<unidad-adaptativa>.timer' '<unidad-adaptativa>.service'
+```
+
+El timer diario `nono-sports-strava-sync.timer` debe quedar activo salvo que
+Carlos pida parar toda sincronización.
 
 ## Automatización activa
 
@@ -284,6 +365,13 @@ Si faltan actividades:
 1. Mira si el informe contiene `raw.activities_incomplete`.
 2. Si hay cuota disponible, puede ejecutarse `strava sync`.
 3. Si la cuota diaria está cerca del límite, espera al día siguiente.
+
+Si faltan streams pero las actividades están completas:
+
+1. Revisa los ficheros en `10_fuentes/strava/raw/errors`.
+2. Si los errores son `404 Resource Not Found` en streams de workouts o
+   `402 Payment Required` en zones, trátalos como datos no disponibles.
+3. No lances sincronizaciones repetidas solo para esos avisos.
 
 ## Principio operativo
 

@@ -49,6 +49,19 @@ def test_adaptive_schedule_decision_stops_without_pending_work() -> None:
     assert "no pending" in decision.reason
 
 
+def test_adaptive_schedule_decision_ignores_unavailable_streams() -> None:
+    decision = build_adaptive_schedule_decision(
+        summary=_summary("raw.streams_incomplete", "raw.recoverable_errors"),
+        rate_limit=_rate_limit(daily_usage=500),
+        configured_daily_cap=1000,
+        reserve_requests=10,
+        skip_fetch=False,
+    )
+
+    assert decision.should_schedule is False
+    assert "no pending" in decision.reason
+
+
 def test_has_daily_budget_room_uses_minimum_between_cap_and_reported_limit() -> None:
     snapshot = _rate_limit(daily_usage=895, daily_limit=900)
 
@@ -83,6 +96,17 @@ def test_build_systemd_run_command_uses_single_transient_unit() -> None:
     ]
 
 
+def test_build_systemd_run_command_can_use_unique_transient_unit_suffix() -> None:
+    command = build_systemd_run_command(
+        command=("python", "-m", "nono_sports", "strava", "sync"),
+        delay_minutes=20,
+        unit_name="nono-sports-strava-sync-adaptive",
+        unit_suffix="abc123",
+    )
+
+    assert command[2] == "--unit=nono-sports-strava-sync-adaptive-abc123"
+
+
 def test_schedule_with_systemd_uses_runner() -> None:
     calls = []
 
@@ -102,7 +126,7 @@ def test_schedule_with_systemd_uses_runner() -> None:
             [
                 "systemd-run",
                 "--user",
-                "--unit=unit",
+                calls[0][0][2],
                 "--on-active=20m",
                 "--collect",
                 "python",
@@ -113,6 +137,7 @@ def test_schedule_with_systemd_uses_runner() -> None:
             True,
         )
     ]
+    assert calls[0][0][2].startswith("--unit=unit-")
 
 
 def _summary(*finding_codes: str) -> ValidationSummary:

@@ -48,13 +48,33 @@ El modo recomendado usa `--schedule-next-if-pending`.
 
 Al final de cada ejecución:
 
-- si no quedan actividades pendientes, termina
+- si no quedan descargas pendientes de actividad, termina
 - si la validación falla, termina
 - si no hay cabecera de rate limit, termina
 - si la cuota diaria está cerca del límite, termina
 - si quedan pendientes y hay cuota diaria suficiente, programa una única ejecución adicional para dentro de 20 minutos con `systemd-run --user`
 
 Esto evita tener un timer cada 15 minutos funcionando siempre. En régimen normal, el timer diario ejecuta una vez y termina. En una puesta al día histórica, el propio comando va encadenando tandas hasta que no haya pendientes o hasta acercarse al límite diario.
+
+Desde el ajuste realizado por Nono el 2026-06-25, la reprogramación adaptativa
+solo considera trabajo descargable estos hallazgos de validación:
+
+- `raw.activities_incomplete`: Strava ha listado actividades que aún no tienen
+  detalle raw local.
+- `state.activities_pending_completion`: hay actividades en el estado sin marca
+  de completado.
+- `state.segments_pending`: hay actividades con detalle pendiente de revisar
+  segmentos.
+
+No se reprograma otra ejecución solo por `raw.streams_incomplete`,
+`raw.laps_incomplete` o `raw.recoverable_errors`. En particular, streams que
+Strava responde como `404 Resource Not Found` y zonas que responde como
+`402 Payment Required` deben tratarse como datos no disponibles, no como trabajo
+pendiente que se vaya a arreglar consumiendo más cuota.
+
+Cada ejecución adaptativa se crea con un sufijo único en la unidad transient de
+`systemd-run`. Esto evita colisiones con unidades previas ya ejecutadas o
+pendientes.
 
 `--lock-file` evita solapes entre la ejecución diaria y una ejecución adaptativa pendiente.
 
