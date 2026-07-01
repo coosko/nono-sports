@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -15,14 +16,35 @@ from nono_sports.automation.adaptive import (
     build_adaptive_schedule_decision,
     schedule_with_systemd,
 )
-from nono_sports.consolidation.single_source import build_single_source_consolidated
+from nono_sports.consolidation.multi_source import build_multi_source_consolidated
 from nono_sports.core.config import (
     ProjectConfig,
     load_config,
     load_strava_client_config,
 )
+from nono_sports.core.doctor import (
+    format_doctor_report,
+    run_common_doctor,
+    run_garmin_doctor,
+    run_strava_doctor,
+)
 from nono_sports.core.file_lock import acquire_file_lock
-from nono_sports.core.paths import ensure_strava_v1_directories, strava_token_path
+from nono_sports.core.paths import (
+    ensure_garmin_connect_directories,
+    ensure_strava_v1_directories,
+    garmin_connect_path,
+    strava_token_path,
+)
+from nono_sports.formats.fit import (
+    compare_fit_decoders,
+    decode_fit_with_fitdecode,
+    fit_decoder_comparison_to_dict,
+)
+from nono_sports.garmin_connect.auth import login_from_tokenstore
+from nono_sports.garmin_connect.raw_store import GarminRawStore
+from nono_sports.garmin_connect.state_store import GarminStateStore
+from nono_sports.garmin_connect.sync import sync_garmin_activities_raw
+from nono_sports.normalization.garmin_dataset import normalize_garmin_dataset
 from nono_sports.normalization.strava_dataset import normalize_strava_dataset
 from nono_sports.storage.raw_store import RawStore
 from nono_sports.storage.state_store import StateStore
@@ -37,10 +59,17 @@ from nono_sports.validation.reports import write_validation_report
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nono-sports")
     subparsers = parser.add_subparsers(dest="command")
+    subparsers.add_parser("doctor")
     subparsers.add_parser("build-consolidated")
+    fit_parser = subparsers.add_parser("fit")
+    fit_subparsers = fit_parser.add_subparsers(dest="fit_command")
+    fit_compare_parser = fit_subparsers.add_parser("compare-decoders")
+    fit_compare_parser.add_argument("--path", required=True)
+    fit_compare_parser.add_argument("--output", default=None)
 
     strava_parser = subparsers.add_parser("strava")
     strava_subparsers = strava_parser.add_subparsers(dest="strava_command")
+    strava_subparsers.add_parser("doctor")
     strava_subparsers.add_parser("prepare-dirs")
     auth_parser = strava_subparsers.add_parser("auth")
     auth_parser.add_argument("--code", default=None)
@@ -69,12 +98,139 @@ def build_parser() -> argparse.ArgumentParser:
     sync_parser.add_argument("--lock-file", default=None)
     _add_activity_fetch_options(sync_parser)
 
+    garmin_parser = subparsers.add_parser("garmin")
+    garmin_subparsers = garmin_parser.add_subparsers(dest="garmin_command")
+    garmin_subparsers.add_parser("doctor")
+    garmin_subparsers.add_parser("prepare-dirs")
+    garmin_subparsers.add_parser("normalize")
+    garmin_fetch_parser = garmin_subparsers.add_parser("fetch-activities")
+    garmin_fetch_parser.add_argument("--start", type=int, default=0)
+    garmin_fetch_parser.add_argument("--limit", type=int, default=20)
+    garmin_fetch_parser.add_argument("--max-activities", type=int, default=1)
+    garmin_fetch_parser.add_argument("--force", action="store_true")
+    garmin_fetch_parser.add_argument("--skip-fit", action="store_true")
+    garmin_fetch_parser.add_argument("--include-tcx", action="store_true")
+    garmin_fetch_parser.add_argument("--include-gpx", action="store_true")
+    garmin_decode_parser = garmin_subparsers.add_parser("decode-fit")
+    garmin_decode_parser.add_argument("--activity-id", default=None)
+    garmin_decode_parser.add_argument("--force", action="store_true")
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "doctor":
+        report = run_common_doctor()
+        print(format_doctor_report(report))
+        return 1 if report.status == "error" else 0
+
+    if args.command == "strava" and args.strava_command == "doctor":
+        report = run_strava_doctor()
+        print(format_doctor_report(report))
+        return 1 if report.status == "error" else 0
+
+    if args.command == "garmin" and args.garmin_command == "doctor":
+        report = run_garmin_doctor()
+        print(format_doctor_report(report))
+        return 1 if report.status == "error" else 0
+
+    if args.command == "garmin" and args.garmin_command == "prepare-dirs":
+        config = load_config()
+        created_paths = ensure_garmin_connect_directories(config.data_root)
+        print(
+            f"Prepared {len(created_paths)} Garmin Connect directories "
+            f"in {config.data_root}"
+        )
+        return 0
+
+    if args.command == "fit" and args.fit_command == "compare-decoders":
+        comparison = compare_fit_decoders(Path(args.path))
+        comparison_payload = fit_decoder_comparison_to_dict(comparison)
+        if args.output:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                _json_dump(comparison_payload),
+                encoding="utf-8",
+            )
+            print(f"Wrote FIT decoder comparison: {output_path}")
+        else:
+            print(
+                "Compared FIT decoders: "
+                f"message_types_equal={comparison.message_types_equal}, "
+                f"fitdecode_messages={len(comparison.fitdecode['message_counts'])}, "
+                "garmin_fit_sdk_messages="
+                f"{len(comparison.garmin_fit_sdk['message_counts'])}."
+            )
+        return 0
+
+    if args.command == "garmin" and args.garmin_command == "fetch-activities":
+        project_config = load_config()
+        ensure_garmin_connect_directories(project_config.data_root)
+        client = login_from_tokenstore()
+        raw_store = GarminRawStore(project_config.data_root)
+        state_store = GarminStateStore(project_config.data_root)
+        result = sync_garmin_activities_raw(
+            client,
+            raw_store,
+            state_store,
+            start=args.start,
+            limit=args.limit,
+            max_activities=args.max_activities,
+            force=args.force,
+            include_fit=not args.skip_fit,
+            include_tcx=args.include_tcx,
+            include_gpx=args.include_gpx,
+        )
+        print(
+            "Downloaded Garmin Connect raw files: "
+            f"{result.listed_activities} listed, "
+            f"{result.processed_activities} processed, "
+            f"{result.skipped_activities} skipped, "
+            f"{len(result.written)} written, "
+            f"{len(result.recoverable_errors)} recoverable errors."
+        )
+        print(f"Raw root: {raw_store.raw_root}")
+        print(f"State: {result.state_path}")
+        return 0
+
+    if args.command == "garmin" and args.garmin_command == "decode-fit":
+        project_config = load_config()
+        ensure_garmin_connect_directories(project_config.data_root)
+        raw_store = GarminRawStore(project_config.data_root)
+        decoded = _decode_garmin_fit_files(
+            project_config.data_root,
+            raw_store,
+            activity_id=args.activity_id,
+            force=args.force,
+        )
+        print(f"Decoded {decoded} Garmin FIT file(s).")
+        decoded_root = garmin_connect_path(
+            project_config.data_root,
+            "raw",
+            "fit_decoded",
+        )
+        print(f"Decoded root: {decoded_root}")
+        return 0
+
+    if args.command == "garmin" and args.garmin_command == "normalize":
+        project_config = load_config()
+        ensure_garmin_connect_directories(project_config.data_root)
+        result = normalize_garmin_dataset(project_config.data_root)
+        print(
+            "Normalized Garmin Connect raw data: "
+            f"{result.activities} activities, "
+            f"{result.streams} streams, "
+            f"{result.laps} laps, "
+            f"{result.splits} splits, "
+            f"{result.typed_splits} typed splits, "
+            f"{len(result.written)} files written."
+        )
+        print(f"Normalized root: {result.normalized_root}")
+        return 0
 
     if args.command == "strava" and args.strava_command == "prepare-dirs":
         config = load_config()
@@ -88,12 +244,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "build-consolidated":
         project_config = load_config()
         ensure_strava_v1_directories(project_config.data_root)
-        result = build_single_source_consolidated(project_config.data_root)
+        result = build_multi_source_consolidated(project_config.data_root)
         print(
             "Built consolidated dataset: "
             f"{result.activities} activities, "
             f"{result.activity_sources} activity source links, "
             f"{result.streams_index} stream index records, "
+            f"{result.duplicate_candidates} duplicate candidates, "
             f"{len(result.written)} files written."
         )
         print(f"Consolidated root: {result.consolidated_root}")
@@ -213,6 +370,48 @@ def _add_activity_fetch_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _decode_garmin_fit_files(
+    data_root: Path,
+    raw_store: GarminRawStore,
+    *,
+    activity_id: str | None,
+    force: bool,
+) -> int:
+    fit_root = garmin_connect_path(data_root, "raw", "activity_files")
+    decoded = 0
+    fit_paths = (
+        [fit_root / f"{activity_id}.fit"]
+        if activity_id is not None
+        else sorted(fit_root.glob("*.fit"))
+    )
+    for fit_path in fit_paths:
+        if not fit_path.exists():
+            continue
+        output_relative = f"fit_decoded/{fit_path.stem}.fitdecode.json"
+        output_path = raw_store.raw_root / output_relative
+        if output_path.exists() and not force:
+            continue
+        result = decode_fit_with_fitdecode(fit_path)
+        raw_store.write_json(
+            output_relative,
+            {
+                "backend": result.backend,
+                "errors": list(result.errors),
+                "frames": result.frames,
+                "messages": result.messages,
+            },
+            endpoint="fitdecode",
+            params={"path": fit_path.relative_to(raw_store.raw_root).as_posix()},
+            kind="derived",
+        )
+        decoded += 1
+    return decoded
+
+
+def _json_dump(payload: object) -> str:
+    return f"{json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)}\n"
+
+
 def _run_strava_sync(args: argparse.Namespace, project_config: ProjectConfig) -> int:
     last_rate_limit = None
     if args.skip_fetch:
@@ -232,12 +431,13 @@ def _run_strava_sync(args: argparse.Namespace, project_config: ProjectConfig) ->
         f"{normalize_result.streams} streams, "
         f"{len(normalize_result.written)} files written."
     )
-    consolidated_result = build_single_source_consolidated(project_config.data_root)
+    consolidated_result = build_multi_source_consolidated(project_config.data_root)
     print(
         "Built consolidated dataset: "
         f"{consolidated_result.activities} activities, "
         f"{consolidated_result.activity_sources} activity source links, "
         f"{consolidated_result.streams_index} stream index records, "
+        f"{consolidated_result.duplicate_candidates} duplicate candidates, "
         f"{len(consolidated_result.written)} files written."
     )
     summary = _run_validation(project_config)

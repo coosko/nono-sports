@@ -18,12 +18,19 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 
 ## Requisitos funcionales previstos para versiones posteriores
 
-- RF8: El sistema debe poder importar datos desde Garmin Connect.
+- RF8: El sistema debe poder importar datos desde Garmin Connect siguiendo la decisión aprobada en `docs/requirements/garmin-connect.md`.
 - RF9: El sistema debe poder importar datos desde Komoot.
 - RF10: El sistema debe poder importar ficheros manuales como FIT, GPX, TCX o CSV.
 - RF11: El sistema debe detectar actividades equivalentes entre varias fuentes.
 - RF12: El sistema debe elegir una fuente primaria por tipo de dato cuando existan duplicados.
 - RF13: El sistema debe producir una vista consolidada única por actividad real.
+- RF14: El sistema debe ofrecer comandos `doctor` por fuente para diagnosticar configuración, permisos, estado local y riesgos antes de sincronizar.
+- RF15: La integración Garmin Connect debe descargar actividades, detalles, FIT, GPX/TCX disponibles, splits, typed splits, laps, weather y candidatos de segmentos cuando existan.
+- RF16: La integración Garmin Connect debe investigar la estructura real de segmentos antes de aprobar un modelo consolidado de segmentos.
+- RF17: El sistema debe decodificar FIT mediante un módulo independiente de la fuente para reutilizarlo con Garmin, importaciones manuales u otras fuentes futuras.
+- RF18: La decodificación de formatos deportivos debe seguir un patrón replicable para FIT, GPX, TCX u otros formatos: raw original, derivado parseado trazable, normalización y consolidación.
+- RF19: La consolidación debe permitir que una actividad consolidada tenga varias actividades fuente enlazadas.
+- RF20: La consolidación debe generar un informe auditable de candidatos duplicados antes de endurecer reglas de fusión o selección por métrica.
 
 ## Requisitos de datos
 
@@ -31,6 +38,10 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 - RDAT2: Los datos `normalizado` deben seguir un esquema común entre fuentes.
 - RDAT3: La capa consolidada debe conservar la relación entre actividad consolidada y actividades fuente.
 - RDAT4: El sistema debe priorizar trazabilidad sobre compactación prematura.
+- RDAT5: Los ficheros FIT originales deben conservarse siempre como raw antes de cualquier parseo.
+- RDAT6: El parseo de FIT debe priorizar conservación de información y trazabilidad frente a simplicidad.
+- RDAT7: Si una fuente entrega un contenedor, como ZIP con FIT interno, se debe conservar el contenedor original y extraer el fichero parseable como derivado raw trazable.
+- RDAT8: Una actividad consolidada debe conservar todos los enlaces fuente que participaron en su agrupación.
 
 ## Requisitos no funcionales
 
@@ -40,6 +51,9 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 - RNF4: El proyecto debe incluir validación automática mínima mediante lint y tests.
 - RNF5: La documentación debe diferenciar con claridad estado actual, arquitectura objetivo y backlog.
 - RNF6: El sistema debe evitar el uso de credenciales de alto riesgo cuando exista una alternativa oficial o de exportación controlada.
+- RNF7: Las integraciones no oficiales deben estar encapsuladas como adaptadores sustituibles y no condicionar el núcleo.
+- RNF8: Tokens, secretos, locks y estado sensible deben vivir fuera del repositorio y fuera de `NONO_SPORT_DATA_ROOT`, siguiendo XDG siempre que sea posible.
+- RNF9: La automatización no debe reloguear en cada ejecución; debe reutilizar tokens y fallar con diagnóstico claro si requiere intervención humana.
 
 ## Fuera de alcance de la v1
 
@@ -47,6 +61,8 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 - consolidación heurística avanzada entre actividades
 - análisis, recomendación o planificación deportiva avanzada
 - automatización basada en navegador autenticado
+- escritura o modificación de datos en Garmin Connect
+- segmentos propios de Nono
 
 ## Requisitos de documentación
 

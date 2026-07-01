@@ -94,9 +94,9 @@ def validate_strava_data(
         consolidated_root / "streams_index.jsonl",
         findings,
     )
-    _read_json(consolidated_root / "state.json", findings)
+    consolidated_state = _read_json(consolidated_root / "state.json", findings)
 
-    _check_expected_counts(counts, findings)
+    _check_expected_counts(counts, findings, consolidated_state)
 
     return ValidationSummary(
         generated_at=checked_at.isoformat(),
@@ -182,6 +182,7 @@ def _check_sync_state(
 def _check_expected_counts(
     counts: dict[str, int],
     findings: list[ValidationFinding],
+    consolidated_state: Any,
 ) -> None:
     listed = counts.get("raw_listed_activities", 0)
     raw_details = counts.get("raw_activity_details", 0)
@@ -275,32 +276,72 @@ def _check_expected_counts(
         code="normalized.streams_mismatch",
         message="Los streams normalizados no cuadran con los streams raw disponibles.",
     )
-    _error_if_mismatch(
-        counts,
-        findings,
-        left_key="consolidated_activities",
-        right_key="normalized_activities",
-        code="consolidated.activities_mismatch",
-        message="Las actividades consolidadas no cuadran con las normalizadas.",
+    _check_consolidated_counts(counts, findings, consolidated_state)
+
+
+def _check_consolidated_counts(
+    counts: dict[str, int],
+    findings: list[ValidationFinding],
+    consolidated_state: Any,
+) -> None:
+    strategy = (
+        consolidated_state.get("strategy")
+        if isinstance(consolidated_state, dict)
+        else None
     )
-    _error_if_mismatch(
-        counts,
-        findings,
-        left_key="consolidated_activity_sources",
-        right_key="consolidated_activities",
-        code="consolidated.sources_mismatch",
-        message="Los enlaces fuente no cuadran con las actividades consolidadas.",
-    )
-    _error_if_mismatch(
-        counts,
-        findings,
-        left_key="consolidated_streams_index",
-        right_key="normalized_streams",
-        code="consolidated.streams_mismatch",
-        message=(
-            "El índice consolidado de streams no cuadra con los streams normalizados."
-        ),
-    )
+    if strategy != "multi_source_initial":
+        _error_if_mismatch(
+            counts,
+            findings,
+            left_key="consolidated_activities",
+            right_key="normalized_activities",
+            code="consolidated.activities_mismatch",
+            message="Las actividades consolidadas no cuadran con las normalizadas.",
+        )
+        _error_if_mismatch(
+            counts,
+            findings,
+            left_key="consolidated_activity_sources",
+            right_key="consolidated_activities",
+            code="consolidated.sources_mismatch",
+            message="Los enlaces fuente no cuadran con las actividades consolidadas.",
+        )
+        _error_if_mismatch(
+            counts,
+            findings,
+            left_key="consolidated_streams_index",
+            right_key="normalized_streams",
+            code="consolidated.streams_mismatch",
+            message=(
+                "El índice consolidado de streams no cuadra con los streams "
+                "normalizados."
+            ),
+        )
+        return
+
+    if counts.get("consolidated_activities", 0) > counts.get(
+        "consolidated_activity_sources",
+        0,
+    ):
+        findings.append(
+            ValidationFinding(
+                severity="error",
+                code="consolidated.sources_missing",
+                message=(
+                    "Hay actividades consolidadas sin enlace a fuente normalizada."
+                ),
+                details={
+                    "consolidated_activities": counts.get(
+                        "consolidated_activities",
+                        0,
+                    ),
+                    "consolidated_activity_sources": counts.get(
+                        "consolidated_activity_sources",
+                        0,
+                    ),
+                },
+            )
+        )
 
 
 def _warn_if_less(

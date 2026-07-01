@@ -8,6 +8,8 @@ La primera versión debe permitir que Nono recoja de Strava la información más
 
 La v1 se centra solo en Strava, pero la arquitectura debe permitir añadir Garmin, Komoot o importaciones manuales sin rehacer el núcleo.
 
+Garmin Connect queda aprobado como siguiente fuente objetivo, documentada en `docs/requirements/garmin-connect.md`.
+
 ## Fuentes oficiales consultadas
 
 - Strava Authentication: https://developers.strava.com/docs/authentication/
@@ -15,6 +17,8 @@ La v1 se centra solo en Strava, pero la arquitectura debe permitir añadir Garmi
 - Strava API Reference: https://developers.strava.com/docs/reference/
 - Strava Rate Limits: https://developers.strava.com/docs/rate-limits/
 - Strava Webhooks: https://developers.strava.com/docs/webhooks/
+- Garmin Connect Developer Program Activity API: https://developer.garmin.com/gc-developer-program/activity-api/
+- python-garminconnect: https://github.com/cyberjunky/python-garminconnect
 
 ## Alcance Strava v1
 
@@ -74,6 +78,14 @@ src/nono_sports/
 │   ├── endpoints.py
 │   ├── sync.py
 │   └── rate_limits.py
+├── garmin_connect/
+│   ├── client.py
+│   ├── auth.py
+│   ├── endpoints.py
+│   ├── sync.py
+│   └── doctor.py
+├── formats/
+│   └── fit.py
 ├── storage/
 │   ├── raw_store.py
 │   ├── consolidated_store.py
@@ -89,7 +101,11 @@ src/nono_sports/
 │   ├── strava_activity.py
 │   ├── strava_athlete.py
 │   ├── strava_dataset.py
-│   └── strava_stream.py
+│   ├── strava_stream.py
+│   ├── garmin_connect_activity.py
+│   ├── garmin_connect_athlete.py
+│   ├── garmin_connect_dataset.py
+│   └── garmin_connect_stream.py
 ├── consolidation/
 │   └── single_source.py
 ├── automation/
@@ -175,6 +191,79 @@ No se usan en v1:
 - `GET /segment_efforts` ni `GET /segment_efforts/{id}` porque requieren suscripción
 - `GET /activities/{id}/comments` ni `GET /activities/{id}/kudos` porque son datos sociales/de terceros
 
+### `garmin_connect`
+
+Responsable de hablar con Garmin Connect mediante un adaptador encapsulado sobre `python-garminconnect`.
+
+Reglas:
+
+- solo lectura
+- no acoplar el core a la librería externa
+- usar inicialmente `garminconnect==0.3.6`
+- poder sustituir el adaptador si cambia Garmin Connect o se usa una API oficial futura
+- reutilizar tokenstore en ejecuciones automatizadas
+- no reloguear en cada ejecución
+- exponer diagnóstico mediante `nono-sports garmin doctor`
+
+Datos objetivo:
+
+- perfil/atleta mínimo
+- listado de actividades
+- detalle JSON por actividad
+- FIT original
+- GPX/TCX si están disponibles
+- splits
+- typed splits
+- laps
+- weather
+- candidatos de segmentos si aparecen en payloads o ficheros
+
+Garmin preserva ficheros originales y contenedores. El parseo de FIT no vive en
+Garmin, sino en `formats`.
+
+### `formats`
+
+Responsable de leer formatos deportivos reutilizables entre fuentes:
+
+- FIT actual
+- GPX futuro
+- TCX futuro
+- CSV/manual futuro
+
+Regla estándar:
+
+```text
+raw original
+→ extracción si el proveedor entrega ZIP u otro contenedor
+→ derivado decodificado trazable
+→ normalización por fuente
+→ consolidación común
+```
+
+Para FIT, el backend inicial es `fitdecode==0.11.0`.
+
+Razones:
+
+- conserva información cercana al stream original
+- expone mensajes/campos desconocidos
+- soporta FIT encadenados
+- coste razonable
+- no acopla el proyecto al SDK oficial ni a Garmin Connect
+
+`garmin-fit-sdk` queda como fallback o herramienta de contraste oficial.
+
+La salida decodificada debe conservar tanto valores normalizados como metadatos
+de bajo nivel:
+
+- valor decodificado directo por nombre de campo
+- `_fit_message` con identificadores del mensaje FIT
+- `_fit_fields` con `def_num`, `raw_value`, `value`, `units`, `type` y
+  `base_type`
+
+La comparación entre decodificadores es una capacidad común de `formats`, no de
+Garmin. Debe poder ejecutarse sobre cualquier FIT futuro para detectar si
+`garmin-fit-sdk` interpreta campos que el backend principal no esté exponiendo.
+
 ### `storage`
 
 Responsable de escritura y estado:
@@ -221,22 +310,27 @@ Los modelos usan identificadores estables `strava:<tipo>:<id>`, unidades SI y ca
 
 ### `consolidation`
 
-En la v1 solo trabaja con una fuente.
+La estrategia activa es `multi_source_initial`.
 
 Responsabilidad:
 
-- crear una primera vista consolidada desde Strava
-- conservar `source = strava`
-- dejar preparado el modelo para futuras fuentes
+- crear una vista consolidada desde fuentes normalizadas disponibles
+- mantener Strava como fuente primaria inicial por compatibilidad
+- permitir varios enlaces fuente por actividad consolidada
+- detectar duplicados candidatos entre Strava y Garmin Connect
+- conservar trazabilidad completa antes de elegir fuente por métrica
 
 La salida consolidada inicial se escribe en:
 
 - `20_consolidado/activities.jsonl`
 - `20_consolidado/activity_sources.jsonl`
 - `20_consolidado/streams_index.jsonl`
+- `20_consolidado/duplicate_candidates.jsonl`
 - `20_consolidado/state.json`
 
-En la v1 la estrategia es `single_source`: cada actividad consolidada procede de una única actividad normalizada Strava con `match_confidence = 1.0`.
+La deduplicación inicial usa señales conservadoras: fecha/hora, duración,
+distancia y deporte. El informe `duplicate_candidates.jsonl` debe revisarse
+antes de ampliar reglas o aplicar selección avanzada por campo/métrica.
 
 ### `validation`
 
@@ -250,6 +344,22 @@ Responsable de comprobar la calidad del resultado:
 - informe legible para revisión del usuario
 
 La validación de datos es offline: no llama a Strava ni consume rate limit. La validación de tokens/scopes se realiza durante autenticación y cliente HTTP.
+
+### `doctor`
+
+Los comandos `doctor` son diagnósticos seguros y previos a la sincronización.
+
+Responsabilidades:
+
+- comprobar versión de Python
+- comprobar instalación de dependencias
+- comprobar configuración XDG
+- comprobar permisos de tokens, logs y locks
+- comprobar `NONO_SPORT_DATA_ROOT`
+- comprobar estructura de carpetas por fuente
+- detectar placeholders o secretos mal ubicados
+- leer estado local sin descargar datos por defecto
+- emitir una salida accionable para usuario y Nono
 
 ### `automation`
 
@@ -302,6 +412,30 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   │   │   └── streams.jsonl
 │   │   └── logs/
 │   │       └── activity_sync_state.json
+│   ├── garmin_connect/
+│   │   ├── raw/
+│   │   │   ├── athlete/
+│   │   │   ├── activities/
+│   │   │   ├── activity_files/
+│   │   │   ├── fit_decoded/
+│   │   │   ├── splits/
+│   │   │   ├── typed_splits/
+│   │   │   ├── laps/
+│   │   │   ├── weather/
+│   │   │   ├── segment_candidates/
+│   │   │   └── manifest.jsonl
+│   │   ├── normalizado/
+│   │   │   ├── athletes.jsonl
+│   │   │   ├── activities.jsonl
+│   │   │   ├── streams.jsonl
+│   │   │   ├── streams_index.jsonl
+│   │   │   ├── laps.jsonl
+│   │   │   ├── splits.jsonl
+│   │   │   ├── typed_splits.jsonl
+│   │   │   ├── segment_candidates.jsonl
+│   │   │   └── state.json
+│   │   └── logs/
+│   │       └── activity_sync_state.json
 │   └── manual/
 │       ├── biometria/
 │       │   └── mediciones_carlos.csv
@@ -326,6 +460,14 @@ Los secretos de autenticación no viven en `<data_root>`. Los tokens OAuth de St
 ~/.local/state/nono-sports/strava_tokens.json
 ```
 
+Garmin Connect debe usar el mismo criterio:
+
+```text
+~/.config/nono-sports/garmin_connect/config.toml
+~/.local/state/nono-sports/garmin_connect/tokenstore/
+~/.local/state/nono-sports/garmin_connect/auth_state.json
+```
+
 ## Decisiones técnicas
 
 - La fuente raw manda: cualquier dato derivado debe poder trazarse al JSON original.
@@ -339,11 +481,15 @@ Los secretos de autenticación no viven en `<data_root>`. Los tokens OAuth de St
 - La v1 debe ejecutarse como usuario `nono`; un webhook futuro expuesto a Internet debe separar listener sin secretos y worker con permisos de sincronización.
 - La automatización debe usar presupuestos preventivos de rate limit y generar siempre informe de validación.
 - La puesta al día histórica debe usar reprogramación adaptativa, no un timer cada 15 minutos permanente.
+- Las fuentes no oficiales, como Garmin Connect mediante `python-garminconnect`, deben estar encapsuladas como adaptadores sustituibles.
+- Los comandos `doctor` deben diagnosticar configuración, permisos y estado local sin descargar datos por defecto.
+- Garmin Connect debe probar primero autonomía por tokens; user/password solo puede aprobarse como fallback explícito si los tokens no bastan.
+- El FIT original debe conservarse como raw aunque se genere una representación parseada para normalización.
 
 ## Fuera de alcance de la v1
 
 - escritura o modificación de datos en Strava
 - webhooks productivos
-- soporte Garmin, Komoot o ficheros manuales
+- implementación Garmin, Komoot o ficheros manuales
 - deduplicación compleja entre fuentes
 - análisis deportivo avanzado

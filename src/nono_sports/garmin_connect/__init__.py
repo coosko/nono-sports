@@ -1,0 +1,2 @@
+"""Garmin Connect source adapter."""
+

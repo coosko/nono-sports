@@ -28,6 +28,18 @@ dependencies = [
   "python-dotenv>=1.0.0,<2.0.0"
 ]
 
+[project.optional-dependencies]
+garmin = [
+  "garminconnect==0.3.6"
+]
+fit = [
+  "fitdecode==0.11.0"
+]
+fit-compare = [
+  "fitdecode==0.11.0",
+  "garmin-fit-sdk>=21.0,<22.0"
+]
+
 [project.urls]
 "Homepage" = "https://github.com/<usuario>/nono-sports"
 "Source" = "https://github.com/<usuario>/nono-sports"

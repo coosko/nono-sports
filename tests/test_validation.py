@@ -64,6 +64,44 @@ def test_write_validation_report_writes_markdown(tmp_path: Path) -> None:
     assert "`raw.activities_incomplete`" in content
 
 
+def test_validate_strava_data_accepts_multi_source_consolidated_links(
+    tmp_path: Path,
+) -> None:
+    _write_minimal_dataset(tmp_path)
+    ConsolidatedStore(tmp_path).write_jsonl(
+        "activity_sources.jsonl",
+        [
+            {
+                "consolidated_activity_uid": (
+                    "consolidated:activity:strava:activity:100"
+                ),
+                "source": "strava",
+            },
+            {
+                "consolidated_activity_uid": (
+                    "consolidated:activity:strava:activity:100"
+                ),
+                "source": "garmin_connect",
+            },
+        ],
+    )
+    ConsolidatedStore(tmp_path).write_jsonl(
+        "streams_index.jsonl",
+        [
+            {"stream_uid": "strava:stream:100"},
+            {"stream_uid": "garmin_connect:stream:abc"},
+        ],
+    )
+    ConsolidatedStore(tmp_path).write_json(
+        "state.json",
+        {"strategy": "multi_source_initial", "counts": {"activities": 1}},
+    )
+
+    summary = validate_strava_data(tmp_path)
+
+    assert summary.status == "pass"
+
+
 def _write_minimal_dataset(
     tmp_path: Path,
     *,

@@ -4,6 +4,8 @@ Todas las versiones y entregables se documentan aquí.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-01
+
 ### Added
 
 - Añadida carga de `.env`, validación de configuración y resolución de `NONO_SPORT_DATA_ROOT`.
@@ -26,6 +28,25 @@ Todas las versiones y entregables se documentan aquí.
 - Añadida guía de instalación en Nono con estrategia de usuario, permisos, tokens y preparación para webhooks futuros.
 - Añadida guía de automatización controlada con propuesta de `systemd timer` de usuario.
 - Añadida guía operativa y prompt sugerido para que Nono entienda, consulte y opere `nono-sports`.
+- Añadida decisión aprobada de integración Garmin Connect en `docs/requirements/garmin-connect.md`.
+- Añadida funcionalidad `doctor` para diagnóstico seguro de configuración, rutas, permisos, tokens, locks y estado local.
+- Añadidos comandos `nono-sports doctor`, `nono-sports strava doctor` y `nono-sports garmin doctor`.
+- Añadida guía `docs/usage/doctor.md`.
+- Añadido extra opcional `garmin` con `garminconnect==0.3.6` para la prueba aislada Garmin Connect.
+- Añadido script `scripts/garmin_connect_probe.py` y guía `docs/usage/garmin-connect-probe.md`.
+- Añadido adaptador Garmin Connect base de solo lectura con autenticación por tokenstore, login interactivo, lectura de actividad y descarga FIT.
+- Añadida descarga raw Garmin Connect inicial con manifiesto, estado reanudable y comando `nono-sports garmin fetch-activities`.
+- Añadido módulo independiente `nono_sports.formats.fit` con extracción de FIT directo o dentro de ZIP.
+- Añadido comando offline `nono-sports garmin decode-fit`.
+- Añadido extra opcional `fit` con `fitdecode==0.11.0`.
+- Añadido extra opcional `fit-compare` con `fitdecode` y `garmin-fit-sdk` para
+  comparación de decodificadores.
+- Añadido comando fuente-independiente `nono-sports fit compare-decoders`.
+- Añadida consolidación multi-fuente inicial en `consolidation.multi_source`.
+- Añadido informe consolidado `duplicate_candidates.jsonl`.
+- Añadida normalización Garmin Connect inicial para actividades, streams FIT,
+  laps, splits, typed splits, candidatos de segmento y estado.
+- Añadido comando `nono-sports garmin normalize`.
 - Nono documentó el 2026-06-25 el uso de Wikiloc como fuente auxiliar externa
   para planificación de rutas, cruzada con Open-Meteo, Google Maps, datos
   deportivos consolidados y fuentes oficiales cuando proceda.
@@ -47,9 +68,27 @@ Todas las versiones y entregables se documentan aquí.
   corruptas durante la normalización.
 - Nono documentó el uso de Drive como raíz operativa única y la recuperación
   segura de `nono-drive.service` si el mount FUSE queda inconsistente.
+- Separado el análisis Garmin Connect del documento de decisión aprobada y alineados requisitos, arquitectura, roadmap, backlog, plan de trabajo y TODO.
+- Enriquecida la salida FIT decodificada para conservar metadatos por campo:
+  `def_num`, `raw_value`, unidades y tipos.
+- `build-consolidated` usa ahora la estrategia `multi_source_initial`, manteniendo
+  Strava como fuente primaria inicial por compatibilidad.
+- La validación acepta actividades consolidadas con más de un enlace fuente.
 
 ### Verified
 
+- Validada instalación local de `garminconnect==0.3.6` mediante `nono-sports garmin doctor`.
+- Validada prueba aislada Garmin Connect con login inicial, tokenstore, segunda ejecución sin credenciales, listado de actividades, detalle, splits, typed splits, split summaries, weather y FIT.
+- Validados tests unitarios del adaptador Garmin Connect con mocks, sin llamadas reales a Garmin.
+- Validada descarga real local de 1 actividad Garmin Connect y segunda ejecución idempotente.
+- Validado que Garmin `ORIGINAL` entrega ZIP; ahora se conserva `.original.zip` y se extrae `.fit`.
+- Validado FIT real con `fitdecode`: 6844 frames, 20 tipos de mensajes, 2480 records, 4254 HRV y 0 errores.
+- Comparado FIT real con `fitdecode` y `garmin-fit-sdk`: mismos tipos de
+  mensaje y volúmenes principales; las diferencias fueron alias/metadatos, no
+  datos deportivos adicionales exclusivos del SDK oficial.
+- Validada normalización Garmin real de la actividad `23422332225`.
+- Validado que Garmin `23422332225` y Strava `19114956119` se consolidan como
+  una única actividad con confianza `0.97`.
 - Ejecutada autenticación real de Strava por el usuario.
 - Ejecutada descarga real de perfil/contexto y descarga incremental real de actividades.
 - Confirmado límite operativo de Strava de `100/1000` peticiones de lectura.

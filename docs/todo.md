@@ -2,6 +2,12 @@
 
 ## Completado
 
+- [x] aprobar documento de análisis de Garmin Connect
+- [x] separar decisión aprobada Garmin Connect en documentación canónica
+- [x] implementar `doctor` común sin llamadas de descarga por defecto
+- [x] implementar `nono-sports strava doctor`
+- [x] implementar `nono-sports garmin doctor`
+- [x] preparar prueba aislada Garmin Connect con `garminconnect==0.3.6`
 - [x] cerrar la arquitectura de software de la v1
 - [x] crear los módulos vacíos alineados con la arquitectura aprobada
 - [x] implementar carga de `.env`, rutas y preparación de directorios
@@ -28,9 +34,38 @@
 - [x] añadir bloqueo de solapes para sincronización automatizada
 - [x] activar timer diario de Strava en Nono
 - [x] ajustar reprogramación adaptativa para ignorar streams/errores no descargables
+- [x] validar instalación aislada local de `garminconnect==0.3.6`
+- [x] ejecutar prueba aislada Garmin Connect con intervención del usuario
+- [x] probar login inicial Garmin Connect y reutilización de tokenstore
+- [x] descargar actividad Garmin de prueba con detalle, splits, typed splits, split summaries, weather y FIT
+- [x] implementar adaptador Garmin Connect de solo lectura
+- [x] refactorizar la prueba aislada para usar el adaptador Garmin Connect
+- [x] implementar descarga raw Garmin Connect inicial
+- [x] descargar raw real de 1 actividad Garmin Connect con manifiesto y estado
+- [x] validar idempotencia de `garmin fetch-activities` en segunda ejecución
+- [x] detectar que Garmin `ORIGINAL` entrega ZIP y extraer FIT interno
+- [x] comparar alternativas FIT incluyendo `fitdecode`
+- [x] implementar módulo independiente `nono_sports.formats.fit`
+- [x] decodificar FIT real con `fitdecode`
+- [x] conservar metadatos FIT de bajo nivel para evitar pérdida de datos
+- [x] añadir comparación reutilizable `fitdecode` vs `garmin-fit-sdk`
+- [x] implementar consolidación multi-fuente inicial
+- [x] generar informe `duplicate_candidates.jsonl`
+- [x] adaptar validación a actividades consolidadas con varias fuentes
+- [x] normalizar Garmin Connect manteniendo trazabilidad a raw
+- [x] comprobar que Garmin `23422332225` y Strava `19114956119` consolidan como
+  la misma actividad
 
 ## Pendiente de validación
 
+- [ ] validar autonomía Garmin Connect en Nono cuando se despliegue allí
+- [x] decidir estrategia de parseo FIT tras comparar alternativas con actividades reales
+- [ ] revisar manualmente actividad Garmin descargada frente a Garmin Connect
+- [ ] ampliar raw Garmin Connect con GPX/TCX si están disponibles
+- [ ] investigar si hay laps separados fuera de `splits/lapDTOs`
+- [ ] investigar candidatos de segmentos Garmin antes de aprobar un modelo consolidado de segmentos
+- [x] revisar candidatos duplicados Strava/Garmin cuando exista normalizado Garmin suficiente
+- [ ] decidir fuente primaria por tipo de métrica en consolidación multi-fuente
 - [ ] confirmar en la ejecución diaria del 2026-06-26 que no se programa una ejecución adaptativa si solo quedan `raw.streams_incomplete` y `raw.recoverable_errors`
 - [ ] corregir escalabilidad de normalización/consolidación: el 2026-06-02, con 104 actividades raw, `strava normalize` no terminó en 180s sobre `/home/nono/drive` montado con `rclone FUSE`; el cuello está en lectura/normalización de actividades+streams raw antes de escribir normalizado. Priorizar normalización incremental, streams particionados/por actividad y escritura local atómica antes de sincronizar a Drive.
 - [ ] revisar tier/suscripción de la app Strava antes del 2026-06-30 por cambios del Developer Program

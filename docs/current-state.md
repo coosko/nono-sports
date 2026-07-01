@@ -1,10 +1,10 @@
 # Estado actual del proyecto
 
-Fecha de referencia: 2026-06-25
+Fecha de referencia: 2026-07-01
 
 ## Situación actual
 
-El repositorio está en fase de implementación incremental de Strava v1.
+El repositorio tiene Strava v1 operativo y entra en fase de preparación de Garmin Connect v1.
 
 Existe actualmente:
 
@@ -23,6 +23,28 @@ Existe actualmente:
 - instalación persistente validada en `/home/nono/apps/nono-sport`
 - tokens OAuth copiados en Nono con permisos restrictivos
 - comando `strava sync` para sincronización controlada manual o programada
+- comandos `doctor`, `strava doctor` y `garmin doctor` para diagnóstico local seguro
+- extra opcional `garmin` con `garminconnect==0.3.6`
+- script aislado `scripts/garmin_connect_probe.py` para validar login, tokenstore, actividad y FIT de Garmin Connect
+- instalación local de `garminconnect==0.3.6` validada por `garmin doctor`
+- prueba aislada Garmin Connect completada con login inicial, tokenstore, segunda ejecución sin credenciales y descarga de una actividad
+- adaptador Garmin Connect base de solo lectura implementado con login por tokenstore, login interactivo, listado, detalle, splits, typed splits, split summaries, weather y descarga FIT
+- descarga raw Garmin Connect inicial implementada con `garmin fetch-activities`
+- una actividad Garmin real descargada en `10_fuentes/garmin_connect/raw` con manifiesto y estado reanudable
+- idempotencia Garmin inicial validada: la segunda ejecución salta la actividad ya completa
+- módulo independiente `nono_sports.formats.fit` implementado para extracción y decodificación FIT
+- backend FIT inicial decidido: `fitdecode==0.11.0`
+- FIT Garmin real decodificado en `raw/fit_decoded/<id>.fitdecode.json`
+- decodificación FIT enriquecida con metadatos de campo para conservar
+  `def_num`, `raw_value`, unidades y tipos
+- comparación reutilizable `fitdecode` vs `garmin-fit-sdk` disponible para FITs
+  de cualquier origen
+- normalización Garmin Connect implementada para activities, streams, laps,
+  splits, typed splits, segment candidates y state
+- consolidación multi-fuente inicial implementada con `activity_sources.jsonl`
+  multi-enlace y `duplicate_candidates.jsonl`
+- Garmin `23422332225` y Strava `19114956119` validados como una única
+  actividad consolidada
 - reprogramación adaptativa de `strava sync` con `systemd-run --user`, limitada
   a trabajo descargable real
 - guía operativa para que Nono entienda y use su sistema deportivo
@@ -31,14 +53,17 @@ Existe actualmente:
   estado deportivo de Carlos
 - scripts para crear la estructura base de directorios de datos
 - documentación de visión, requisitos, arquitectura y planificación
+- decisión aprobada para Garmin Connect en `docs/requirements/garmin-connect.md`
+- análisis de entrada Garmin Connect conservado en `docs/requirements/resources/descripcion_integracion_garmin_connect.md`
 - integración básica de calidad con `ruff`, `pytest` y GitHub Actions
 
 No existe todavía:
 
-- importadores para Garmin, Komoot o ficheros manuales
+- validación real de autonomía Garmin Connect en Nono
+- importadores para Komoot o ficheros manuales
 - ingesta normalizada de rutas Wikiloc dentro de `10_fuentes` o
   `20_consolidado`
-- consolidación multi-fuente con deduplicación
+- selección avanzada de fuente primaria por métrica en consolidación multi-fuente
 
 ## Estado del código activo
 
@@ -74,6 +99,5 @@ El código previo se conserva en `deprecated/initial-bootstrap/` solo como refer
 
 ## Próximo objetivo
 
-Mantener el timer diario activo para detectar actividades nuevas y comprobar que,
-tras descargar una actividad nueva, solo se encadenan ejecuciones adaptativas si
-queda trabajo descargable real.
+Revisar manualmente la actividad Garmin descargada frente a Garmin Connect y
+definir el mapeo de mensajes FIT/JSON Garmin hacia los normalizados Garmin.

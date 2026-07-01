@@ -32,6 +32,20 @@ STRAVA_V1_DIRECTORIES = [
     "90_archivo",
 ]
 
+GARMIN_CONNECT_DIRECTORIES = [
+    "10_fuentes/garmin_connect/raw/athlete",
+    "10_fuentes/garmin_connect/raw/activities",
+    "10_fuentes/garmin_connect/raw/activity_files",
+    "10_fuentes/garmin_connect/raw/fit_decoded",
+    "10_fuentes/garmin_connect/raw/splits",
+    "10_fuentes/garmin_connect/raw/typed_splits",
+    "10_fuentes/garmin_connect/raw/laps",
+    "10_fuentes/garmin_connect/raw/weather",
+    "10_fuentes/garmin_connect/raw/segment_candidates",
+    "10_fuentes/garmin_connect/normalizado",
+    "10_fuentes/garmin_connect/logs",
+]
+
 
 def normalize_filesystem_root(root: str) -> Path:
     if len(root) >= 2 and root[1] == ":":
@@ -47,6 +61,10 @@ def strava_path(data_root: Path, *parts: str) -> Path:
     return data_root.joinpath("10_fuentes", "strava", *parts)
 
 
+def garmin_connect_path(data_root: Path, *parts: str) -> Path:
+    return data_root.joinpath("10_fuentes", "garmin_connect", *parts)
+
+
 def app_state_dir() -> Path:
     import os
 
@@ -58,6 +76,23 @@ def app_state_dir() -> Path:
 
 def strava_token_path() -> Path:
     return app_state_dir() / "strava_tokens.json"
+
+
+def garmin_connect_state_dir() -> Path:
+    return app_state_dir() / "garmin_connect"
+
+
+def garmin_connect_tokenstore_path() -> Path:
+    return garmin_connect_state_dir() / "tokenstore"
+
+
+def ensure_garmin_connect_directories(data_root: Path) -> list[Path]:
+    created_paths: list[Path] = []
+    for directory in GARMIN_CONNECT_DIRECTORIES:
+        path = data_root / directory
+        path.mkdir(parents=True, exist_ok=True)
+        created_paths.append(path)
+    return created_paths
 
 
 def ensure_strava_v1_directories(data_root: Path) -> list[Path]:
