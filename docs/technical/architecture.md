@@ -280,28 +280,32 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 <data_root>/
 ├── 00_referencia/
 ├── 10_fuentes/
-│   └── strava/
-│       ├── raw/
-│       │   ├── athlete/
-│       │   ├── activities/
-│       │   ├── clubs/
-│       │   ├── errors/
-│       │   ├── streams/
-│       │   ├── zones/
-│       │   ├── gear/
-│       │   ├── laps/
-│       │   ├── routes/
-│       │   ├── route_exports/
-│       │   ├── route_streams/
-│       │   ├── segments/
-│       │   ├── segment_streams/
-│       │   └── manifest.jsonl
-│       ├── normalizado/
-│       │   ├── athletes.jsonl
-│       │   ├── activities.jsonl
-│       │   └── streams.jsonl
-│       └── logs/
-│           └── activity_sync_state.json
+│   ├── strava/
+│   │   ├── raw/
+│   │   │   ├── athlete/
+│   │   │   ├── activities/
+│   │   │   ├── clubs/
+│   │   │   ├── errors/
+│   │   │   ├── streams/
+│   │   │   ├── zones/
+│   │   │   ├── gear/
+│   │   │   ├── laps/
+│   │   │   ├── routes/
+│   │   │   ├── route_exports/
+│   │   │   ├── route_streams/
+│   │   │   ├── segments/
+│   │   │   ├── segment_streams/
+│   │   │   └── manifest.jsonl
+│   │   ├── normalizado/
+│   │   │   ├── athletes.jsonl
+│   │   │   ├── activities.jsonl
+│   │   │   └── streams.jsonl
+│   │   └── logs/
+│   │       └── activity_sync_state.json
+│   └── manual/
+│       ├── biometria/
+│       │   └── mediciones_carlos.csv
+│       └── sensaciones/
 ├── 20_consolidado/
 │   ├── activities.jsonl
 │   ├── activity_sources.jsonl

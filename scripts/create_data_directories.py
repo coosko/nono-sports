@@ -26,11 +26,9 @@ DIRECTORIES = [
 FILES = [
     "10_fuentes/strava/raw/athlete.json",
     "10_fuentes/strava/normalizado/activities.jsonl",
-    "10_fuentes/strava/normalizado/activities.csv",
     "10_fuentes/strava/normalizado/streams_index.jsonl",
     "10_fuentes/strava/normalizado/state.json",
     "20_consolidado/activities.jsonl",
-    "20_consolidado/activities.csv",
     "20_consolidado/activity_sources.jsonl",
     "20_consolidado/streams_index.jsonl",
     "20_consolidado/state.json",

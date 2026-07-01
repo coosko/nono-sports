@@ -164,6 +164,20 @@ Raw Strava:
 /home/nono/drive/01_ambitos/02_personal/40_deporte/10_fuentes/strava/raw
 ```
 
+Fuentes manuales:
+
+```text
+/home/nono/drive/01_ambitos/02_personal/40_deporte/10_fuentes/manual/biometria/mediciones_carlos.csv
+/home/nono/drive/01_ambitos/02_personal/40_deporte/10_fuentes/manual/sensaciones
+```
+
+La biometria manual conserva mediciones comparables como peso y frecuencia
+cardiaca en reposo. Las sensaciones conservan notas declaradas por Carlos
+sobre salidas, recuperacion, fatiga, alimentacion, hidratacion, molestias,
+disfrute o intencion de entrenamiento. Los documentos de `30_analisis`
+pueden resumir o interpretar estas fuentes, pero no deben ser la fuente
+primaria.
+
 Datos normalizados:
 
 ```text
