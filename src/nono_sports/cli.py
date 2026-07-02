@@ -43,8 +43,14 @@ from nono_sports.formats.fit import (
 from nono_sports.garmin_connect.auth import login_from_tokenstore
 from nono_sports.garmin_connect.raw_store import GarminRawStore
 from nono_sports.garmin_connect.state_store import GarminStateStore
-from nono_sports.garmin_connect.sync import sync_garmin_activities_raw
-from nono_sports.normalization.garmin_dataset import normalize_garmin_dataset
+from nono_sports.garmin_connect.sync import (
+    GarminRawSyncResult,
+    sync_garmin_activities_raw,
+)
+from nono_sports.normalization.garmin_dataset import (
+    GarminNormalizationResult,
+    normalize_garmin_dataset,
+)
 from nono_sports.normalization.strava_dataset import normalize_strava_dataset
 from nono_sports.storage.raw_store import RawStore
 from nono_sports.storage.state_store import StateStore
@@ -102,11 +108,13 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_subparsers = garmin_parser.add_subparsers(dest="garmin_command")
     garmin_subparsers.add_parser("doctor")
     garmin_subparsers.add_parser("prepare-dirs")
-    garmin_subparsers.add_parser("normalize")
+    garmin_normalize_parser = garmin_subparsers.add_parser("normalize")
+    garmin_normalize_parser.add_argument("--force", action="store_true")
     garmin_fetch_parser = garmin_subparsers.add_parser("fetch-activities")
     garmin_fetch_parser.add_argument("--start", type=int, default=0)
     garmin_fetch_parser.add_argument("--limit", type=int, default=20)
     garmin_fetch_parser.add_argument("--max-activities", type=int, default=1)
+    garmin_fetch_parser.add_argument("--max-pages", type=int, default=100)
     garmin_fetch_parser.add_argument("--force", action="store_true")
     garmin_fetch_parser.add_argument("--skip-fit", action="store_true")
     garmin_fetch_parser.add_argument("--include-tcx", action="store_true")
@@ -114,6 +122,17 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_decode_parser = garmin_subparsers.add_parser("decode-fit")
     garmin_decode_parser.add_argument("--activity-id", default=None)
     garmin_decode_parser.add_argument("--force", action="store_true")
+    garmin_sync_parser = garmin_subparsers.add_parser("sync")
+    garmin_sync_parser.add_argument("--skip-fetch", action="store_true")
+    garmin_sync_parser.add_argument("--start", type=int, default=0)
+    garmin_sync_parser.add_argument("--limit", type=int, default=20)
+    garmin_sync_parser.add_argument("--max-activities", type=int, default=1)
+    garmin_sync_parser.add_argument("--max-pages", type=int, default=100)
+    garmin_sync_parser.add_argument("--force", action="store_true")
+    garmin_sync_parser.add_argument("--skip-fit", action="store_true")
+    garmin_sync_parser.add_argument("--include-tcx", action="store_true")
+    garmin_sync_parser.add_argument("--include-gpx", action="store_true")
+    garmin_sync_parser.add_argument("--lock-file", default=None)
 
     return parser
 
@@ -170,31 +189,26 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "garmin" and args.garmin_command == "fetch-activities":
         project_config = load_config()
         ensure_garmin_connect_directories(project_config.data_root)
-        client = login_from_tokenstore()
-        raw_store = GarminRawStore(project_config.data_root)
-        state_store = GarminStateStore(project_config.data_root)
-        result = sync_garmin_activities_raw(
-            client,
-            raw_store,
-            state_store,
-            start=args.start,
-            limit=args.limit,
-            max_activities=args.max_activities,
+        result, raw_store = _run_garmin_fetch_activities(args, project_config)
+        _print_garmin_fetch_activities_result(result, raw_store)
+        return 0
+
+    if args.command == "garmin" and args.garmin_command == "sync":
+        project_config = load_config()
+        ensure_garmin_connect_directories(project_config.data_root)
+        if args.lock_file:
+            with acquire_file_lock(Path(args.lock_file)):
+                return _run_garmin_sync(args, project_config)
+        return _run_garmin_sync(args, project_config)
+
+    if args.command == "garmin" and args.garmin_command == "normalize":
+        project_config = load_config()
+        ensure_garmin_connect_directories(project_config.data_root)
+        result = normalize_garmin_dataset(
+            project_config.data_root,
             force=args.force,
-            include_fit=not args.skip_fit,
-            include_tcx=args.include_tcx,
-            include_gpx=args.include_gpx,
         )
-        print(
-            "Downloaded Garmin Connect raw files: "
-            f"{result.listed_activities} listed, "
-            f"{result.processed_activities} processed, "
-            f"{result.skipped_activities} skipped, "
-            f"{len(result.written)} written, "
-            f"{len(result.recoverable_errors)} recoverable errors."
-        )
-        print(f"Raw root: {raw_store.raw_root}")
-        print(f"State: {result.state_path}")
+        _print_garmin_normalization_result(result)
         return 0
 
     if args.command == "garmin" and args.garmin_command == "decode-fit":
@@ -214,22 +228,6 @@ def main(argv: list[str] | None = None) -> int:
             "fit_decoded",
         )
         print(f"Decoded root: {decoded_root}")
-        return 0
-
-    if args.command == "garmin" and args.garmin_command == "normalize":
-        project_config = load_config()
-        ensure_garmin_connect_directories(project_config.data_root)
-        result = normalize_garmin_dataset(project_config.data_root)
-        print(
-            "Normalized Garmin Connect raw data: "
-            f"{result.activities} activities, "
-            f"{result.streams} streams, "
-            f"{result.laps} laps, "
-            f"{result.splits} splits, "
-            f"{result.typed_splits} typed splits, "
-            f"{len(result.written)} files written."
-        )
-        print(f"Normalized root: {result.normalized_root}")
         return 0
 
     if args.command == "strava" and args.strava_command == "prepare-dirs":
@@ -446,6 +444,47 @@ def _run_strava_sync(args: argparse.Namespace, project_config: ProjectConfig) ->
     return 1 if summary.status == "fail" else 0
 
 
+def _run_garmin_sync(args: argparse.Namespace, project_config: ProjectConfig) -> int:
+    raw_store = GarminRawStore(project_config.data_root)
+    if args.skip_fetch:
+        print("Skipped Garmin Connect fetch. Running offline pipeline only.")
+    else:
+        result, raw_store = _run_garmin_fetch_activities(args, project_config)
+        _print_garmin_fetch_activities_result(result, raw_store)
+
+    decoded = _decode_garmin_fit_files(
+        project_config.data_root,
+        raw_store,
+        activity_id=None,
+        force=args.force,
+    )
+    decoded_root = garmin_connect_path(
+        project_config.data_root,
+        "raw",
+        "fit_decoded",
+    )
+    print(f"Decoded {decoded} Garmin FIT file(s).")
+    print(f"Decoded root: {decoded_root}")
+
+    normalize_result = normalize_garmin_dataset(
+        project_config.data_root,
+        force=args.force,
+    )
+    _print_garmin_normalization_result(normalize_result)
+
+    consolidated_result = build_multi_source_consolidated(project_config.data_root)
+    print(
+        "Built consolidated dataset: "
+        f"{consolidated_result.activities} activities, "
+        f"{consolidated_result.activity_sources} activity source links, "
+        f"{consolidated_result.streams_index} stream index records, "
+        f"{consolidated_result.duplicate_candidates} duplicate candidates, "
+        f"{len(consolidated_result.written)} files written."
+    )
+    print(f"Consolidated root: {consolidated_result.consolidated_root}")
+    return 0
+
+
 def _schedule_next_sync_if_needed(
     args: argparse.Namespace,
     summary: ValidationSummary,
@@ -558,6 +597,29 @@ def _run_strava_fetch_activities(
         return result, raw_store, client.last_rate_limit
 
 
+def _run_garmin_fetch_activities(
+    args: argparse.Namespace,
+    project_config: ProjectConfig,
+) -> tuple[GarminRawSyncResult, GarminRawStore]:
+    client = login_from_tokenstore()
+    raw_store = GarminRawStore(project_config.data_root)
+    state_store = GarminStateStore(project_config.data_root)
+    result = sync_garmin_activities_raw(
+        client,
+        raw_store,
+        state_store,
+        start=args.start,
+        limit=args.limit,
+        max_activities=args.max_activities,
+        max_pages=args.max_pages,
+        force=args.force,
+        include_fit=not args.skip_fit,
+        include_tcx=args.include_tcx,
+        include_gpx=args.include_gpx,
+    )
+    return result, raw_store
+
+
 def _print_fetch_activities_result(
     result: ActivitySyncResult,
     raw_store: RawStore,
@@ -578,6 +640,38 @@ def _print_fetch_activities_result(
     rate_limit_line = _format_rate_limit(last_rate_limit)
     if rate_limit_line is not None:
         print(rate_limit_line)
+
+
+def _print_garmin_fetch_activities_result(
+    result: GarminRawSyncResult,
+    raw_store: GarminRawStore,
+) -> None:
+    print(
+        "Downloaded Garmin Connect raw files: "
+        f"{result.listed_activities} listed, "
+        f"{result.scanned_pages} pages scanned, "
+        f"{result.processed_activities} processed, "
+        f"{result.skipped_activities} skipped, "
+        f"{len(result.written)} written, "
+        f"{len(result.recoverable_errors)} recoverable errors."
+    )
+    print(f"Raw root: {raw_store.raw_root}")
+    print(f"State: {result.state_path}")
+
+
+def _print_garmin_normalization_result(result: GarminNormalizationResult) -> None:
+    print(
+        "Normalized Garmin Connect raw data: "
+        f"{result.activities} activities, "
+        f"{result.streams} streams, "
+        f"{result.laps} laps, "
+        f"{result.splits} splits, "
+        f"{result.typed_splits} typed splits, "
+        f"{result.processed_activities} processed, "
+        f"{result.reused_activities} reused, "
+        f"{len(result.written)} files written."
+    )
+    print(f"Normalized root: {result.normalized_root}")
 
 
 def _run_validation(project_config: ProjectConfig) -> ValidationSummary:

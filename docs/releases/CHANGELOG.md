@@ -47,6 +47,8 @@ Todas las versiones y entregables se documentan aquí.
 - Añadida normalización Garmin Connect inicial para actividades, streams FIT,
   laps, splits, typed splits, candidatos de segmento y estado.
 - Añadido comando `nono-sports garmin normalize`.
+- Añadido comando `nono-sports garmin sync` para encadenar descarga raw,
+  decodificación FIT, normalización y consolidación.
 - Nono documentó el 2026-06-25 el uso de Wikiloc como fuente auxiliar externa
   para planificación de rutas, cruzada con Open-Meteo, Google Maps, datos
   deportivos consolidados y fuentes oficiales cuando proceda.
@@ -74,6 +76,12 @@ Todas las versiones y entregables se documentan aquí.
 - `build-consolidated` usa ahora la estrategia `multi_source_initial`, manteniendo
   Strava como fuente primaria inicial por compatibilidad.
 - La validación acepta actividades consolidadas con más de un enlace fuente.
+- La normalización Garmin es incremental y reutiliza actividades cuyo raw/FIT no
+  ha cambiado.
+- La descarga raw Garmin pagina automáticamente el listado y salta actividades
+  ya completas hasta encontrar pendientes, evitando quedar bloqueada en las
+  primeras actividades del histórico.
+- El store normalizado evita reescribir ficheros cuando el contenido no cambia.
 
 ### Verified
 
@@ -98,7 +106,7 @@ Todas las versiones y entregables se documentan aquí.
 - Ejecutada validación de compatibilidad en Nono con Python 3.14.4: `scripts/check.py` con 67 tests pasados y `strava validate` correcto.
 - Ejecutada instalación persistente en Nono con configuración XDG, tokens copiados con permisos `600` y prueba real de autenticación Strava detenida correctamente por cuota diaria `996/1000`.
 - Ejecutada prueba local de `strava sync --skip-fetch --schedule-next-if-pending` sin llamar a Strava.
-- Verificación local actual: `python3 scripts/check.py` con 74 tests pasados y `pre-commit run --all-files` correcto.
+- Verificación local actual: `python3 scripts/check.py` con 118 tests pasados.
 - Nono verificó el 2026-06-25 que, con el estado real actual (`state.last_run_stopped`,
   `raw.streams_incomplete`, `raw.recoverable_errors`), la nueva decisión
   adaptativa es no programar otra ejecución.

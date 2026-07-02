@@ -55,6 +55,11 @@
 - [x] normalizar Garmin Connect manteniendo trazabilidad a raw
 - [x] comprobar que Garmin `23422332225` y Strava `19114956119` consolidan como
   la misma actividad
+- [x] automatizar `garmin sync` con fetch, decode FIT, normalize y consolidación
+- [x] hacer incremental la normalización Garmin para no releer FIT decodificados
+  sin cambios
+- [x] hacer incremental el backfill Garmin: paginar listados y saltar
+  actividades ya completas hasta encontrar pendientes
 
 ## Pendiente de validación
 
@@ -67,7 +72,9 @@
 - [x] revisar candidatos duplicados Strava/Garmin cuando exista normalizado Garmin suficiente
 - [ ] decidir fuente primaria por tipo de métrica en consolidación multi-fuente
 - [ ] confirmar en la ejecución diaria del 2026-06-26 que no se programa una ejecución adaptativa si solo quedan `raw.streams_incomplete` y `raw.recoverable_errors`
-- [ ] corregir escalabilidad de normalización/consolidación: el 2026-06-02, con 104 actividades raw, `strava normalize` no terminó en 180s sobre `/home/nono/drive` montado con `rclone FUSE`; el cuello está en lectura/normalización de actividades+streams raw antes de escribir normalizado. Priorizar normalización incremental, streams particionados/por actividad y escritura local atómica antes de sincronizar a Drive.
+- [ ] mejorar escalabilidad avanzada: particionar streams/normalizados por
+  actividad y estudiar escritura local atómica antes de sincronizar a Drive si
+  el volumen crece mucho más.
 - [ ] revisar tier/suscripción de la app Strava antes del 2026-06-30 por cambios del Developer Program
 - [ ] migrar `API_BASE_URL` de Strava a `https://www.api-v3.strava.com` antes del 2027-06-01
 - [ ] revisar si las deprecaciones de clubs/segments del 2026-09-01 afectan a endpoints usados por `fetch-context` y `fetch-activities`
@@ -79,3 +86,24 @@
 - [x] revisar el informe `30_analisis/informes/strava_validation_report.md`
 - [x] ejecutar `strava sync` con descarga cuando se libere cuota diaria
 - [x] decidir si activar `systemd timer` en Nono
+
+## Backlog funcional próximo
+
+- [ ] Alinear ergonomía CLI entre fuentes: mantener nombres comunes para
+  `sync`, `--skip-fetch`, `--force`, `--max-activities`, `--lock-file` y
+  separar solo las opciones específicas de cada API.
+- [ ] Ampliar Garmin Connect para bajar todos los datos útiles del usuario, no
+  solo actividades deportivas.
+- [ ] Incorporar datos de peso reportados por Garmin Connect y definir un
+  registro histórico de peso que pueda consolidar varias fuentes, incluyendo
+  entradas manuales.
+- [ ] Asegurar que las actividades normalizadas identifican y clasifican bien el
+  tipo de actividad, deporte e indicadores específicos, por ejemplo senderismo
+  o peso levantado en gimnasio.
+- [ ] Recoger la equipación usada por actividad y guardar el detalle de cada
+  elemento de equipación, incluyendo bicicletas, para mejorar análisis como la
+  estimación de potencia.
+- [ ] Verificar y completar, si hace falta, la recogida de equipación en Strava.
+- [ ] Permitir que el consolidado integre actividades subidas a mano desde FIT,
+  GPX, TCX u otros formatos, deduplicándolas frente a Strava/Garmin si
+  representan la misma actividad.

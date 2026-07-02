@@ -53,10 +53,11 @@ def test_parser_accepts_garmin_prepare_dirs_command() -> None:
 
 
 def test_parser_accepts_garmin_normalize_command() -> None:
-    args = build_parser().parse_args(["garmin", "normalize"])
+    args = build_parser().parse_args(["garmin", "normalize", "--force"])
 
     assert args.command == "garmin"
     assert args.garmin_command == "normalize"
+    assert args.force is True
 
 
 def test_parser_accepts_garmin_fetch_activities_options() -> None:
@@ -70,6 +71,8 @@ def test_parser_accepts_garmin_fetch_activities_options() -> None:
             "10",
             "--max-activities",
             "2",
+            "--max-pages",
+            "3",
             "--force",
             "--skip-fit",
             "--include-tcx",
@@ -82,6 +85,7 @@ def test_parser_accepts_garmin_fetch_activities_options() -> None:
     assert args.start == 5
     assert args.limit == 10
     assert args.max_activities == 2
+    assert args.max_pages == 3
     assert args.force is True
     assert args.skip_fit is True
     assert args.include_tcx is True
@@ -103,6 +107,43 @@ def test_parser_accepts_garmin_decode_fit_options() -> None:
     assert args.garmin_command == "decode-fit"
     assert args.activity_id == "123"
     assert args.force is True
+
+
+def test_parser_accepts_garmin_sync_options() -> None:
+    args = build_parser().parse_args(
+        [
+            "garmin",
+            "sync",
+            "--skip-fetch",
+            "--start",
+            "5",
+            "--limit",
+            "10",
+            "--max-activities",
+            "2",
+            "--max-pages",
+            "3",
+            "--force",
+            "--skip-fit",
+            "--include-tcx",
+            "--include-gpx",
+            "--lock-file",
+            "garmin.lock",
+        ]
+    )
+
+    assert args.command == "garmin"
+    assert args.garmin_command == "sync"
+    assert args.skip_fetch is True
+    assert args.start == 5
+    assert args.limit == 10
+    assert args.max_activities == 2
+    assert args.max_pages == 3
+    assert args.force is True
+    assert args.skip_fit is True
+    assert args.include_tcx is True
+    assert args.include_gpx is True
+    assert args.lock_file == "garmin.lock"
 
 
 def test_parser_accepts_strava_fetch_context_options() -> None:

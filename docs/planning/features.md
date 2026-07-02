@@ -32,6 +32,7 @@ Este backlog deriva de `requirements.md` y `architecture.md`.
 - [x] Separar decodificación FIT en módulo independiente de la fuente
 - [x] Normalizar actividades Garmin Connect
 - [ ] Investigar candidatos de segmentos Garmin
+- [ ] Alinear ergonomía de comandos comunes entre Strava, Garmin y futuras fuentes
 
 ## Prioridad futura
 
@@ -42,3 +43,9 @@ Este backlog deriva de `requirements.md` y `architecture.md`.
 - [ ] Informes y análisis para Nono
 - [ ] Segmentos propios de Nono
 - [ ] Salud/recuperación Garmin
+- [ ] Descarga de datos completos de usuario Garmin más allá de actividades
+- [ ] Histórico de peso multifuente con datos Garmin y registros manuales
+- [ ] Clasificación avanzada por tipo de actividad e indicadores específicos
+- [ ] Equipación por actividad y catálogo de equipación por fuente
+- [ ] Consolidación de actividades importadas manualmente con deduplicación
+  frente a actividades de fuentes conectadas

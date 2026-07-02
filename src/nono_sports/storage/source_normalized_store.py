@@ -58,8 +58,9 @@ class SourceNormalizedStore:
     ) -> SourceNormalizedWriteResult:
         path = self._resolve_relative_path(relative_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(payload)
         digest = hashlib.sha256(payload).hexdigest()
+        if not path.exists() or path.read_bytes() != payload:
+            path.write_bytes(payload)
         return SourceNormalizedWriteResult(
             path=path,
             relative_path=path.relative_to(self.normalized_root).as_posix(),

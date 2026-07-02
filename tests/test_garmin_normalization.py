@@ -53,6 +53,23 @@ def test_normalize_garmin_dataset_writes_common_outputs(tmp_path: Path) -> None:
     assert streams[0]["streams"]["heartrate"]["values"] == [88, 90]
 
 
+def test_normalize_garmin_dataset_reuses_unchanged_activity(
+    tmp_path: Path,
+) -> None:
+    raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
+    _write_json(raw_root / "activities" / "234.json", _activity_payload())
+    _write_json(raw_root / "fit_decoded" / "234.fitdecode.json", _fitdecode_payload())
+    _write_manifest(raw_root / "manifest.jsonl")
+
+    first = normalize_garmin_dataset(tmp_path)
+    second = normalize_garmin_dataset(tmp_path)
+
+    assert first.processed_activities == 1
+    assert first.reused_activities == 0
+    assert second.processed_activities == 0
+    assert second.reused_activities == 1
+
+
 def _activity_payload() -> dict:
     return {
         "activityId": 234,

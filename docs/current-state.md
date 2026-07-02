@@ -1,10 +1,11 @@
 # Estado actual del proyecto
 
-Fecha de referencia: 2026-07-01
+Fecha de referencia: 2026-07-02
 
 ## Situación actual
 
-El repositorio tiene Strava v1 operativo y entra en fase de preparación de Garmin Connect v1.
+El repositorio tiene Strava v1 operativo y Garmin Connect v1 en fase de
+backfill controlado.
 
 Existe actualmente:
 
@@ -41,6 +42,12 @@ Existe actualmente:
   de cualquier origen
 - normalización Garmin Connect implementada para activities, streams, laps,
   splits, typed splits, segment candidates y state
+- normalización Garmin incremental: reutiliza actividades sin cambios y evita
+  releer FIT decodificados grandes
+- comando `garmin sync` implementado para encadenar descarga raw, decodificación
+  FIT, normalización y consolidación
+- backfill Garmin incremental: pagina el listado, salta actividades ya completas
+  y sigue buscando pendientes sin pedir todo el histórico en una sola llamada
 - consolidación multi-fuente inicial implementada con `activity_sources.jsonl`
   multi-enlace y `duplicate_candidates.jsonl`
 - Garmin `23422332225` y Strava `19114956119` validados como una única
@@ -67,7 +74,7 @@ No existe todavía:
 
 ## Estado del código activo
 
-El código activo contiene el scaffold de paquetes de Strava v1, configuración inicial, resolución de rutas, creación de directorios de datos, autenticación OAuth, cliente HTTP base para Strava, descarga raw de perfil/contexto, descarga raw de actividades con control preventivo de límites de lectura, normalización local de raw Strava, consolidación inicial desde una sola fuente, validación offline de conteos/coherencia, carga de configuración desde entorno/XDG/`.env` local, comando operativo `strava sync` y reprogramación adaptativa para backfill.
+El código activo contiene el scaffold de paquetes de Strava v1, configuración inicial, resolución de rutas, creación de directorios de datos, autenticación OAuth, cliente HTTP base para Strava, descarga raw de perfil/contexto, descarga raw de actividades con control preventivo de límites de lectura, normalización local de raw Strava, consolidación inicial multi-fuente, validación offline de conteos/coherencia, carga de configuración desde entorno/XDG/`.env` local, comando operativo `strava sync`, comando operativo `garmin sync` y reprogramación adaptativa para backfill Strava.
 
 Cambios operativos realizados por Nono hasta el 2026-06-25:
 
@@ -99,5 +106,5 @@ El código previo se conserva en `deprecated/initial-bootstrap/` solo como refer
 
 ## Próximo objetivo
 
-Revisar manualmente la actividad Garmin descargada frente a Garmin Connect y
-definir el mapeo de mensajes FIT/JSON Garmin hacia los normalizados Garmin.
+Completar el backfill histórico Garmin Connect de forma conservadora y validar
+manualmente varias actividades representativas frente a Garmin Connect.

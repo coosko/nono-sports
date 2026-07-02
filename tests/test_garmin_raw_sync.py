@@ -11,7 +11,8 @@ from nono_sports.garmin_connect.sync import sync_garmin_activities_raw
 
 class FakeGarminApi:
     def get_activities(self, start=0, limit=20, activitytype=None):
-        return [{"activityId": 123, "activityName": "Test activity"}]
+        activities = [{"activityId": 123, "activityName": "Test activity"}]
+        return activities[start : start + limit]
 
     def get_activity(self, activity_id):
         return {"activityId": activity_id}
@@ -39,6 +40,20 @@ class FakeGarminApi:
                 b"\x0e\x20\x00\x00\x00\x00\x00\x00.FIT\x00\x00",
             )
         return buffer.getvalue()
+
+
+class PagedFakeGarminApi(FakeGarminApi):
+    def __init__(self):
+        self.list_calls = []
+
+    def get_activities(self, start=0, limit=20, activitytype=None):
+        self.list_calls.append((start, limit))
+        activities = [
+            {"activityId": 1, "activityName": "Done 1"},
+            {"activityId": 2, "activityName": "Done 2"},
+            {"activityId": 3, "activityName": "Pending 3"},
+        ]
+        return activities[start : start + limit]
 
 
 class FakeGarminModule:
@@ -108,7 +123,7 @@ def test_sync_garmin_activities_raw_writes_expected_files(tmp_path) -> None:
     assert result.skipped_activities == 0
     assert len(result.written) == 9
     raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
-    assert (raw_root / "activities_index.json").is_file()
+    assert (raw_root / "activities_index_0.json").is_file()
     assert (raw_root / "activities/123.json").is_file()
     assert (raw_root / "activities/123.details.json").is_file()
     assert (raw_root / "splits/123.json").is_file()
@@ -130,3 +145,45 @@ def test_sync_garmin_activities_raw_skips_completed_activity(tmp_path) -> None:
 
     assert result.processed_activities == 0
     assert result.skipped_activities == 1
+
+
+def test_sync_garmin_activities_raw_paginates_until_pending_activity(tmp_path) -> None:
+    api = PagedFakeGarminApi()
+    client = GarminConnectClient(api, garmin_module=FakeGarminModule)
+    raw_store = GarminRawStore(tmp_path)
+    state_store = GarminStateStore(tmp_path)
+    state = state_store.load()
+    state["activities"]["1"] = {
+        "activity": "activities/1.json",
+        "details": "activities/1.details.json",
+        "fit": "activity_files/1.fit",
+    }
+    state["activities"]["2"] = {
+        "activity": "activities/2.json",
+        "details": "activities/2.details.json",
+        "fit": "activity_files/2.fit",
+    }
+    state_store.save(state)
+
+    result = sync_garmin_activities_raw(
+        client,
+        raw_store,
+        state_store,
+        limit=1,
+        max_activities=1,
+        max_pages=5,
+    )
+
+    assert api.list_calls == [(0, 1), (1, 1), (2, 1)]
+    assert result.listed_activities == 3
+    assert result.scanned_pages == 3
+    assert result.skipped_activities == 2
+    assert result.processed_activities == 1
+    assert (
+        tmp_path
+        / "10_fuentes"
+        / "garmin_connect"
+        / "raw"
+        / "activities"
+        / "3.json"
+    ).is_file()
