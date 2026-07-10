@@ -86,9 +86,6 @@ Para una actualización controlada de Garmin Connect:
 ```bash
 cd /home/nono/apps/nono-sport
 ./.venv/bin/python -m nono_sports garmin sync \
-  --limit 20 \
-  --max-activities 3 \
-  --max-pages 20 \
   --lock-file /home/nono/.local/state/nono-sports/garmin-sync.lock
 ```
 
@@ -103,6 +100,10 @@ Garmin Connect no expone, mediante `garminconnect==0.3.6`, un filtro fiable de
 "modificadas desde". El comando usa `last_successful_activity_sync_at` y un
 solape por defecto de 7 días para cortar el listado cuando llega a actividades
 anteriores a la ventana incremental.
+
+El modo diario no debe limitar `--max-activities` ni `--max-pages`: el propio
+incremental corta al llegar a actividades anteriores a la ventana de solape.
+Esos límites quedan para pruebas, backfills manuales o auditorías controladas.
 
 Opciones operativas:
 
@@ -125,42 +126,45 @@ derivado de diagnóstico para una actividad concreta, límpialo después:
 
 ## Servicio systemd de usuario
 
-Crear el servicio Strava:
+Desde el 2026-07-10, la automatización activa en Nono debe ser Garmin Connect.
+Strava queda como histórico y su timer no debe activarse mientras la API siga
+sin ser fuente operativa fiable.
+
+Crear el servicio Garmin:
 
 ```bash
 mkdir -p /home/nono/.config/systemd/user
-nano /home/nono/.config/systemd/user/nono-sports-strava-sync.service
+nano /home/nono/.config/systemd/user/nono-sports-garmin-sync.service
 ```
 
 Contenido:
 
 ```ini
 [Unit]
-Description=Nono Sports Strava controlled sync
+Description=Nono Sports Garmin Connect controlled sync
 ConditionPathIsDirectory=/home/nono/drive/01_ambitos/02_personal/40_deporte
 
 [Service]
 Type=oneshot
 WorkingDirectory=/home/nono/apps/nono-sport
-ExecStart=/home/nono/apps/nono-sport/.venv/bin/python -m nono_sports strava sync --max-read-requests-15min 100 --max-read-requests-daily 1000 --rate-limit-reserve 10 --schedule-next-if-pending --schedule-delay-minutes 20 --lock-file /home/nono/.local/state/nono-sports/strava-sync.lock
+ExecStart=/home/nono/apps/nono-sport/.venv/bin/python -m nono_sports garmin sync --lock-file /home/nono/.local/state/nono-sports/garmin-sync.lock
 ```
 
 Crear el timer:
 
 ```bash
-nano /home/nono/.config/systemd/user/nono-sports-strava-sync.timer
+nano /home/nono/.config/systemd/user/nono-sports-garmin-sync.timer
 ```
 
 Contenido:
 
 ```ini
 [Unit]
-Description=Run Nono Sports Strava sync daily
+Description=Run Nono Sports Garmin Connect sync daily
 
 [Timer]
-OnCalendar=*-*-* 03:20:00
+OnCalendar=*-*-* 19:50:00 UTC
 Persistent=true
-RandomizedDelaySec=30m
 
 [Install]
 WantedBy=timers.target
@@ -170,8 +174,8 @@ Activar:
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now nono-sports-strava-sync.timer
-systemctl --user list-timers nono-sports-strava-sync.timer
+systemctl --user enable --now nono-sports-garmin-sync.timer
+systemctl --user list-timers nono-sports-garmin-sync.timer
 ```
 
 Si el timer debe ejecutarse aunque el usuario `nono` no tenga sesión abierta, ejecutar una vez con privilegios:
@@ -185,13 +189,13 @@ sudo loginctl enable-linger nono
 Ver últimas ejecuciones:
 
 ```bash
-journalctl --user -u nono-sports-strava-sync.service -n 100 --no-pager
+journalctl --user -u nono-sports-garmin-sync.service -n 100 --no-pager
 ```
 
 Seguir logs en vivo:
 
 ```bash
-journalctl --user -u nono-sports-strava-sync.service -f
+journalctl --user -u nono-sports-garmin-sync.service -f
 ```
 
 El informe de validación se escribe siempre en:

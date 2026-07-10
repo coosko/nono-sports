@@ -328,8 +328,9 @@ systemctl --user list-timers 'nono-sports*' --all --no-pager
 systemctl --user stop '<unidad-adaptativa>.timer' '<unidad-adaptativa>.service'
 ```
 
-El timer diario `nono-sports-strava-sync.timer` debe quedar activo salvo que
-Carlos pida parar toda sincronización.
+El timer diario `nono-sports-strava-sync.timer` quedó desactivado el
+2026-07-10 porque Strava no debe ser fuente operativa reciente mientras su API
+siga vetada/no operativa.
 
 ## Uso excepcional: sincronizar Garmin Connect
 
@@ -339,9 +340,6 @@ El comando recomendado para una actualización normal es:
 ```bash
 cd /home/nono/apps/nono-sport
 ./.venv/bin/python -m nono_sports garmin sync \
-  --limit 20 \
-  --max-activities 3 \
-  --max-pages 20 \
   --lock-file /home/nono/.local/state/nono-sports/garmin-sync.lock
 ```
 
@@ -355,6 +353,11 @@ Este comando:
 - normaliza Garmin Connect
 - reconstruye el consolidado multi-fuente
 - no genera `fit_decoded/*.fitdecode.json` en el flujo normal
+
+No añadir `--max-activities` ni `--max-pages` en la automatización diaria: si
+una ejecución queda limitada artificialmente, una actividad reciente podria
+quedar sin descargar aunque el marcador incremental avance. Usar esos limites
+solo en pruebas, backfills o auditorias controladas.
 
 Si Carlos pide una auditoría o backfill histórico, puede usarse:
 
@@ -381,21 +384,20 @@ ocupar decenas de MB por actividad.
 
 ## Automatización activa
 
-La sincronización Strava está configurada con un timer de usuario `systemd`.
-Garmin Connect queda operativo por comando manual/controlado. Si se automatiza
-más adelante, debe reutilizar el mismo patrón: usuario `nono`, `--lock-file`,
+La sincronización Garmin Connect está configurada con un timer de usuario
+`systemd`. Usa el patrón operativo aprobado: usuario `nono`, `--lock-file`,
 ventana incremental y sin `--force`.
 
 Timer:
 
 ```text
-nono-sports-strava-sync.timer
+nono-sports-garmin-sync.timer
 ```
 
 Servicio:
 
 ```text
-nono-sports-strava-sync.service
+nono-sports-garmin-sync.service
 ```
 
 Se ejecuta como usuario:
@@ -407,10 +409,8 @@ nono
 Programación:
 
 ```text
-03:20 UTC con RandomizedDelaySec=30m
+19:50 UTC, sin retraso aleatorio
 ```
-
-Esto significa que systemd puede elegir una hora entre `03:20` y `03:50` UTC.
 
 `linger` está activado para `nono`, por lo que el timer puede ejecutarse tras reboot aunque no haya sesión SSH abierta.
 
@@ -419,26 +419,26 @@ Esto significa que systemd puede elegir una hora entre `03:20` y `03:50` UTC.
 Ver timer:
 
 ```bash
-systemctl --user status nono-sports-strava-sync.timer --no-pager
-systemctl --user list-timers nono-sports-strava-sync.timer
+systemctl --user status nono-sports-garmin-sync.timer --no-pager
+systemctl --user list-timers nono-sports-garmin-sync.timer
 ```
 
 Ver servicio:
 
 ```bash
-systemctl --user cat nono-sports-strava-sync.service
+systemctl --user cat nono-sports-garmin-sync.service
 ```
 
 Ver logs:
 
 ```bash
-journalctl --user -u nono-sports-strava-sync.service -n 100 --no-pager
+journalctl --user -u nono-sports-garmin-sync.service -n 100 --no-pager
 ```
 
 Seguir logs en vivo:
 
 ```bash
-journalctl --user -u nono-sports-strava-sync.service -f
+journalctl --user -u nono-sports-garmin-sync.service -f
 ```
 
 Comprobar `linger`:

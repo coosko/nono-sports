@@ -192,6 +192,16 @@ def test_parser_accepts_garmin_sync_options() -> None:
     assert args.keep_intermediate_files is True
 
 
+def test_parser_defaults_garmin_sync_to_unbounded_incremental_scan() -> None:
+    args = build_parser().parse_args(["garmin", "sync"])
+
+    assert args.command == "garmin"
+    assert args.garmin_command == "sync"
+    assert args.limit == 20
+    assert args.max_activities is None
+    assert args.max_pages is None
+
+
 def test_clean_garmin_intermediate_files_supports_dry_run_and_delete(
     tmp_path: Path,
 ) -> None:

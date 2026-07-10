@@ -151,8 +151,8 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_sync_parser.add_argument("--after", type=int, default=None)
     garmin_sync_parser.add_argument("--before", type=int, default=None)
     garmin_sync_parser.add_argument("--limit", type=int, default=20)
-    garmin_sync_parser.add_argument("--max-activities", type=int, default=1)
-    garmin_sync_parser.add_argument("--max-pages", type=int, default=100)
+    garmin_sync_parser.add_argument("--max-activities", type=int, default=None)
+    garmin_sync_parser.add_argument("--max-pages", type=int, default=None)
     garmin_sync_parser.add_argument("--force", action="store_true")
     garmin_sync_parser.add_argument(
         "--full-scan",
