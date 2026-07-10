@@ -415,7 +415,8 @@ Validación de usuario:
 Objetivo:
 
 - completado: decidir estrategia de parseo FIT
-- completado: conservar máxima información posible en raw y derivado decodificado
+- completado: conservar máxima información posible en raw y permitir derivado
+  decodificado solo bajo demanda diagnóstica
 - completado: normalizar actividades Garmin Connect con trazabilidad a raw
 
 Entregables:
@@ -424,7 +425,8 @@ Entregables:
 - completado: módulo independiente `nono_sports.formats.fit`
 - completado: extracción de FIT desde ZIP `ORIGINAL` de Garmin
 - completado: comando offline `nono-sports garmin decode-fit`
-- completado: `raw/fit_decoded/<id>.fitdecode.json`
+- completado: `raw/fit_decoded/<id>.fitdecode.json` como diagnóstico explícito
+  por actividad, no como salida persistente del flujo normal
 - completado: conservación de metadatos FIT por campo (`def_num`, `raw_value`,
   unidades y tipos)
 - completado: comando fuente-independiente `nono-sports fit compare-decoders`

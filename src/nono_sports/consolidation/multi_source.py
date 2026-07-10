@@ -164,7 +164,7 @@ def _duplicate_candidate(
             "matched_activity_uid": existing.get("activity_uid"),
             "sources": [existing.get("source"), activity.get("source")],
             "confidence": score["confidence"],
-            "match_strategy": "time_duration_distance_sport",
+            "match_strategy": score["match_strategy"],
             "signals": score["signals"],
             "action": "auto_grouped_initial_rule",
         }
@@ -199,13 +199,42 @@ def _match_score(
     )
     left_distance = _first_number(left.get("distance"), "distance_m")
     sport_match = _sport_key(left) == _sport_key(right)
+    sport_compatible = _sports_compatible(left, right)
     duration_ok = duration_delta_s <= max(30.0, (left_duration or 0.0) * 0.05)
     distance_ok = distance_delta_m <= max(200.0, (left_distance or 0.0) * 0.05)
     start_ok = start_delta_s <= 120.0
-    if not (start_ok and duration_ok and distance_ok and sport_match):
+    strict_match = start_ok and duration_ok and distance_ok and sport_match
+    synchronized_start = (
+        start_delta_s <= 5.0
+        and distance_delta_m <= 50.0
+        and (
+            sport_compatible
+            or _has_garmin_import_signal(left, right)
+        )
+    )
+    delayed_cycling_start = (
+        start_delta_s <= 1800.0
+        and duration_ok
+        and distance_delta_m <= max(100.0, (left_distance or 0.0) * 0.01)
+        and _canonical_sport(left) == "cycling"
+        and _canonical_sport(right) == "cycling"
+    )
+    if not (strict_match or synchronized_start or delayed_cycling_start):
         return None
 
-    confidence = 0.90
+    if strict_match:
+        match_strategy = "time_duration_distance_sport"
+        confidence = 0.90
+    elif synchronized_start:
+        match_strategy = (
+            "garmin_import_start_distance"
+            if _has_garmin_import_signal(left, right)
+            else "synchronized_start_distance_sport"
+        )
+        confidence = 0.96
+    elif delayed_cycling_start:
+        match_strategy = "cycling_duration_distance_delayed_start"
+        confidence = 0.92
     if start_delta_s <= 30.0:
         confidence += 0.03
     if duration_delta_s <= 10.0:
@@ -214,11 +243,14 @@ def _match_score(
         confidence += 0.02
     return {
         "confidence": round(min(confidence, 0.99), 4),
+        "match_strategy": match_strategy,
         "signals": {
             "start_delta_s": start_delta_s,
             "duration_delta_s": duration_delta_s,
             "distance_delta_m": distance_delta_m,
             "sport_match": sport_match,
+            "sport_compatible": sport_compatible,
+            "garmin_import_signal": _has_garmin_import_signal(left, right),
             "device_overlap": _device_overlap(left, right),
         },
     }
@@ -240,7 +272,7 @@ def _consolidated_activity(group: list[dict[str, Any]]) -> ConsolidatedActivity:
         primary_activity_uid=activity_uid,
         title=primary.get("title"),
         description=primary.get("description"),
-        sport=_dict(primary.get("sport")),
+        sport=_preferred_sport(ordered),
         start=_dict(primary.get("start")),
         duration=_dict(primary.get("duration")),
         distance=_dict(primary.get("distance")),
@@ -393,6 +425,47 @@ def _sport_key(activity: dict[str, Any]) -> tuple[str, str]:
         str(sport.get("family") or "").lower(),
         str(sport.get("discipline") or "").lower(),
     )
+
+
+def _canonical_sport(activity: dict[str, Any]) -> str:
+    family, discipline = _sport_key(activity)
+    if family == "cycling" or discipline in {
+        "cycling",
+        "indoor_cycling",
+        "road_cycling",
+        "virtual_ride",
+    }:
+        return "cycling"
+    if family == "walking_hiking" or discipline in {"hiking", "walking"}:
+        return "walking_hiking"
+    if family == "fitness" or discipline == "general_workout":
+        return "fitness"
+    return f"{family}:{discipline}"
+
+
+def _sports_compatible(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    return _canonical_sport(left) == _canonical_sport(right)
+
+
+def _has_garmin_import_signal(
+    left: dict[str, Any],
+    right: dict[str, Any],
+) -> bool:
+    for activity in (left, right):
+        if activity.get("source") != "strava":
+            continue
+        external_id = _dict(activity.get("external_ids")).get("external_id")
+        normalized = str(external_id or "").lower()
+        if normalized.startswith(("garmin_ping_", "garmin_push_")):
+            return True
+    return False
+
+
+def _preferred_sport(activities: list[dict[str, Any]]) -> dict[str, Any]:
+    for activity in activities:
+        if activity.get("source") == "garmin_connect":
+            return _dict(activity.get("sport"))
+    return _dict(activities[0].get("sport")) if activities else {}
 
 
 def _device_overlap(left: dict[str, Any], right: dict[str, Any]) -> bool | None:

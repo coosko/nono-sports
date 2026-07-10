@@ -30,6 +30,8 @@ def normalize_garmin_activity(
     details_reference: SourceReference | None = None,
     fit_reference: SourceReference | None = None,
     decoded_fit_reference: SourceReference | None = None,
+    gpx_reference: SourceReference | None = None,
+    tcx_reference: SourceReference | None = None,
     splits_reference: SourceReference | None = None,
     typed_splits_reference: SourceReference | None = None,
     weather_reference: SourceReference | None = None,
@@ -49,6 +51,8 @@ def normalize_garmin_activity(
             details_reference,
             fit_reference,
             decoded_fit_reference,
+            gpx_reference,
+            tcx_reference,
             splits_reference,
             typed_splits_reference,
             weather_reference,
@@ -56,6 +60,10 @@ def normalize_garmin_activity(
         if reference is not None
     ]
     laps = _laps_from_fit(activity_id, fit_messages or {})
+    has_fit_records = decoded_fit_reference is not None and bool(
+        (fit_messages or {}).get("record")
+    )
+    has_track_fallback = gpx_reference is not None or tcx_reference is not None
     return NormalizedActivity(
         schema_version=SCHEMA_VERSION,
         activity_uid=f"{SOURCE}:activity:{activity_id}",
@@ -90,14 +98,17 @@ def normalize_garmin_activity(
         flags=_flags(activity, metadata),
         completeness={
             "has_detail": details_reference is not None,
-            "has_streams": decoded_fit_reference is not None
-            and bool((fit_messages or {}).get("record")),
+            "has_streams": has_fit_records or has_track_fallback,
             "has_laps": bool(laps),
             "has_splits": splits_reference is not None,
             "has_typed_splits": typed_splits_reference is not None,
             "has_weather": weather_reference is not None,
             "has_fit": fit_reference is not None,
             "has_decoded_fit": decoded_fit_reference is not None,
+            "has_gpx": gpx_reference is not None,
+            "has_tcx": tcx_reference is not None,
+            "complete_without_fit": fit_reference is None
+            and (gpx_reference is not None or tcx_reference is not None),
             "has_segments": False,
             "has_zones": bool((fit_messages or {}).get("time_in_zone")),
         },
@@ -105,7 +116,7 @@ def normalize_garmin_activity(
         segments=[],
         stream_uid=(
             f"{SOURCE}:stream:{activity_id}"
-            if decoded_fit_reference is not None and (fit_messages or {}).get("record")
+            if has_fit_records or has_track_fallback
             else None
         ),
         source_reference=source_reference,
@@ -118,8 +129,13 @@ def normalize_garmin_activity(
             "location_name": activity.get("locationName"),
             "event_type": _dict(activity.get("eventTypeDTO")).get("typeKey"),
             "file_format": _dict(metadata.get("fileFormat")).get("formatKey"),
+            "original_file_format": _dict(metadata.get("fileFormat")).get(
+                "formatKey"
+            ),
+            "is_original": metadata.get("isOriginal"),
             "lap_count": metadata.get("lapCount"),
             "manufacturer": metadata.get("manufacturer"),
+            "source_origin": _source_origin(metadata),
             "weather": weather_payload if isinstance(weather_payload, dict) else {},
             "splits_summary": _summarize_payload(splits_payload),
             "typed_splits_summary": _summarize_payload(typed_splits_payload),
@@ -210,6 +226,17 @@ def _flags(activity: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]
         "elevation_corrected": _bool(metadata.get("elevationCorrected")),
         "has_heartrate": _bool(metadata.get("hasHrTimeInZones")),
     }
+
+
+def _source_origin(metadata: dict[str, Any]) -> str:
+    file_format = _dict(metadata.get("fileFormat")).get("formatKey")
+    if file_format and file_format != "fit":
+        return f"imported_{file_format}"
+    if _bool(metadata.get("manualActivity")):
+        return "manual"
+    if metadata.get("isOriginal") is False:
+        return "imported"
+    return "native_device"
 
 
 def _laps_from_fit(

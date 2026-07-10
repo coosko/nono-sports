@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,14 +11,26 @@ from typing import Any
 
 from nono_sports.core.paths import garmin_connect_path
 from nono_sports.domain.source import SourceReference
+from nono_sports.formats.fit import decode_fit_with_fitdecode
+from nono_sports.formats.track_xml import (
+    parse_gpx_track_points,
+    parse_tcx_track_points,
+)
+from nono_sports.garmin_connect.raw_store import GarminRawStore
 from nono_sports.normalization.garmin_activity import normalize_garmin_activity
-from nono_sports.normalization.garmin_stream import normalize_garmin_stream
+from nono_sports.normalization.garmin_stream import (
+    normalize_garmin_stream,
+    normalize_garmin_track_stream,
+)
 from nono_sports.storage.source_normalized_store import (
     SourceNormalizedStore,
     SourceNormalizedWriteResult,
 )
 
 SOURCE = "garmin_connect"
+FIT_MESSAGES_USED_FOR_NORMALIZATION = frozenset(
+    {"record", "hrv", "lap", "time_in_zone"}
+)
 
 
 @dataclass(frozen=True)
@@ -47,6 +60,7 @@ def normalize_garmin_dataset(
     data_root: Path,
     *,
     force: bool = False,
+    keep_intermediate_files: bool = False,
     generated_at: datetime | None = None,
 ) -> GarminNormalizationResult:
     generated_at = generated_at or datetime.now(UTC)
@@ -62,6 +76,8 @@ def normalize_garmin_dataset(
         previous_inputs=previous_inputs,
         previous_records=previous_records,
         force=force,
+        keep_intermediate_files=keep_intermediate_files,
+        raw_store=GarminRawStore(data_root) if keep_intermediate_files else None,
     )
     laps = [
         lap
@@ -78,6 +94,7 @@ def normalize_garmin_dataset(
         "schema_version": "nono.garmin_connect.normalization_state.v1",
         "generated_at": generated_at.astimezone(UTC).isoformat(),
         "force": force,
+        "keep_intermediate_files": keep_intermediate_files,
         "inputs": {
             "raw_root": str(raw_root),
             "manifest": str(raw_root / "manifest.jsonl"),
@@ -139,6 +156,8 @@ def _normalize_activities(
     previous_inputs: dict[str, dict[str, Any]],
     previous_records: "_PreviousGarminRecords",
     force: bool,
+    keep_intermediate_files: bool,
+    raw_store: GarminRawStore | None,
 ) -> tuple[
     list[Any],
     list[Any],
@@ -165,22 +184,33 @@ def _normalize_activities(
             and previous_inputs.get(activity_id) == fingerprint
             and activity_id in previous_records.activities
         ):
-            activities.append(previous_records.activities[activity_id])
+            activities.append(
+                _sanitize_reused_activity_record(
+                    previous_records.activities[activity_id],
+                    raw_root,
+                )
+            )
             if activity_id in previous_records.streams:
-                streams.append(previous_records.streams[activity_id])
+                streams.append(
+                    _sanitize_reused_stream_record(
+                        previous_records.streams[activity_id],
+                        raw_root,
+                        manifest_index,
+                        activity_id,
+                    )
+                )
             reused += 1
             continue
 
-        fit_messages_reference, fit_messages = _optional_payload(
+        references = _references(raw_root, manifest_index, activity_id, activity_path)
+        fit_messages_reference, fit_message_payload = _fit_messages(
             raw_root,
             manifest_index,
-            relative_path=Path("fit_decoded") / f"{activity_id}.fitdecode.json",
-            entity_type="fit_decoded",
-            source_id=activity_id,
+            activity_id,
+            fit_reference=references.get("fit"),
+            keep_intermediate_files=keep_intermediate_files,
+            raw_store=raw_store,
         )
-        messages = _dict(fit_messages).get("messages")
-        fit_message_payload = messages if isinstance(messages, dict) else {}
-        references = _references(raw_root, manifest_index, activity_id, activity_path)
         splits_reference, splits_payload = _optional_payload(
             raw_root,
             manifest_index,
@@ -208,6 +238,8 @@ def _normalize_activities(
             details_reference=references.get("details"),
             fit_reference=references.get("fit"),
             decoded_fit_reference=fit_messages_reference,
+            gpx_reference=references.get("gpx"),
+            tcx_reference=references.get("tcx"),
             splits_reference=splits_reference,
             typed_splits_reference=typed_splits_reference,
             weather_reference=weather_reference,
@@ -225,8 +257,69 @@ def _normalize_activities(
             )
             if stream is not None:
                 streams.append(stream)
+        else:
+            stream = _fallback_track_stream(raw_root, references, activity_id)
+            if stream is not None:
+                streams.append(stream)
         processed += 1
     return activities, streams, processed, reused, activity_inputs
+
+
+def _fit_messages(
+    raw_root: Path,
+    manifest_index: dict[str, dict[str, Any]],
+    activity_id: str,
+    *,
+    fit_reference: SourceReference | None,
+    keep_intermediate_files: bool,
+    raw_store: GarminRawStore | None,
+) -> tuple[SourceReference | None, dict[str, list[dict[str, Any]]]]:
+    decoded_reference, decoded_payload = _optional_payload(
+        raw_root,
+        manifest_index,
+        relative_path=Path("fit_decoded") / f"{activity_id}.fitdecode.json",
+        entity_type="fit_decoded",
+        source_id=activity_id,
+    )
+    decoded_messages = _dict(decoded_payload).get("messages")
+    if decoded_reference is not None and isinstance(decoded_messages, dict):
+        return decoded_reference, decoded_messages
+
+    fit_path = raw_root / "activity_files" / f"{activity_id}.fit"
+    if fit_reference is None or not fit_path.is_file():
+        return None, {}
+    result = decode_fit_with_fitdecode(
+        fit_path,
+        message_names=(
+            None if keep_intermediate_files else FIT_MESSAGES_USED_FOR_NORMALIZATION
+        ),
+    )
+    if keep_intermediate_files and raw_store is not None:
+        output_relative = Path("fit_decoded") / f"{activity_id}.fitdecode.json"
+        written = raw_store.write_json(
+            output_relative,
+            {
+                "backend": result.backend,
+                "errors": list(result.errors),
+                "frames": result.frames,
+                "messages": result.messages,
+            },
+            endpoint="fitdecode",
+            params={"path": fit_path.relative_to(raw_root).as_posix()},
+            kind="derived",
+        )
+        return (
+            SourceReference(
+                source=SOURCE,
+                entity_type="fit_decoded",
+                source_id=activity_id,
+                raw_path=written.relative_path,
+                raw_sha256=written.sha256,
+                endpoint="fitdecode",
+            ),
+            result.messages,
+        )
+    return fit_reference, result.messages
 
 
 def _references(
@@ -251,6 +344,8 @@ def _references(
             "activity_details",
         ),
         ("fit", Path("activity_files") / f"{activity_id}.fit", "fit"),
+        ("gpx", Path("activity_files") / f"{activity_id}.gpx", "gpx"),
+        ("tcx", Path("activity_files") / f"{activity_id}.tcx", "tcx"),
     ):
         path = raw_root / relative_path
         if path.exists():
@@ -262,6 +357,75 @@ def _references(
                 source_id=activity_id,
             )
     return references
+
+
+def _sanitize_reused_activity_record(
+    record: dict[str, Any],
+    raw_root: Path,
+) -> dict[str, Any]:
+    sanitized = deepcopy(record)
+    source_links = sanitized.get("source_links")
+    if isinstance(source_links, list):
+        sanitized["source_links"] = [
+            link
+            for link in source_links
+            if not _is_missing_fit_decoded_reference(raw_root, link)
+        ]
+    return sanitized
+
+
+def _sanitize_reused_stream_record(
+    record: dict[str, Any],
+    raw_root: Path,
+    manifest_index: dict[str, dict[str, Any]],
+    activity_id: str,
+) -> dict[str, Any]:
+    sanitized = deepcopy(record)
+    source_reference = sanitized.get("source_reference")
+    if _is_missing_fit_decoded_reference(raw_root, source_reference):
+        fit_path = raw_root / "activity_files" / f"{activity_id}.fit"
+        if fit_path.is_file():
+            sanitized["source_reference"] = _source_reference(
+                raw_root,
+                fit_path,
+                manifest_index,
+                entity_type="fit",
+                source_id=activity_id,
+            )
+    return sanitized
+
+
+def _is_missing_fit_decoded_reference(raw_root: Path, reference: Any) -> bool:
+    if not isinstance(reference, dict):
+        return False
+    raw_path = reference.get("raw_path")
+    if not isinstance(raw_path, str) or not raw_path.startswith("fit_decoded/"):
+        return False
+    return not (raw_root / raw_path).is_file()
+
+
+def _fallback_track_stream(
+    raw_root: Path,
+    references: dict[str, SourceReference],
+    activity_id: str,
+) -> Any | None:
+    gpx_reference = references.get("gpx")
+    if gpx_reference is not None:
+        stream = normalize_garmin_track_stream(
+            activity_id,
+            parse_gpx_track_points(raw_root / gpx_reference.raw_path),
+            source_reference=gpx_reference,
+        )
+        if stream is not None:
+            return stream
+    tcx_reference = references.get("tcx")
+    if tcx_reference is not None:
+        return normalize_garmin_track_stream(
+            activity_id,
+            parse_tcx_track_points(raw_root / tcx_reference.raw_path),
+            source_reference=tcx_reference,
+        )
+    return None
 
 
 def _optional_payload(
@@ -320,7 +484,8 @@ def _activity_input_fingerprint(
         "activity": Path("activities") / f"{activity_id}.json",
         "details": Path("activities") / f"{activity_id}.details.json",
         "fit": Path("activity_files") / f"{activity_id}.fit",
-        "fit_decoded": Path("fit_decoded") / f"{activity_id}.fitdecode.json",
+        "gpx": Path("activity_files") / f"{activity_id}.gpx",
+        "tcx": Path("activity_files") / f"{activity_id}.tcx",
         "splits": Path("splits") / f"{activity_id}.json",
         "typed_splits": Path("typed_splits") / f"{activity_id}.json",
         "weather": Path("weather") / f"{activity_id}.json",

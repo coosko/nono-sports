@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
+from unittest.mock import patch
 
+from nono_sports.formats.fit import FitDecodeResult
 from nono_sports.normalization.garmin_dataset import normalize_garmin_dataset
 
 
@@ -68,6 +70,218 @@ def test_normalize_garmin_dataset_reuses_unchanged_activity(
     assert first.reused_activities == 0
     assert second.processed_activities == 0
     assert second.reused_activities == 1
+
+
+def test_normalize_garmin_dataset_decodes_fit_without_persisted_json(
+    tmp_path: Path,
+) -> None:
+    raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
+    _write_json(raw_root / "activities" / "234.json", _activity_payload())
+    fit_path = raw_root / "activity_files" / "234.fit"
+    _write_text(fit_path, "temporary FIT fixture")
+    _write_manifest(
+        raw_root / "manifest.jsonl",
+        [
+            {"path": "activities/234.json", "sha256": "activity"},
+            {"path": "activity_files/234.fit", "sha256": "fit"},
+        ],
+    )
+
+    decoded = FitDecodeResult(
+        backend="fitdecode",
+        messages=_fitdecode_payload()["messages"],
+        frames=2,
+    )
+    with patch(
+        "nono_sports.normalization.garmin_dataset.decode_fit_with_fitdecode",
+        return_value=decoded,
+    ) as decode:
+        first = normalize_garmin_dataset(tmp_path)
+        second = normalize_garmin_dataset(tmp_path)
+
+    assert first.streams == 1
+    assert second.reused_activities == 1
+    decode.assert_called_once_with(
+        fit_path,
+        message_names=frozenset({"record", "hrv", "lap", "time_in_zone"}),
+    )
+    assert not (raw_root / "fit_decoded" / "234.fitdecode.json").exists()
+
+
+def test_normalize_garmin_dataset_can_keep_diagnostic_fit_json(
+    tmp_path: Path,
+) -> None:
+    raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
+    _write_json(raw_root / "activities" / "234.json", _activity_payload())
+    fit_path = raw_root / "activity_files" / "234.fit"
+    _write_text(fit_path, "temporary FIT fixture")
+    _write_manifest(
+        raw_root / "manifest.jsonl",
+        [
+            {"path": "activities/234.json", "sha256": "activity"},
+            {"path": "activity_files/234.fit", "sha256": "fit"},
+        ],
+    )
+
+    decoded = FitDecodeResult(
+        backend="fitdecode",
+        messages=_fitdecode_payload()["messages"],
+        frames=2,
+    )
+    with patch(
+        "nono_sports.normalization.garmin_dataset.decode_fit_with_fitdecode",
+        return_value=decoded,
+    ) as decode:
+        result = normalize_garmin_dataset(
+            tmp_path,
+            keep_intermediate_files=True,
+        )
+
+    assert result.processed_activities == 1
+    decode.assert_called_once_with(fit_path, message_names=None)
+    decoded_path = raw_root / "fit_decoded" / "234.fitdecode.json"
+    assert decoded_path.is_file()
+    payload = json.loads(decoded_path.read_text(encoding="utf-8"))
+    assert payload["messages"]["record"][0]["heart_rate"] == 88
+
+    activity = _read_jsonl(
+        tmp_path / "10_fuentes" / "garmin_connect" / "normalizado" / "activities.jsonl"
+    )[0]
+    source_paths = {link["raw_path"] for link in activity["source_links"]}
+    assert "activity_files/234.fit" in source_paths
+    assert "fit_decoded/234.fitdecode.json" in source_paths
+
+
+def test_normalize_garmin_dataset_reuses_existing_output_without_fitdecode_json(
+    tmp_path: Path,
+) -> None:
+    raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
+    _write_json(raw_root / "activities" / "234.json", _activity_payload())
+    fit_path = raw_root / "activity_files" / "234.fit"
+    _write_text(fit_path, "temporary FIT fixture")
+    _write_manifest(
+        raw_root / "manifest.jsonl",
+        [
+            {"path": "activities/234.json", "sha256": "activity"},
+            {"path": "activity_files/234.fit", "sha256": "fit"},
+        ],
+    )
+
+    decoded = FitDecodeResult(
+        backend="fitdecode",
+        messages=_fitdecode_payload()["messages"],
+        frames=2,
+    )
+    with patch(
+        "nono_sports.normalization.garmin_dataset.decode_fit_with_fitdecode",
+        return_value=decoded,
+    ) as decode:
+        first = normalize_garmin_dataset(tmp_path)
+        second = normalize_garmin_dataset(tmp_path)
+
+    assert first.processed_activities == 1
+    assert second.processed_activities == 0
+    assert second.reused_activities == 1
+    decode.assert_called_once()
+    assert not (raw_root / "fit_decoded" / "234.fitdecode.json").exists()
+
+
+def test_normalize_garmin_dataset_sanitizes_reused_missing_fitdecode_reference(
+    tmp_path: Path,
+) -> None:
+    raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
+    _write_json(raw_root / "activities" / "234.json", _activity_payload())
+    _write_text(raw_root / "activity_files" / "234.fit", "temporary FIT fixture")
+    fitdecoded_path = raw_root / "fit_decoded" / "234.fitdecode.json"
+    _write_json(fitdecoded_path, _fitdecode_payload())
+    _write_manifest(
+        raw_root / "manifest.jsonl",
+        [
+            {"path": "activities/234.json", "sha256": "activity"},
+            {"path": "activity_files/234.fit", "sha256": "fit"},
+            {"path": "fit_decoded/234.fitdecode.json", "sha256": "fitdecode"},
+        ],
+    )
+
+    first = normalize_garmin_dataset(tmp_path)
+    fitdecoded_path.unlink()
+    second = normalize_garmin_dataset(tmp_path)
+
+    assert first.processed_activities == 1
+    assert second.reused_activities == 1
+    activity = _read_jsonl(
+        tmp_path / "10_fuentes" / "garmin_connect" / "normalizado" / "activities.jsonl"
+    )[0]
+    source_paths = {link["raw_path"] for link in activity["source_links"]}
+    assert "activity_files/234.fit" in source_paths
+    assert "fit_decoded/234.fitdecode.json" not in source_paths
+
+    stream = _read_jsonl(
+        tmp_path / "10_fuentes" / "garmin_connect" / "normalizado" / "streams.jsonl"
+    )[0]
+    assert stream["source_reference"]["raw_path"] == "activity_files/234.fit"
+
+
+def test_normalize_garmin_dataset_uses_gpx_stream_when_fit_is_missing(
+    tmp_path: Path,
+) -> None:
+    raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
+    activity = _activity_payload()
+    activity["activityId"] = 456
+    activity["activityName"] = "Imported hike"
+    activity["activityTypeDTO"] = {"typeKey": "hiking"}
+    activity["metadataDTO"]["fileFormat"] = {"formatKey": "gpx"}
+    activity["metadataDTO"]["isOriginal"] = False
+    _write_json(raw_root / "activities" / "456.json", activity)
+    _write_json(raw_root / "activities" / "456.details.json", {"activityId": 456})
+    _write_text(
+        raw_root / "activity_files" / "456.gpx",
+        """<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1">
+  <trk><trkseg>
+    <trkpt lat="40.0" lon="-3.0">
+      <ele>700.0</ele><time>2026-06-29T18:42:22Z</time>
+    </trkpt>
+    <trkpt lat="40.1" lon="-3.1">
+      <ele>701.0</ele><time>2026-06-29T18:42:32Z</time>
+    </trkpt>
+  </trkseg></trk>
+</gpx>
+""",
+    )
+    _write_manifest(
+        raw_root / "manifest.jsonl",
+        [
+            {"path": "activities/456.json", "sha256": "activity"},
+            {"path": "activities/456.details.json", "sha256": "details"},
+            {"path": "activity_files/456.gpx", "sha256": "gpx"},
+        ],
+    )
+
+    result = normalize_garmin_dataset(tmp_path)
+
+    assert result.activities == 1
+    assert result.streams == 1
+    activity_record = _read_jsonl(
+        tmp_path / "10_fuentes" / "garmin_connect" / "normalizado" / "activities.jsonl"
+    )[0]
+    assert activity_record["sport"]["discipline"] == "hiking"
+    assert activity_record["completeness"]["has_fit"] is False
+    assert activity_record["completeness"]["has_gpx"] is True
+    assert activity_record["completeness"]["has_streams"] is True
+    assert activity_record["completeness"]["complete_without_fit"] is True
+    assert activity_record["stream_uid"] == "garmin_connect:stream:456"
+    assert activity_record["sport_specific"]["original_file_format"] == "gpx"
+    assert activity_record["sport_specific"]["is_original"] is False
+    assert activity_record["sport_specific"]["source_origin"] == "imported_gpx"
+
+    stream = _read_jsonl(
+        tmp_path / "10_fuentes" / "garmin_connect" / "normalizado" / "streams.jsonl"
+    )[0]
+    assert stream["source_reference"]["raw_path"] == "activity_files/456.gpx"
+    assert stream["samples"]["latlng"] == 2
+    assert stream["streams"]["time"]["values"] == [0.0, 10.0]
+    assert stream["streams"]["altitude"]["values"] == [700.0, 701.0]
 
 
 def _activity_payload() -> dict:
@@ -144,9 +358,9 @@ def _fitdecode_payload() -> dict:
     }
 
 
-def _write_manifest(path: Path) -> None:
+def _write_manifest(path: Path, entries: list[dict] | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    entries = [
+    entries = entries or [
         {"path": "activities/234.json", "sha256": "activity"},
         {"path": "activities/234.details.json", "sha256": "details"},
         {"path": "fit_decoded/234.fitdecode.json", "sha256": "fitdecode"},
@@ -160,6 +374,11 @@ def _write_manifest(path: Path) -> None:
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _write_text(path: Path, payload: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(payload, encoding="utf-8")
 
 
 def _read_jsonl(path: Path) -> list[dict]:

@@ -235,7 +235,7 @@ Regla estándar:
 ```text
 raw original
 → extracción si el proveedor entrega ZIP u otro contenedor
-→ derivado decodificado trazable
+→ lectura/decodificación transitoria del formato original
 → normalización por fuente
 → consolidación común
 ```
@@ -252,8 +252,10 @@ Razones:
 
 `garmin-fit-sdk` queda como fallback o herramienta de contraste oficial.
 
-La salida decodificada debe conservar tanto valores normalizados como metadatos
-de bajo nivel:
+El flujo normal no persiste derivados pesados de decodificación. Cuando se
+necesite diagnóstico explícito de una actividad concreta, el derivado
+`fit_decoded/<id>.fitdecode.json` debe conservar tanto valores normalizados
+como metadatos de bajo nivel:
 
 - valor decodificado directo por nombre de campo
 - `_fit_message` con identificadores del mensaje FIT
@@ -263,6 +265,11 @@ de bajo nivel:
 La comparación entre decodificadores es una capacidad común de `formats`, no de
 Garmin. Debe poder ejecutarse sobre cualquier FIT futuro para detectar si
 `garmin-fit-sdk` interpreta campos que el backend principal no esté exponiendo.
+
+La normalización diaria de FIT debe limitarse a los mensajes necesarios para el
+contrato común (`record`, `hrv`, `lap`, `time_in_zone`) y debe reutilizar la
+salida normalizada si la huella de entrada no cambia, aunque no exista ningún
+derivado `fit_decoded`.
 
 ### `storage`
 
@@ -328,9 +335,12 @@ La salida consolidada inicial se escribe en:
 - `20_consolidado/duplicate_candidates.jsonl`
 - `20_consolidado/state.json`
 
-La deduplicación inicial usa señales conservadoras: fecha/hora, duración,
-distancia y deporte. El informe `duplicate_candidates.jsonl` debe revisarse
-antes de ampliar reglas o aplicar selección avanzada por campo/métrica.
+La deduplicación usa señales conservadoras de fecha/hora, duración, distancia,
+deporte y origen Garmin de la importación Strava. Contempla el inicio tardío de
+Strava cuando tiempo en movimiento y distancia confirman que es la misma salida.
+`duplicate_candidates.jsonl` audita agrupaciones ya aplicadas; no es una cola de
+duplicados pendientes. En actividades emparejadas, Garmin prevalece para la
+clasificación deportiva.
 
 ### `validation`
 
@@ -417,7 +427,7 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   │   │   ├── athlete/
 │   │   │   ├── activities/
 │   │   │   ├── activity_files/
-│   │   │   ├── fit_decoded/
+│   │   │   ├── fit_decoded/          # diagnóstico explícito, no flujo normal
 │   │   │   ├── splits/
 │   │   │   ├── typed_splits/
 │   │   │   ├── laps/

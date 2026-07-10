@@ -106,7 +106,10 @@ Resultado validado con una actividad real Garmin:
 - Garmin entregó un ZIP como descarga `ORIGINAL`, no un FIT directo.
 - Se conserva `activity_files/<id>.original.zip`.
 - Se extrae y conserva `activity_files/<id>.fit`.
-- Se genera derivado trazable `fit_decoded/<id>.fitdecode.json`.
+- El flujo normal decodifica el FIT de forma transitoria y no conserva
+  `fit_decoded/<id>.fitdecode.json`.
+- El derivado trazable `fit_decoded/<id>.fitdecode.json` solo se genera bajo
+  demanda para diagnóstico de una actividad concreta.
 - `fitdecode` recuperó 6844 frames, 20 tipos de mensajes, 2480 records y 4254
   mensajes HRV sin errores.
 - La comparación con `garmin-fit-sdk` no mostró tipos de mensaje ni series

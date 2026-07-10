@@ -49,12 +49,38 @@ Todas las versiones y entregables se documentan aquí.
 - Añadido comando `nono-sports garmin normalize`.
 - Añadido comando `nono-sports garmin sync` para encadenar descarga raw,
   decodificación FIT, normalización y consolidación.
+- Añadido parser seguro GPX/TCX con `defusedxml` para normalizar tracks de
+  actividades Garmin importadas sin FIT.
 - Nono documentó el 2026-06-25 el uso de Wikiloc como fuente auxiliar externa
   para planificación de rutas, cruzada con Open-Meteo, Google Maps, datos
   deportivos consolidados y fuentes oficiales cuando proceda.
 
 ### Changed
 
+- `garmin sync` deja de persistir JSON FIT decodificados y normaliza
+  directamente desde el FIT raw para evitar agotar la capacidad de Drive.
+- La huella incremental Garmin depende del FIT original, no del derivado
+  `fitdecode.json`, que puede borrarse de forma segura.
+- La normalización FIT diaria limita la decodificación a los mensajes necesarios
+  para el contrato común y reutiliza normalizados aunque no existan derivados
+  `fit_decoded`.
+- `garmin decode-fit` requiere `--activity-id` para evitar generar derivados
+  masivos por accidente.
+- Añadido `garmin clean-intermediates` para eliminar derivados de diagnóstico
+  y `--keep-intermediate-files` en `garmin normalize`/`garmin sync` para debug
+  excepcional.
+- La reutilización incremental Garmin sanea referencias históricas a
+  `fit_decoded` ausentes sin forzar la decodificación completa de todos los FIT.
+- Auditado y reparado el raw Garmin tras agotarse el espacio de Drive: nueve
+  actividades redescargadas, payloads mal ubicados corregidos y derivados FIT
+  voluminosos eliminados.
+- Ampliado el matching Garmin-Strava para reconocer importaciones indoor con
+  taxonomías distintas y salidas ciclistas cuyo inicio fue activado antes de
+  comenzar el movimiento.
+- La clasificación deportiva Garmin prevalece en actividades consolidadas con
+  ambas fuentes.
+- Aclarado que `duplicate_candidates.jsonl` registra agrupaciones ya aplicadas,
+  no duplicados pendientes adicionales.
 - Reorganizada la arquitectura documental del proyecto.
 - Definido `Descripcion_inicial.md` como documento de entrada no normativo.
 - Archivado el bootstrap inicial en `deprecated/initial-bootstrap/` y mantenido fuera del código activo.
@@ -81,6 +107,12 @@ Todas las versiones y entregables se documentan aquí.
 - La descarga raw Garmin pagina automáticamente el listado y salta actividades
   ya completas hasta encontrar pendientes, evitando quedar bloqueada en las
   primeras actividades del histórico.
+- La descarga raw Garmin conserva siempre el ZIP `ORIGINAL`; si no contiene FIT,
+  intenta GPX/TCX como fallback y registra warning en vez de error recuperable.
+- Las actividades Garmin importadas desde GPX/TCX pueden quedar como completas
+  sin FIT y se marcan con `source_origin`, por ejemplo `imported_gpx`.
+- La normalización Garmin conserva explícitamente `original_file_format` e
+  `is_original` para que Nono pueda decidir cuándo recurrir al fichero original.
 - El store normalizado evita reescribir ficheros cuando el contenido no cambia.
 
 ### Verified
@@ -90,6 +122,9 @@ Todas las versiones y entregables se documentan aquí.
 - Validados tests unitarios del adaptador Garmin Connect con mocks, sin llamadas reales a Garmin.
 - Validada descarga real local de 1 actividad Garmin Connect y segunda ejecución idempotente.
 - Validado que Garmin `ORIGINAL` entrega ZIP; ahora se conserva `.original.zip` y se extrae `.fit`.
+- Validado caso real Garmin `18858207006`: el ZIP `ORIGINAL` contenía
+  `18858207006_ACTIVITY.gpx`, no FIT; GPX y TCX se pudieron recuperar y la
+  descarga acotada terminó con `0 recoverable errors`.
 - Validado FIT real con `fitdecode`: 6844 frames, 20 tipos de mensajes, 2480 records, 4254 HRV y 0 errores.
 - Comparado FIT real con `fitdecode` y `garmin-fit-sdk`: mismos tipos de
   mensaje y volúmenes principales; las diferencias fueron alias/metadatos, no
@@ -106,7 +141,7 @@ Todas las versiones y entregables se documentan aquí.
 - Ejecutada validación de compatibilidad en Nono con Python 3.14.4: `scripts/check.py` con 67 tests pasados y `strava validate` correcto.
 - Ejecutada instalación persistente en Nono con configuración XDG, tokens copiados con permisos `600` y prueba real de autenticación Strava detenida correctamente por cuota diaria `996/1000`.
 - Ejecutada prueba local de `strava sync --skip-fetch --schedule-next-if-pending` sin llamar a Strava.
-- Verificación local actual: `python3 scripts/check.py` con 118 tests pasados.
+- Verificación local actual: `python3 scripts/check.py` con 120 tests pasados.
 - Nono verificó el 2026-06-25 que, con el estado real actual (`state.last_run_stopped`,
   `raw.streams_incomplete`, `raw.recoverable_errors`), la nueva decisión
   adaptativa es no programar otra ejecución.

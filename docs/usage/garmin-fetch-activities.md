@@ -31,6 +31,20 @@ Por defecto descarga FIT original y no descarga GPX/TCX para reducir llamadas.
 Garmin entrega el formato `ORIGINAL` como ZIP; `nono-sports` conserva ese ZIP y
 extrae el FIT interno.
 
+Si una actividad no procede de un dispositivo Garmin sino de una importación,
+por ejemplo un GPX subido a Garmin Connect, el ZIP `ORIGINAL` puede no contener
+FIT. En ese caso `nono-sports`:
+
+- conserva siempre el ZIP original
+- intenta extraer GPX/TCX del ZIP
+- si hace falta, pide GPX/TCX a Garmin como fallback
+- registra un warning de FIT no disponible, no un error recuperable
+- considera la actividad completa sin FIT si existen `activity`, `details` y
+  al menos un track GPX/TCX utilizable
+- marca el origen normalizado como `source_origin`, por ejemplo `imported_gpx`
+- conserva en `sport_specific` el formato original (`original_file_format`) y
+  si Garmin lo considera original (`is_original`)
+
 La descarga raw es incremental. Si las primeras actividades ya están completas,
 el comando escanea páginas sucesivas de Garmin Connect y las salta hasta
 encontrar la siguiente actividad pendiente. Por tanto, no hace falta pedir
@@ -88,6 +102,17 @@ Para ejecutar solo la parte offline sobre raw ya descargado:
 ./.venv/bin/python -m nono_sports garmin sync --lock-file /ruta/garmin.lock
 ```
 
+Para depuración excepcional puede conservar los derivados intermedios generados
+por actividades que se reprocesen:
+
+```bash
+./.venv/bin/python -m nono_sports garmin sync --keep-intermediate-files
+./.venv/bin/python -m nono_sports garmin normalize --keep-intermediate-files
+```
+
+No debe usarse en la operación diaria: `fit_decoded/*.fitdecode.json` puede
+ocupar decenas de MB por actividad.
+
 Los comandos parciales siguen disponibles para diagnóstico:
 
 ```bash
@@ -110,7 +135,9 @@ La estructura inicial es:
 │   ├── activities/<id>.details.json
 │   ├── activity_files/<id>.original.zip
 │   ├── activity_files/<id>.fit
-│   ├── fit_decoded/<id>.fitdecode.json
+│   ├── activity_files/<id>.gpx
+│   ├── activity_files/<id>.tcx
+│   ├── fit_decoded/<id>.fitdecode.json  # solo diagnóstico explícito
 │   ├── splits/<id>.json
 │   ├── splits/<id>.summaries.json
 │   ├── typed_splits/<id>.json
@@ -127,9 +154,35 @@ endpoint o estructura independiente, se añadirá en una fase posterior.
 La decodificación FIT es offline y usa el módulo independiente
 `nono_sports.formats.fit`.
 
+El flujo habitual `garmin sync` decodifica cada FIT de forma transitoria durante
+la normalización. No conserva `fit_decoded/*.fitdecode.json`, porque estos
+derivados son muy voluminosos y siempre pueden reconstruirse desde el FIT raw.
+El FIT original es la entrada estable de la huella incremental.
+
 ```bash
 ./.venv/bin/python -m nono_sports garmin decode-fit --activity-id <id>
 ```
+
+`decode-fit` queda reservado para diagnóstico o investigación de una actividad
+concreta. El CLI exige `--activity-id` para evitar generar cientos de archivos
+grandes por accidente. Sus archivos pueden eliminarse después de utilizarlos sin
+invalidar los datos normalizados.
+
+Si se borra un `fit_decoded` histórico, la siguiente normalización incremental
+reutiliza el normalizado existente y elimina referencias rotas al derivado,
+apuntando los streams al FIT original cuando procede. No hace falta usar
+`--force` para limpiar esos enlaces.
+
+Para limpiar intermedios:
+
+```bash
+./.venv/bin/python -m nono_sports garmin clean-intermediates --activity-id <id>
+./.venv/bin/python -m nono_sports garmin clean-intermediates
+./.venv/bin/python -m nono_sports garmin clean-intermediates --dry-run
+```
+
+La limpieza elimina `raw/fit_decoded/*.fitdecode.json`. No elimina raw original
+ni normalizados.
 
 El backend inicial es `fitdecode==0.11.0`.
 
@@ -176,6 +229,17 @@ Usa `--force` solo si quieres recalcular todo:
 ./.venv/bin/python -m nono_sports garmin sync --skip-fetch --force
 ```
 
+Cuando no hay FIT pero sí GPX/TCX, la normalización extrae el track XML con
+`defusedxml` y genera `streams.jsonl` desde esos puntos. El registro de actividad
+queda con `has_fit=false`, `has_gpx`/`has_tcx` según proceda,
+`complete_without_fit=true` y `stream_uid` si el track contiene puntos.
+
+También conserva pistas de procedencia en `sport_specific`:
+
+- `original_file_format`: formato declarado por Garmin, por ejemplo `gpx`
+- `is_original`: valor bruto `metadataDTO.isOriginal`
+- `source_origin`: clasificación derivada, por ejemplo `imported_gpx`
+
 Escribe:
 
 ```text
@@ -208,6 +272,9 @@ Resultado validado:
   splits.
 - normalización incremental real: segunda ejecución offline con 12 actividades,
   `0 processed` y `12 reused`.
+- actividad importada Garmin `18858207006`: el ZIP `ORIGINAL` contenía
+  `18858207006_ACTIVITY.gpx`, sin FIT; el sistema descargó GPX/TCX fallback y
+  dejó la descarga raw con `0 recoverable errors`.
 - consolidación real detectó Garmin `23422332225` y Strava `19114956119` como
   la misma actividad con confianza `0.97`.
 - 0 errores recuperables.

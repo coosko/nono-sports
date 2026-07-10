@@ -125,6 +125,115 @@ def test_build_multi_source_consolidated_groups_when_garmin_existed_first(
     ]
 
 
+def test_groups_garmin_indoor_import_and_prefers_garmin_sport(
+    tmp_path: Path,
+) -> None:
+    strava = _activity("strava", "100", distance_m=0.0)
+    strava["external_ids"]["external_id"] = "garmin_ping_123"
+    garmin = _activity("garmin_connect", "abc", distance_m=0.0)
+    garmin["sport"] = {
+        "family": "other",
+        "discipline": "indoor_cycling",
+        "movement_context": "unknown",
+    }
+    garmin["duration"]["moving_time_s"] = 2400
+    _write_source_activities(tmp_path, strava=[strava], garmin=[garmin])
+
+    result = build_multi_source_consolidated(tmp_path)
+
+    assert result.activities == 1
+    activity = _read_consolidated_jsonl(tmp_path, "activities.jsonl")[0]
+    assert activity["sport"]["discipline"] == "indoor_cycling"
+    candidate = _read_consolidated_jsonl(
+        tmp_path,
+        "duplicate_candidates.jsonl",
+    )[0]
+    assert candidate["match_strategy"] == "garmin_import_start_distance"
+
+
+def test_groups_cycling_with_delayed_start_when_distance_and_moving_time_match(
+    tmp_path: Path,
+) -> None:
+    strava = _activity(
+        "strava",
+        "100",
+        start_at_utc="2022-12-04T08:36:57Z",
+        moving_time_s=5594,
+        distance_m=43958.4,
+    )
+    garmin = _activity(
+        "garmin_connect",
+        "abc",
+        start_at_utc="2022-12-04T08:29:02Z",
+        moving_time_s=5554,
+        distance_m=43958.4,
+    )
+    _write_source_activities(tmp_path, strava=[strava], garmin=[garmin])
+
+    result = build_multi_source_consolidated(tmp_path)
+
+    assert result.activities == 1
+    candidate = _read_consolidated_jsonl(
+        tmp_path,
+        "duplicate_candidates.jsonl",
+    )[0]
+    assert candidate["match_strategy"] == (
+        "cycling_duration_distance_delayed_start"
+    )
+    assert candidate["signals"]["start_delta_s"] == 475.0
+
+
+def test_groups_compatible_sport_with_same_start_and_distance(
+    tmp_path: Path,
+) -> None:
+    strava = _activity("strava", "100", moving_time_s=1200, distance_m=8500.0)
+    strava["sport"] = {
+        "family": "walking_hiking",
+        "discipline": "hiking",
+    }
+    garmin = _activity(
+        "garmin_connect",
+        "abc",
+        start_at_utc="2026-05-26T05:00:01Z",
+        moving_time_s=1800,
+        distance_m=8501.0,
+    )
+    garmin["sport"] = {
+        "family": "walking_hiking",
+        "discipline": "hiking",
+    }
+    _write_source_activities(tmp_path, strava=[strava], garmin=[garmin])
+
+    result = build_multi_source_consolidated(tmp_path)
+
+    assert result.activities == 1
+    candidate = _read_consolidated_jsonl(
+        tmp_path,
+        "duplicate_candidates.jsonl",
+    )[0]
+    assert candidate["match_strategy"] == "synchronized_start_distance_sport"
+
+
+def _write_source_activities(
+    tmp_path: Path,
+    *,
+    strava: list[dict],
+    garmin: list[dict],
+) -> None:
+    _write_jsonl(
+        tmp_path / "10_fuentes" / "strava" / "normalizado" / "activities.jsonl",
+        strava,
+    )
+    _write_jsonl(
+        tmp_path
+        / "10_fuentes"
+        / "garmin_connect"
+        / "normalizado"
+        / "activities.jsonl",
+        garmin,
+    )
+
+
 def _activity(
     source: str,
     source_id: str,

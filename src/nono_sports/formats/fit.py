@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import zipfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -66,19 +67,50 @@ def extract_fit_payloads(
     return fit_payloads
 
 
-def decode_fit_with_fitdecode(path: Path) -> FitDecodeResult:
+def extract_zip_payloads_by_suffix(
+    payload: bytes,
+    suffixes: tuple[str, ...],
+) -> list[FitPayload]:
+    """Extract files from a ZIP payload by filename suffix.
+
+    The return type is intentionally the same lightweight payload container used
+    for FIT extraction because fallback activity files need the same metadata.
+    """
+
+    if not zipfile.is_zipfile(io.BytesIO(payload)):
+        return []
+    normalized_suffixes = tuple(suffix.lower() for suffix in suffixes)
+    extracted: list[FitPayload] = []
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        for name in archive.namelist():
+            if name.lower().endswith(normalized_suffixes):
+                extracted.append(
+                    FitPayload(name=Path(name).name, payload=archive.read(name))
+                )
+    return extracted
+
+
+def decode_fit_with_fitdecode(
+    path: Path,
+    *,
+    message_names: Iterable[str] | None = None,
+) -> FitDecodeResult:
     fitdecode = _load_fitdecode()
     messages: dict[str, list[dict[str, Any]]] = {}
     frames = 0
     errors: list[str] = []
+    selected_names = set(message_names) if message_names is not None else None
     try:
         with fitdecode.FitReader(str(path)) as fit:
             for frame in fit:
                 frames += 1
                 if frame.frame_type != fitdecode.FIT_FRAME_DATA:
                     continue
+                frame_name = str(frame.name)
+                if selected_names is not None and frame_name not in selected_names:
+                    continue
                 message = _fitdecode_message_to_dict(frame)
-                messages.setdefault(str(frame.name), []).append(message)
+                messages.setdefault(frame_name, []).append(message)
     except Exception as error:  # noqa: BLE001
         errors.append(str(error))
     return FitDecodeResult(

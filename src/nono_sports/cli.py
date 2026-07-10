@@ -110,6 +110,14 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_subparsers.add_parser("prepare-dirs")
     garmin_normalize_parser = garmin_subparsers.add_parser("normalize")
     garmin_normalize_parser.add_argument("--force", action="store_true")
+    garmin_normalize_parser.add_argument(
+        "--keep-intermediate-files",
+        action="store_true",
+        help=(
+            "Keep diagnostic intermediate files generated during normalization. "
+            "Use only for debugging specific issues."
+        ),
+    )
     garmin_fetch_parser = garmin_subparsers.add_parser("fetch-activities")
     garmin_fetch_parser.add_argument("--start", type=int, default=0)
     garmin_fetch_parser.add_argument("--limit", type=int, default=20)
@@ -122,6 +130,9 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_decode_parser = garmin_subparsers.add_parser("decode-fit")
     garmin_decode_parser.add_argument("--activity-id", default=None)
     garmin_decode_parser.add_argument("--force", action="store_true")
+    garmin_clean_parser = garmin_subparsers.add_parser("clean-intermediates")
+    garmin_clean_parser.add_argument("--activity-id", default=None)
+    garmin_clean_parser.add_argument("--dry-run", action="store_true")
     garmin_sync_parser = garmin_subparsers.add_parser("sync")
     garmin_sync_parser.add_argument("--skip-fetch", action="store_true")
     garmin_sync_parser.add_argument("--start", type=int, default=0)
@@ -133,6 +144,14 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_sync_parser.add_argument("--include-tcx", action="store_true")
     garmin_sync_parser.add_argument("--include-gpx", action="store_true")
     garmin_sync_parser.add_argument("--lock-file", default=None)
+    garmin_sync_parser.add_argument(
+        "--keep-intermediate-files",
+        action="store_true",
+        help=(
+            "Keep diagnostic intermediate files generated during synchronization. "
+            "Use only for debugging specific issues."
+        ),
+    )
 
     return parser
 
@@ -207,11 +226,18 @@ def main(argv: list[str] | None = None) -> int:
         result = normalize_garmin_dataset(
             project_config.data_root,
             force=args.force,
+            keep_intermediate_files=args.keep_intermediate_files,
         )
         _print_garmin_normalization_result(result)
         return 0
 
     if args.command == "garmin" and args.garmin_command == "decode-fit":
+        if args.activity_id is None:
+            print(
+                "ERROR: garmin decode-fit requires --activity-id to avoid "
+                "generating hundreds of large diagnostic files."
+            )
+            return 2
         project_config = load_config()
         ensure_garmin_connect_directories(project_config.data_root)
         raw_store = GarminRawStore(project_config.data_root)
@@ -228,6 +254,21 @@ def main(argv: list[str] | None = None) -> int:
             "fit_decoded",
         )
         print(f"Decoded root: {decoded_root}")
+        return 0
+
+    if args.command == "garmin" and args.garmin_command == "clean-intermediates":
+        project_config = load_config()
+        ensure_garmin_connect_directories(project_config.data_root)
+        count, bytes_cleaned = _clean_garmin_intermediate_files(
+            project_config.data_root,
+            activity_id=args.activity_id,
+            dry_run=args.dry_run,
+        )
+        verb = "Would remove" if args.dry_run else "Removed"
+        print(
+            f"{verb} {count} Garmin intermediate file(s), "
+            f"{bytes_cleaned} bytes."
+        )
         return 0
 
     if args.command == "strava" and args.strava_command == "prepare-dirs":
@@ -406,6 +447,30 @@ def _decode_garmin_fit_files(
     return decoded
 
 
+def _clean_garmin_intermediate_files(
+    data_root: Path,
+    *,
+    activity_id: str | None,
+    dry_run: bool,
+) -> tuple[int, int]:
+    fit_decoded_root = garmin_connect_path(data_root, "raw", "fit_decoded")
+    if activity_id is None:
+        paths = sorted(fit_decoded_root.glob("*.fitdecode.json"))
+    else:
+        paths = [fit_decoded_root / f"{activity_id}.fitdecode.json"]
+
+    count = 0
+    bytes_cleaned = 0
+    for path in paths:
+        if not path.is_file():
+            continue
+        count += 1
+        bytes_cleaned += path.stat().st_size
+        if not dry_run:
+            path.unlink()
+    return count, bytes_cleaned
+
+
 def _json_dump(payload: object) -> str:
     return f"{json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)}\n"
 
@@ -452,23 +517,21 @@ def _run_garmin_sync(args: argparse.Namespace, project_config: ProjectConfig) ->
         result, raw_store = _run_garmin_fetch_activities(args, project_config)
         _print_garmin_fetch_activities_result(result, raw_store)
 
-    decoded = _decode_garmin_fit_files(
-        project_config.data_root,
-        raw_store,
-        activity_id=None,
-        force=args.force,
-    )
-    decoded_root = garmin_connect_path(
-        project_config.data_root,
-        "raw",
-        "fit_decoded",
-    )
-    print(f"Decoded {decoded} Garmin FIT file(s).")
-    print(f"Decoded root: {decoded_root}")
+    if args.keep_intermediate_files:
+        print(
+            "Garmin diagnostic intermediate files will be kept. "
+            "Use garmin clean-intermediates after debugging."
+        )
+    else:
+        print(
+            "Garmin FIT files will be decoded transiently during normalization; "
+            "no fit_decoded files will be persisted."
+        )
 
     normalize_result = normalize_garmin_dataset(
         project_config.data_root,
         force=args.force,
+        keep_intermediate_files=args.keep_intermediate_files,
     )
     _print_garmin_normalization_result(normalize_result)
 
@@ -653,7 +716,8 @@ def _print_garmin_fetch_activities_result(
         f"{result.processed_activities} processed, "
         f"{result.skipped_activities} skipped, "
         f"{len(result.written)} written, "
-        f"{len(result.recoverable_errors)} recoverable errors."
+        f"{len(result.recoverable_errors)} recoverable errors, "
+        f"{len(result.warnings)} warnings."
     )
     print(f"Raw root: {raw_store.raw_root}")
     print(f"State: {result.state_path}")

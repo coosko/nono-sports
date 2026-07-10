@@ -1,4 +1,6 @@
-from nono_sports.cli import build_parser
+from pathlib import Path
+
+from nono_sports.cli import _clean_garmin_intermediate_files, build_parser
 
 
 def test_parser_accepts_build_consolidated_command() -> None:
@@ -53,11 +55,14 @@ def test_parser_accepts_garmin_prepare_dirs_command() -> None:
 
 
 def test_parser_accepts_garmin_normalize_command() -> None:
-    args = build_parser().parse_args(["garmin", "normalize", "--force"])
+    args = build_parser().parse_args(
+        ["garmin", "normalize", "--force", "--keep-intermediate-files"]
+    )
 
     assert args.command == "garmin"
     assert args.garmin_command == "normalize"
     assert args.force is True
+    assert args.keep_intermediate_files is True
 
 
 def test_parser_accepts_garmin_fetch_activities_options() -> None:
@@ -109,6 +114,23 @@ def test_parser_accepts_garmin_decode_fit_options() -> None:
     assert args.force is True
 
 
+def test_parser_accepts_garmin_clean_intermediates_options() -> None:
+    args = build_parser().parse_args(
+        [
+            "garmin",
+            "clean-intermediates",
+            "--activity-id",
+            "123",
+            "--dry-run",
+        ]
+    )
+
+    assert args.command == "garmin"
+    assert args.garmin_command == "clean-intermediates"
+    assert args.activity_id == "123"
+    assert args.dry_run is True
+
+
 def test_parser_accepts_garmin_sync_options() -> None:
     args = build_parser().parse_args(
         [
@@ -129,6 +151,7 @@ def test_parser_accepts_garmin_sync_options() -> None:
             "--include-gpx",
             "--lock-file",
             "garmin.lock",
+            "--keep-intermediate-files",
         ]
     )
 
@@ -144,6 +167,45 @@ def test_parser_accepts_garmin_sync_options() -> None:
     assert args.include_tcx is True
     assert args.include_gpx is True
     assert args.lock_file == "garmin.lock"
+    assert args.keep_intermediate_files is True
+
+
+def test_clean_garmin_intermediate_files_supports_dry_run_and_delete(
+    tmp_path: Path,
+) -> None:
+    fit_decoded_root = (
+        tmp_path
+        / "10_fuentes"
+        / "garmin_connect"
+        / "raw"
+        / "fit_decoded"
+    )
+    fit_decoded_root.mkdir(parents=True)
+    first = fit_decoded_root / "123.fitdecode.json"
+    second = fit_decoded_root / "456.fitdecode.json"
+    first.write_text("abc", encoding="utf-8")
+    second.write_text("defg", encoding="utf-8")
+
+    count, bytes_cleaned = _clean_garmin_intermediate_files(
+        tmp_path,
+        activity_id="123",
+        dry_run=True,
+    )
+
+    assert count == 1
+    assert bytes_cleaned == 3
+    assert first.exists()
+
+    count, bytes_cleaned = _clean_garmin_intermediate_files(
+        tmp_path,
+        activity_id=None,
+        dry_run=False,
+    )
+
+    assert count == 2
+    assert bytes_cleaned == 7
+    assert not first.exists()
+    assert not second.exists()
 
 
 def test_parser_accepts_strava_fetch_context_options() -> None:

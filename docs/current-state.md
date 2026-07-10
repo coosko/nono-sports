@@ -1,6 +1,6 @@
 # Estado actual del proyecto
 
-Fecha de referencia: 2026-07-02
+Fecha de referencia: 2026-07-03
 
 ## Situación actual
 
@@ -35,19 +35,27 @@ Existe actualmente:
 - idempotencia Garmin inicial validada: la segunda ejecución salta la actividad ya completa
 - módulo independiente `nono_sports.formats.fit` implementado para extracción y decodificación FIT
 - backend FIT inicial decidido: `fitdecode==0.11.0`
-- FIT Garmin real decodificado en `raw/fit_decoded/<id>.fitdecode.json`
+- FIT Garmin decodificado transitoriamente durante la normalización, sin
+  persistir el voluminoso `raw/fit_decoded/<id>.fitdecode.json`
 - decodificación FIT enriquecida con metadatos de campo para conservar
   `def_num`, `raw_value`, unidades y tipos
 - comparación reutilizable `fitdecode` vs `garmin-fit-sdk` disponible para FITs
   de cualquier origen
 - normalización Garmin Connect implementada para activities, streams, laps,
   splits, typed splits, segment candidates y state
-- normalización Garmin incremental: reutiliza actividades sin cambios y evita
-  releer FIT decodificados grandes
+- normalización Garmin incremental: usa el FIT original como entrada estable y
+  permite borrar sin riesgo cualquier JSON decodificado de diagnóstico
+- comandos operativos Garmin para diagnóstico y limpieza de intermedios:
+  `garmin decode-fit --activity-id <id>` y `garmin clean-intermediates`
+- opción excepcional `--keep-intermediate-files` en `garmin normalize` y
+  `garmin sync`; no forma parte de la operación diaria
 - comando `garmin sync` implementado para encadenar descarga raw, decodificación
-  FIT, normalización y consolidación
+  FIT transitoria, normalización y consolidación
 - backfill Garmin incremental: pagina el listado, salta actividades ya completas
   y sigue buscando pendientes sin pedir todo el histórico en una sola llamada
+- fallback Garmin para actividades importadas sin FIT: conserva el ZIP original,
+  extrae o descarga GPX/TCX, normaliza el track XML y marca la actividad como
+  completa sin FIT cuando hay datos suficientes
 - consolidación multi-fuente inicial implementada con `activity_sources.jsonl`
   multi-enlace y `duplicate_candidates.jsonl`
 - Garmin `23422332225` y Strava `19114956119` validados como una única
@@ -101,6 +109,20 @@ Estado observado el 2026-06-25:
   descargan en la sincronización normal.
 - Esos avisos no deben considerarse motivo suficiente para reprogramar otra
   ejecución adaptativa.
+
+Estado observado tras la auditoría Garmin del 2026-07-10:
+
+- El raw local Garmin contiene 908 actividades alineadas con el estado de
+  sincronización; Strava contiene 1.152 actividades.
+- Se repararon desde Garmin nueve actividades con ZIP o splits ausentes, o con
+  un payload ubicado en un directorio incorrecto.
+- El raw Garmin queda con 908 ZIP originales, 902 FIT y 6 actividades con
+  fallback GPX/TCX; no quedan referencias ausentes, nombres de conflicto de
+  Drive ni archivos en un directorio incorrecto.
+- `raw/fit_decoded` queda vacío. Una normalización posterior reutilizó las 908
+  actividades sin regenerar derivados ni perder datos normalizados.
+- Tras mejorar el matching Garmin-Strava y sincronizar Garmin, el consolidado
+  contiene 1.158 actividades y 2.060 enlaces de fuente.
 
 El código previo se conserva en `deprecated/initial-bootstrap/` solo como referencia histórica y no forma parte de la implementación vigente.
 

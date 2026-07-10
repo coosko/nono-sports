@@ -8,7 +8,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from nono_sports.formats.fit import extract_fit_payloads
+from nono_sports.formats.fit import (
+    extract_fit_payloads,
+    extract_zip_payloads_by_suffix,
+)
 from nono_sports.garmin_connect.client import (
     GarminActivityFileFormat,
     GarminConnectClient,
@@ -38,6 +41,13 @@ class GarminRecoverableError:
 
 
 @dataclass(frozen=True)
+class GarminSyncWarning:
+    activity_id: str
+    part: str
+    message: str
+
+
+@dataclass(frozen=True)
 class GarminRawSyncResult:
     listed_activities: int
     scanned_pages: int
@@ -45,6 +55,7 @@ class GarminRawSyncResult:
     skipped_activities: int
     written: tuple[RawWriteResult, ...]
     recoverable_errors: tuple[GarminRecoverableError, ...]
+    warnings: tuple[GarminSyncWarning, ...]
     state_path: str
 
 
@@ -67,6 +78,7 @@ def sync_garmin_activities_raw(
     state = state_store.load()
     written: list[RawWriteResult] = []
     recoverable_errors: list[GarminRecoverableError] = []
+    warnings: list[GarminSyncWarning] = []
     run = {
         "completed_at": None,
         "force": force,
@@ -137,6 +149,7 @@ def sync_garmin_activities_raw(
                 state_entry,
                 written,
                 recoverable_errors,
+                warnings,
                 activity=activity,
                 activity_key=activity_key,
                 include_fit=include_fit,
@@ -153,6 +166,7 @@ def sync_garmin_activities_raw(
     run["scanned_pages"] = scanned_pages
     run["skipped_activities"] = skipped
     run["recoverable_errors"] = len(recoverable_errors)
+    run["warnings"] = len(warnings)
     run["written_files"] = len(written)
     state_store.save(state)
 
@@ -163,6 +177,7 @@ def sync_garmin_activities_raw(
         skipped_activities=skipped,
         written=tuple(written),
         recoverable_errors=tuple(recoverable_errors),
+        warnings=tuple(warnings),
         state_path=str(state_store.path),
     )
 
@@ -173,6 +188,7 @@ def _download_activity_parts(
     state_entry: dict[str, Any],
     written: list[RawWriteResult],
     recoverable_errors: list[GarminRecoverableError],
+    warnings: list[GarminSyncWarning],
     *,
     activity: dict[str, Any],
     activity_key: str,
@@ -250,7 +266,7 @@ def _download_activity_parts(
         activity_id=activity_key,
     )
     if include_fit:
-        _download_fit_archive_part(
+        has_fit = _download_original_activity_file_part(
             lambda: client.download_activity_file(
                 activity_key,
                 GarminActivityFileFormat.FIT,
@@ -262,7 +278,18 @@ def _download_activity_parts(
             raw_archive_path=f"activity_files/{safe_activity_id}.original.zip",
             raw_fit_path=f"activity_files/{safe_activity_id}.fit",
             activity_id=activity_key,
+            warnings=warnings,
         )
+        if not has_fit:
+            _download_missing_fallback_activity_files(
+                client,
+                raw_store,
+                state_entry,
+                written,
+                warnings,
+                activity_key=activity_key,
+                safe_activity_id=safe_activity_id,
+            )
     if include_tcx:
         _download_optional_file_part(
             lambda: client.download_activity_file(
@@ -406,7 +433,7 @@ def _download_optional_file_part(
     state_entry[part] = result.relative_path
 
 
-def _download_fit_archive_part(
+def _download_original_activity_file_part(
     fetch: Callable[[], bytes],
     raw_store: GarminRawStore,
     state_entry: dict[str, Any],
@@ -416,14 +443,14 @@ def _download_fit_archive_part(
     raw_archive_path: str,
     raw_fit_path: str,
     activity_id: str,
-) -> None:
+    warnings: list[GarminSyncWarning],
+) -> bool:
     try:
         payload = fetch()
-        fit_payloads = extract_fit_payloads(payload, default_name=raw_fit_path)
     except Exception as error:  # noqa: BLE001
         _record_recoverable_error(recoverable_errors, activity_id, "fit", error)
         state_entry["fit_error"] = str(error)
-        return
+        return False
 
     archive_result = raw_store.write_bytes(
         raw_archive_path,
@@ -435,6 +462,24 @@ def _download_fit_archive_part(
     written.append(archive_result)
     state_entry["fit_archive"] = archive_result.relative_path
 
+    try:
+        fit_payloads = extract_fit_payloads(payload, default_name=raw_fit_path)
+    except ValueError as error:
+        _record_warning(warnings, activity_id, "fit", error)
+        state_entry.pop("fit_error", None)
+        state_entry["fit_warning"] = str(error)
+        state_entry["fit_unavailable"] = True
+        _write_fallback_files_from_original_archive(
+            payload,
+            raw_store,
+            state_entry,
+            written,
+            activity_id=activity_id,
+            raw_gpx_path=raw_fit_path.replace(".fit", ".gpx"),
+            raw_tcx_path=raw_fit_path.replace(".fit", ".tcx"),
+        )
+        return False
+
     fit_payload = fit_payloads[0]
     fit_result = raw_store.write_bytes(
         raw_fit_path,
@@ -445,6 +490,74 @@ def _download_fit_archive_part(
     )
     written.append(fit_result)
     state_entry["fit"] = fit_result.relative_path
+    state_entry.pop("fit_error", None)
+    state_entry.pop("fit_warning", None)
+    state_entry.pop("fit_unavailable", None)
+    return True
+
+
+def _write_fallback_files_from_original_archive(
+    payload: bytes,
+    raw_store: GarminRawStore,
+    state_entry: dict[str, Any],
+    written: list[RawWriteResult],
+    *,
+    activity_id: str,
+    raw_gpx_path: str,
+    raw_tcx_path: str,
+) -> None:
+    for part, suffix, raw_path in (
+        ("gpx", ".gpx", raw_gpx_path),
+        ("tcx", ".tcx", raw_tcx_path),
+    ):
+        if state_entry.get(part):
+            continue
+        extracted = extract_zip_payloads_by_suffix(payload, (suffix,))
+        if not extracted:
+            continue
+        fallback = extracted[0]
+        result = raw_store.write_bytes(
+            raw_path,
+            fallback.payload,
+            endpoint=f"download_activity:original_{part}_extracted",
+            params={"activity_id": activity_id, "source_name": fallback.name},
+            kind="file",
+        )
+        written.append(result)
+        state_entry[part] = result.relative_path
+
+
+def _download_missing_fallback_activity_files(
+    client: GarminConnectClient,
+    raw_store: GarminRawStore,
+    state_entry: dict[str, Any],
+    written: list[RawWriteResult],
+    warnings: list[GarminSyncWarning],
+    *,
+    activity_key: str,
+    safe_activity_id: str,
+) -> None:
+    for part, file_format in (
+        ("gpx", GarminActivityFileFormat.GPX),
+        ("tcx", GarminActivityFileFormat.TCX),
+    ):
+        if state_entry.get(part):
+            continue
+        try:
+            payload = client.download_activity_file(activity_key, file_format)
+        except Exception as error:  # noqa: BLE001
+            _record_warning(warnings, activity_key, part, error)
+            state_entry[f"{part}_warning"] = str(error)
+            continue
+        result = raw_store.write_bytes(
+            f"activity_files/{safe_activity_id}.{part}",
+            payload,
+            endpoint=f"download_activity:{part}",
+            params={"activity_id": activity_key},
+            kind="file",
+        )
+        written.append(result)
+        state_entry[part] = result.relative_path
 
 
 def _record_recoverable_error(
@@ -462,9 +575,31 @@ def _record_recoverable_error(
     )
 
 
+def _record_warning(
+    warnings: list[GarminSyncWarning],
+    activity_id: str,
+    part: str,
+    error: Exception,
+) -> None:
+    warnings.append(
+        GarminSyncWarning(
+            activity_id=activity_id,
+            part=part,
+            message=str(error),
+        )
+    )
+
+
 def _activity_complete(state_entry: dict[str, Any]) -> bool:
-    required_parts = ("activity", "details", "fit")
-    return all(state_entry.get(part) for part in required_parts)
+    if not state_entry.get("activity") or not state_entry.get("details"):
+        return False
+    if state_entry.get("fit"):
+        return True
+    return bool(state_entry.get("fit_unavailable") and _has_fallback_track(state_entry))
+
+
+def _has_fallback_track(state_entry: dict[str, Any]) -> bool:
+    return bool(state_entry.get("gpx") or state_entry.get("tcx"))
 
 
 def _activity_id(activity: dict[str, Any]) -> str | None:

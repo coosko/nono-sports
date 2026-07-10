@@ -56,6 +56,32 @@ class PagedFakeGarminApi(FakeGarminApi):
         return activities[start : start + limit]
 
 
+class ImportedGpxGarminApi(FakeGarminApi):
+    def get_activities(self, start=0, limit=20, activitytype=None):
+        activities = [{"activityId": 456, "activityName": "Imported hike"}]
+        return activities[start : start + limit]
+
+    def get_activity(self, activity_id):
+        return {
+            "activityId": activity_id,
+            "metadataDTO": {
+                "fileFormat": {"formatKey": "gpx"},
+                "isOriginal": False,
+            },
+        }
+
+    def download_activity(self, activity_id, dl_fmt):
+        if dl_fmt == "original":
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, "w") as archive:
+                archive.writestr(
+                    f"{activity_id}_ACTIVITY.gpx",
+                    b'<?xml version="1.0"?><gpx><trk><trkseg /></trk></gpx>',
+                )
+            return buffer.getvalue()
+        return f"<{dl_fmt}></{dl_fmt}>".encode()
+
+
 class FakeGarminModule:
     class Garmin:
         class ActivityDownloadFormat:
@@ -187,3 +213,42 @@ def test_sync_garmin_activities_raw_paginates_until_pending_activity(tmp_path) -
         / "activities"
         / "3.json"
     ).is_file()
+
+
+def test_sync_garmin_activities_raw_warns_and_falls_back_when_original_has_no_fit(
+    tmp_path,
+) -> None:
+    api = ImportedGpxGarminApi()
+    client = GarminConnectClient(api, garmin_module=FakeGarminModule)
+    raw_store = GarminRawStore(tmp_path)
+    state_store = GarminStateStore(tmp_path)
+
+    result = sync_garmin_activities_raw(
+        client,
+        raw_store,
+        state_store,
+        limit=1,
+        max_activities=1,
+    )
+
+    raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
+    state = state_store.load()
+    activity_state = state["activities"]["456"]
+    assert result.recoverable_errors == ()
+    assert len(result.warnings) == 1
+    assert result.warnings[0].part == "fit"
+    assert activity_state["fit_unavailable"] is True
+    assert "fit_error" not in activity_state
+    assert activity_state["gpx"] == "activity_files/456.gpx"
+    assert (raw_root / "activity_files/456.original.zip").is_file()
+    assert (raw_root / "activity_files/456.gpx").is_file()
+
+    second = sync_garmin_activities_raw(
+        client,
+        raw_store,
+        state_store,
+        limit=1,
+        max_activities=1,
+    )
+    assert second.processed_activities == 0
+    assert second.skipped_activities == 1

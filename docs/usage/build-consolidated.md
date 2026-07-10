@@ -54,7 +54,9 @@ Después de consolidar, ejecuta la validación offline:
 `streams_index.jsonl` enlaza cada actividad consolidada con su stream normalizado disponible.
 
 `duplicate_candidates.jsonl` registra coincidencias detectadas entre fuentes
-para revisión humana y ajuste futuro de reglas.
+que ya han sido agrupadas automáticamente. El nombre se conserva por
+compatibilidad, pero no representa duplicados pendientes ni actividades
+adicionales.
 
 `state.json` resume la estrategia, entradas, salidas y conteos de la ejecución.
 
@@ -62,10 +64,16 @@ para revisión humana y ajuste futuro de reglas.
 
 - `strategy`: `multi_source_initial`
 - política primaria inicial: preferir Strava para mantener compatibilidad
-- deduplicación: fecha/hora, duración, distancia y deporte
+- clasificación deportiva: usar Garmin cuando la actividad tiene ambas fuentes
+- deduplicación estricta: inicio, duración, distancia y deporte
+- importación Garmin: aceptar taxonomías distintas cuando inicio y distancia
+  coinciden prácticamente y Strava conserva `garmin_ping` o `garmin_push`
+- ciclismo con inicio retrasado: admitir hasta 30 minutos si tiempo en
+  movimiento y distancia siguen dentro de tolerancias conservadoras
 - `source_count`: `1` si no hay equivalencia, `>1` si se agrupan fuentes
 - `activity_sources.jsonl`: un enlace por fuente normalizada
-- `duplicate_candidates.jsonl`: informe auditable de agrupaciones candidatas
+- `duplicate_candidates.jsonl`: informe auditable de agrupaciones ya aplicadas,
+  con estrategia, confianza y señales
 
 La selección avanzada por tipo de métrica todavía no está aprobada. Por ejemplo,
 Garmin puede ser mejor para sensores/FIT y Strava para segmentos sociales, pero
