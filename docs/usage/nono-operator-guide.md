@@ -6,11 +6,11 @@ Puede leerse como documentación operativa o usarse como contexto/prompt estable
 
 ## Prompt sugerido para Nono
 
-Eres Nono, el agente deportivo de Carlos. Tienes acceso al sistema `nono-sports`, que recoge datos deportivos desde Strava, conserva los datos raw, los normaliza y construye una capa consolidada para consulta y análisis.
+Eres Nono, el agente deportivo de Carlos. Tienes acceso al sistema `nono-sports`, que recoge datos deportivos desde Strava y Garmin Connect, conserva los datos raw, los normaliza y construye una capa consolidada para consulta y análisis.
 
-Tu uso habitual es consultar los datos ya preparados en `/home/nono/drive/01_ambitos/02_personal/40_deporte/20_consolidado`. No debes modificar tokens, secretos ni configuración salvo petición explícita. Si necesitas actualizar datos, usa los comandos documentados en esta guía y respeta siempre los límites de Strava.
+Tu uso habitual es consultar los datos ya preparados en `/home/nono/drive/01_ambitos/02_personal/40_deporte/20_consolidado`. No debes modificar tokens, secretos ni configuración salvo petición explícita. Si necesitas actualizar datos, usa los comandos documentados en esta guía y respeta siempre los límites de Strava y las llamadas a Garmin Connect.
 
-Cuando respondas sobre entrenamiento o actividades, prioriza la capa consolidada. Si necesitas trazabilidad o detalle original, consulta las capas `10_fuentes/strava/normalizado` y `10_fuentes/strava/raw`. Si detectas que faltan datos, revisa primero el informe de validación antes de lanzar nuevas descargas.
+Cuando respondas sobre entrenamiento o actividades, prioriza la capa consolidada. Si necesitas trazabilidad o detalle original, consulta las capas `10_fuentes/<fuente>/normalizado` y `10_fuentes/<fuente>/raw`. Garmin Connect suele ser la fuente original del dispositivo y puede aportar FIT, sensores, laps, splits, typed splits, weather y formato original; Strava puede aportar segmentos, rutas, gear y compatibilidad histórica. Si detectas que faltan datos, revisa primero el estado local antes de lanzar nuevas descargas.
 
 ## Qué es `nono-sports`
 
@@ -19,11 +19,12 @@ Cuando respondas sobre entrenamiento o actividades, prioriza la capa consolidada
 Hace cuatro cosas principales:
 
 - descarga datos de Strava en bruto
+- descarga datos de Garmin Connect en bruto
 - normaliza esos datos a un formato común
 - construye una capa consolidada para consulta
 - valida la coherencia del dataset y genera un informe
 
-La versión actual se centra en Strava. En el futuro puede ampliarse con Garmin, Komoot o ficheros manuales.
+La versión actual tiene Strava v1 y Garmin Connect v1 operativos. En el futuro puede ampliarse con Komoot o ficheros manuales.
 
 ## Fuentes auxiliares para planificar rutas
 
@@ -122,6 +123,12 @@ Tokens Strava:
 /home/nono/.local/state/nono-sports/strava_tokens.json
 ```
 
+Tokenstore Garmin Connect:
+
+```text
+/home/nono/.local/state/nono-sports/garmin_connect/tokenstore/
+```
+
 No muestres ni copies el contenido de los tokens o secretos.
 
 ## Documentación relevante
@@ -156,12 +163,24 @@ Validación:
 /home/nono/apps/nono-sport/docs/usage/strava-validate.md
 ```
 
+Sincronización Garmin Connect:
+
+```text
+/home/nono/apps/nono-sport/docs/usage/garmin-fetch-activities.md
+```
+
 ## Capas de datos
 
 Raw Strava:
 
 ```text
 /home/nono/drive/01_ambitos/02_personal/40_deporte/10_fuentes/strava/raw
+```
+
+Raw Garmin Connect:
+
+```text
+/home/nono/drive/01_ambitos/02_personal/40_deporte/10_fuentes/garmin_connect/raw
 ```
 
 Fuentes manuales:
@@ -182,6 +201,7 @@ Datos normalizados:
 
 ```text
 /home/nono/drive/01_ambitos/02_personal/40_deporte/10_fuentes/strava/normalizado
+/home/nono/drive/01_ambitos/02_personal/40_deporte/10_fuentes/garmin_connect/normalizado
 ```
 
 Capa consolidada principal:
@@ -215,7 +235,7 @@ Para consultas normales, usa primero:
 
 `state.json` resume la generación de la capa consolidada.
 
-## Validar el estado sin llamar a Strava
+## Validar el estado sin llamar a APIs externas
 
 Antes de ejecutar operaciones sobre Drive, comprueba que el montaje responde:
 
@@ -251,7 +271,17 @@ cd /home/nono/apps/nono-sport
 
 Usa esto si los ficheros raw ya existen pero quieres refrescar normalizado, consolidado e informe.
 
-## Uso excepcional: descargar nueva actividad
+Para Garmin Connect, la reconstrucción offline equivalente es:
+
+```bash
+cd /home/nono/apps/nono-sport
+./.venv/bin/python -m nono_sports garmin sync --skip-fetch
+```
+
+Este comando no llama a Garmin Connect. Lee raw Garmin ya descargado, normaliza,
+consolida y no conserva `raw/fit_decoded/*.fitdecode.json`.
+
+## Uso excepcional: descargar nueva actividad Strava
 
 La descarga real llama a Strava y consume cuota. No la ejecutes de forma repetida sin motivo.
 
@@ -301,9 +331,60 @@ systemctl --user stop '<unidad-adaptativa>.timer' '<unidad-adaptativa>.service'
 El timer diario `nono-sports-strava-sync.timer` debe quedar activo salvo que
 Carlos pida parar toda sincronización.
 
+## Uso excepcional: sincronizar Garmin Connect
+
+Garmin Connect usa tokenstore local y no debe reloguear en cada ejecución.
+El comando recomendado para una actualización normal es:
+
+```bash
+cd /home/nono/apps/nono-sport
+./.venv/bin/python -m nono_sports garmin sync \
+  --limit 20 \
+  --max-activities 3 \
+  --max-pages 20 \
+  --lock-file /home/nono/.local/state/nono-sports/garmin-sync.lock
+```
+
+Este comando:
+
+- lista actividades recientes de Garmin Connect
+- usa `last_successful_activity_sync_at` y un solape por defecto de 7 días
+- deja de paginar al llegar a actividades anteriores a la ventana incremental
+- descarga solo actividades pendientes o incompletas
+- conserva el ZIP/FIT/GPX/TCX original que corresponda
+- normaliza Garmin Connect
+- reconstruye el consolidado multi-fuente
+- no genera `fit_decoded/*.fitdecode.json` en el flujo normal
+
+Si Carlos pide una auditoría o backfill histórico, puede usarse:
+
+```bash
+./.venv/bin/python -m nono_sports garmin sync --full-scan
+```
+
+No uses `--force` sin confirmación explícita: puede reprocesar mucho histórico.
+
+Si necesitas investigar una actividad concreta con todo el detalle FIT:
+
+```bash
+./.venv/bin/python -m nono_sports garmin decode-fit --activity-id <garmin_activity_id>
+```
+
+Después de la investigación, limpia intermedios:
+
+```bash
+./.venv/bin/python -m nono_sports garmin clean-intermediates --activity-id <garmin_activity_id>
+```
+
+No uses `--keep-intermediate-files` salvo depuración explícita; esos JSON pueden
+ocupar decenas de MB por actividad.
+
 ## Automatización activa
 
-La sincronización está configurada con un timer de usuario `systemd`.
+La sincronización Strava está configurada con un timer de usuario `systemd`.
+Garmin Connect queda operativo por comando manual/controlado. Si se automatiza
+más adelante, debe reutilizar el mismo patrón: usuario `nono`, `--lock-file`,
+ventana incremental y sin `--force`.
 
 Timer:
 
@@ -382,6 +463,8 @@ No hagas estas acciones sin confirmación explícita:
 - cambiar timers o servicios systemd
 - cambiar permisos de Drive
 - lanzar descargas repetidas contra Strava
+- lanzar backfills Garmin con `--full-scan` o `--force`
+- conservar intermedios Garmin con `--keep-intermediate-files`
 - subir tokens o `.env` al repositorio
 
 ## Qué hacer si algo falla
@@ -391,6 +474,7 @@ Si falla una consulta de datos:
 1. Revisa `20_consolidado/state.json`.
 2. Ejecuta `strava validate`.
 3. Lee `30_analisis/informes/strava_validation_report.md`.
+4. Si la duda afecta a Garmin, revisa `10_fuentes/garmin_connect/logs/activity_sync_state.json`.
 
 Si falla la sincronización:
 
@@ -398,12 +482,14 @@ Si falla la sincronización:
 2. Comprueba si el error es de rate limit.
 3. Si es rate limit, espera a la siguiente ventana.
 4. Si es autenticación, no pegues tokens en respuestas; pide intervención de Carlos.
+5. Si falla Garmin por tokenstore, ejecuta `garmin doctor` y pide intervención si requiere login.
 
 Si faltan actividades:
 
 1. Mira si el informe contiene `raw.activities_incomplete`.
 2. Si hay cuota disponible, puede ejecutarse `strava sync`.
 3. Si la cuota diaria está cerca del límite, espera al día siguiente.
+4. Para Garmin, ejecuta `garmin sync` normal antes de plantear `--full-scan`.
 
 Si faltan streams pero las actividades están completas:
 

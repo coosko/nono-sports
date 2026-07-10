@@ -11,7 +11,8 @@ Para la v1 se recomienda:
 - ejecutar los comandos como usuario `nono`
 - configurar datos en `/home/nono/drive/01_ambitos/02_personal/40_deporte`
 - guardar configuración sensible en `/home/nono/.config/nono-sports/env`
-- guardar tokens OAuth en `/home/nono/.local/state/nono-sports/strava_tokens.json`
+- guardar tokens OAuth Strava en `/home/nono/.local/state/nono-sports/strava_tokens.json`
+- guardar tokenstore Garmin Connect en `/home/nono/.local/state/nono-sports/garmin_connect/tokenstore/`
 
 No se recomienda instalar el paquete globalmente con `sudo pip` ni guardar secretos en Google Drive o dentro del repositorio.
 
@@ -88,7 +89,7 @@ cd "$HOME/apps/nono-sport"
 python3 -m venv .venv
 ./.venv/bin/python --version
 ./.venv/bin/python -m pip install --upgrade pip
-./.venv/bin/python -m pip install -e .
+./.venv/bin/python -m pip install -e '.[garmin]'
 ```
 
 Si el repositorio ya existe:
@@ -96,7 +97,7 @@ Si el repositorio ya existe:
 ```bash
 cd "$HOME/apps/nono-sport"
 git pull
-./.venv/bin/python -m pip install -e .
+./.venv/bin/python -m pip install -e '.[garmin]'
 ```
 
 Para poder ejecutar tests en Nono, instala dependencias de desarrollo de forma opcional:
@@ -147,14 +148,30 @@ No copies este fichero al repositorio ni a Google Drive.
 
 Importante: Strava puede rotar el `refresh_token` cuando se renueva el acceso. Después de copiar el token, conviene que Nono sea el dueño de la sincronización. Evita ejecutar descargas Strava desde desarrollo y desde Nono indistintamente, porque cada máquina tendría una copia distinta del token. Si vuelves a ejecutar sincronización desde desarrollo, copia de nuevo el token vigente al host que vaya a continuar el proceso.
 
-## 5. Validar instalación
+## 5. Copiar tokenstore Garmin Connect
+
+Si ya se validó Garmin Connect en desarrollo, copiar el tokenstore evita repetir
+login interactivo en Nono. Desde tu equipo de desarrollo:
+
+```bash
+ssh nono@nono.carlos.prades.name 'mkdir -p "$HOME/.local/state/nono-sports/garmin_connect" && chmod 700 "$HOME/.local/state" "$HOME/.local/state/nono-sports" "$HOME/.local/state/nono-sports/garmin_connect"'
+scp -r "$HOME/.local/state/nono-sports/garmin_connect/tokenstore" \
+  nono@nono.carlos.prades.name:/home/nono/.local/state/nono-sports/garmin_connect/tokenstore
+ssh nono@nono.carlos.prades.name 'chmod -R go-rwx "$HOME/.local/state/nono-sports/garmin_connect"'
+```
+
+No copies el tokenstore al repositorio ni a Google Drive.
+
+## 6. Validar instalación
 
 En Nono:
 
 ```bash
 cd "$HOME/apps/nono-sport"
 ./.venv/bin/python -m nono_sports strava prepare-dirs
+./.venv/bin/python -m nono_sports garmin prepare-dirs
 ./.venv/bin/python -m nono_sports strava validate
+./.venv/bin/python -m nono_sports garmin doctor
 ```
 
 La validación no llama a Strava y no consume cuota. Si el estado es `warning` por descarga incompleta, es aceptable mientras los avisos coincidan con el estado conocido.
@@ -175,11 +192,12 @@ Para verificar que Nono puede reconstruir las capas derivadas:
 
 ```bash
 ./.venv/bin/python -m nono_sports strava normalize
+./.venv/bin/python -m nono_sports garmin sync --skip-fetch
 ./.venv/bin/python -m nono_sports build-consolidated
 ./.venv/bin/python -m nono_sports strava validate
 ```
 
-## 6. Validación del usuario
+## 7. Validación del usuario
 
 El Paso 11 queda validado cuando:
 
@@ -188,4 +206,6 @@ El Paso 11 queda validado cuando:
 - el comando `strava validate` genera informe en `30_analisis/informes`
 - Nono ve `20_consolidado/activities.jsonl`
 - los tokens quedan en `/home/nono/.local/state/nono-sports/strava_tokens.json` con permisos `600`
+- el tokenstore Garmin Connect queda en `/home/nono/.local/state/nono-sports/garmin_connect/tokenstore/` con permisos restrictivos
 - una llamada contenida a Strava autentica correctamente o se detiene por rate limit preventivo
+- `garmin doctor` detecta dependencia y tokenstore

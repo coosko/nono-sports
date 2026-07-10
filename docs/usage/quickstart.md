@@ -1,6 +1,6 @@
 # Guía de uso rápida
 
-Esta guía describe el estado actual del repositorio, no una versión funcional completa del producto.
+Esta guía describe el estado actual del repositorio.
 
 ## Requisitos
 
@@ -21,7 +21,10 @@ python3 -m pip install -r requirements-dev.txt
 
 ## Estado actual
 
-Actualmente el paquete permite preparar directorios, autenticar Strava, descargar raw de perfil/contexto, descargar raw de actividades con detalle, normalizar esos raw a JSONL, construir una primera capa `20_consolidado` y validar la coherencia del dataset local.
+Actualmente el paquete permite preparar directorios, autenticar Strava,
+sincronizar Strava y Garmin Connect, normalizar raw por fuente a JSONL,
+construir `20_consolidado` multi-fuente y validar la coherencia del dataset
+local.
 
 ## Estructura de datos
 
@@ -30,6 +33,7 @@ Si quieres preparar la estructura de datos futura:
 ```bash
 export NONO_SPORT_DATA_ROOT='/mnt/h/Mi unidad/01_ambitos/02_personal/40_deporte'
 ./.venv/bin/python -m nono_sports strava prepare-dirs
+./.venv/bin/python -m nono_sports garmin prepare-dirs
 ```
 
 ## Verificación básica
@@ -61,6 +65,8 @@ La primera descarga raw de perfil y contexto se describe en `docs/usage/strava-f
 La descarga raw de actividades se describe en `docs/usage/strava-fetch-activities.md`.
 
 La normalización Strava se describe en `docs/usage/strava-normalize.md`.
+
+La sincronización Garmin Connect se describe en `docs/usage/garmin-fetch-activities.md`.
 
 La consolidación inicial se describe en `docs/usage/build-consolidated.md`.
 

@@ -1,15 +1,15 @@
 # nono-sports
 
-Proyecto Python para construir la base de datos deportiva de Nono a partir de Strava y futuras fuentes como Garmin Connect, Komoot o importaciones manuales.
+Proyecto Python para construir la base de datos deportiva de Nono a partir de Strava, Garmin Connect y futuras fuentes como Komoot o importaciones manuales.
 
-El proyecto tiene Strava v1 operativo. El código activo ya permite autenticación OAuth, cliente Strava base, descarga raw de perfil/contexto y actividades, normalización Strava a JSONL, consolidación inicial en `20_consolidado` y validación offline del dataset local. Garmin Connect está aprobado como siguiente fuente objetivo, pero todavía no está implementado.
+El proyecto tiene Strava v1 y Garmin Connect v1 operativos. El código activo permite autenticación OAuth Strava, tokenstore Garmin Connect, descarga raw, normalización por fuente, consolidación multi-fuente en `20_consolidado` y validación offline del dataset local.
 
 ## Estado actual
 
 - paquete Python en `src/nono_sports/`
-- comandos para diagnosticar entorno, preparar directorios, autenticar Strava, descargar raw de perfil/contexto y actividades, normalizar raw Strava, construir `20_consolidado` y validar datos
+- comandos para diagnosticar entorno, preparar directorios, autenticar Strava, sincronizar Strava y Garmin Connect, normalizar raw por fuente, construir `20_consolidado` y validar datos
 - documentación canónica de requisitos y arquitectura
-- decisión aprobada para Garmin Connect en `docs/requirements/garmin-connect.md`
+- Garmin Connect integrado con descarga raw, FIT/GPX/TCX, normalización incremental, consolidación multi-fuente y limpieza de intermedios pesados
 - código bootstrap anterior archivado en `deprecated/initial-bootstrap/`
 
 Documento de referencia del estado real:
@@ -26,7 +26,7 @@ Documento de referencia del estado real:
 - `docs/usage/install-nono.md`: instalación en el host Nono
 - `docs/usage/doctor.md`: diagnóstico local seguro del entorno
 - `docs/usage/garmin-connect-probe.md`: prueba aislada Garmin Connect
-- `docs/usage/garmin-fetch-activities.md`: descarga raw Garmin Connect
+- `docs/usage/garmin-fetch-activities.md`: sincronización, normalización y diagnóstico Garmin Connect
 - `docs/usage/automation.md`: automatización controlada en Nono
 - `docs/usage/nono-operator-guide.md`: guía operativa y prompt sugerido para Nono
 - `docs/requirements/resources/Descripcion_inicial.md`: documento de entrada y descubrimiento
@@ -124,7 +124,21 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   │       └── activity_sync_state.json
 │   ├── garmin_connect/
 │   │   ├── raw/
+│   │   │   ├── activities/
+│   │   │   ├── activity_files/
+│   │   │   ├── fit_decoded/
+│   │   │   ├── splits/
+│   │   │   ├── typed_splits/
+│   │   │   ├── weather/
+│   │   │   └── manifest.jsonl
 │   │   ├── normalizado/
+│   │   │   ├── activities.jsonl
+│   │   │   ├── streams.jsonl
+│   │   │   ├── streams_index.jsonl
+│   │   │   ├── laps.jsonl
+│   │   │   ├── splits.jsonl
+│   │   │   ├── typed_splits.jsonl
+│   │   │   └── state.json
 │   │   └── logs/
 │   ├── komoot/
 │   └── manual/

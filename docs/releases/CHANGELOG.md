@@ -4,6 +4,33 @@ Todas las versiones y entregables se documentan aquí.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-10
+
+### Added
+
+- Añadida guía operativa actualizada para Nono con Strava y Garmin Connect como
+  fuentes activas.
+- Añadidas instrucciones de instalación en Nono para el extra Garmin y el
+  tokenstore Garmin Connect.
+- Añadida documentación de automatización controlada Garmin Connect junto a
+  Strava.
+
+### Changed
+
+- Actualizado README para reflejar que Garmin Connect v1 ya está operativo.
+- Actualizado quickstart para incluir `garmin prepare-dirs` y la guía Garmin.
+- Aclarado en la guía de Nono cuándo usar consolidado, raw/normalizado Strava,
+  raw/normalizado Garmin, `garmin sync`, `garmin sync --skip-fetch`,
+  `garmin decode-fit --activity-id` y `garmin clean-intermediates`.
+- Aclarado que Garmin queda operativo por comando controlado y que cualquier
+  timer futuro debe usar usuario `nono`, lock, ventana incremental y evitar
+  `--force`.
+
+### Verified
+
+- Verificación local: `./.venv/bin/python scripts/check.py` con 131 tests
+  pasados.
+
 ## [0.1.0] - 2026-07-01
 
 ### Added

@@ -1,8 +1,9 @@
 # Automatización controlada
 
-Esta guía define la ejecución repetible de Strava v1 en Nono.
+Esta guía define la ejecución repetible de Strava v1 y Garmin Connect v1 en
+Nono.
 
-## Comando recomendado
+## Comando recomendado Strava
 
 Para el día a día:
 
@@ -78,9 +79,53 @@ pendientes.
 
 `--lock-file` evita solapes entre la ejecución diaria y una ejecución adaptativa pendiente.
 
+## Comando recomendado Garmin Connect
+
+Para una actualización controlada de Garmin Connect:
+
+```bash
+cd /home/nono/apps/nono-sport
+./.venv/bin/python -m nono_sports garmin sync \
+  --limit 20 \
+  --max-activities 3 \
+  --max-pages 20 \
+  --lock-file /home/nono/.local/state/nono-sports/garmin-sync.lock
+```
+
+El comando ejecuta:
+
+- listado incremental de actividades recientes
+- descarga raw de actividades pendientes
+- normalización Garmin Connect
+- consolidación multi-fuente
+
+Garmin Connect no expone, mediante `garminconnect==0.3.6`, un filtro fiable de
+"modificadas desde". El comando usa `last_successful_activity_sync_at` y un
+solape por defecto de 7 días para cortar el listado cuando llega a actividades
+anteriores a la ventana incremental.
+
+Opciones operativas:
+
+```bash
+./.venv/bin/python -m nono_sports garmin sync --skip-fetch
+./.venv/bin/python -m nono_sports garmin sync --full-scan
+./.venv/bin/python -m nono_sports garmin sync --incremental-lookback-days 14
+```
+
+`--skip-fetch` solo reconstruye normalizado y consolidado desde raw local.
+`--full-scan` se reserva para backfills o auditorías. `--force` requiere
+confirmación explícita porque puede reprocesar mucho histórico.
+
+El flujo normal no conserva `raw/fit_decoded/*.fitdecode.json`. Si se genera un
+derivado de diagnóstico para una actividad concreta, límpialo después:
+
+```bash
+./.venv/bin/python -m nono_sports garmin clean-intermediates --activity-id <id>
+```
+
 ## Servicio systemd de usuario
 
-Crear el servicio:
+Crear el servicio Strava:
 
 ```bash
 mkdir -p /home/nono/.config/systemd/user
