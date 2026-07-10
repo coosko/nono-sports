@@ -53,6 +53,9 @@ Existe actualmente:
   FIT transitoria, normalización y consolidación
 - backfill Garmin incremental: pagina el listado, salta actividades ya completas
   y sigue buscando pendientes sin pedir todo el histórico en una sola llamada
+- sincronización diaria Garmin optimizada: usa `last_successful_activity_sync_at`
+  con solape configurable para cortar el listado al llegar a actividades
+  anteriores a la ventana incremental
 - fallback Garmin para actividades importadas sin FIT: conserva el ZIP original,
   extrae o descarga GPX/TCX, normaliza el track XML y marca la actividad como
   completa sin FIT cuando hay datos suficientes

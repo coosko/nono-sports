@@ -120,10 +120,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     garmin_fetch_parser = garmin_subparsers.add_parser("fetch-activities")
     garmin_fetch_parser.add_argument("--start", type=int, default=0)
+    garmin_fetch_parser.add_argument("--after", type=int, default=None)
+    garmin_fetch_parser.add_argument("--before", type=int, default=None)
     garmin_fetch_parser.add_argument("--limit", type=int, default=20)
     garmin_fetch_parser.add_argument("--max-activities", type=int, default=1)
     garmin_fetch_parser.add_argument("--max-pages", type=int, default=100)
     garmin_fetch_parser.add_argument("--force", action="store_true")
+    garmin_fetch_parser.add_argument(
+        "--full-scan",
+        action="store_true",
+        help="Disable the automatic Garmin incremental time window.",
+    )
+    garmin_fetch_parser.add_argument(
+        "--incremental-lookback-days",
+        type=int,
+        default=7,
+    )
     garmin_fetch_parser.add_argument("--skip-fit", action="store_true")
     garmin_fetch_parser.add_argument("--include-tcx", action="store_true")
     garmin_fetch_parser.add_argument("--include-gpx", action="store_true")
@@ -136,10 +148,22 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_sync_parser = garmin_subparsers.add_parser("sync")
     garmin_sync_parser.add_argument("--skip-fetch", action="store_true")
     garmin_sync_parser.add_argument("--start", type=int, default=0)
+    garmin_sync_parser.add_argument("--after", type=int, default=None)
+    garmin_sync_parser.add_argument("--before", type=int, default=None)
     garmin_sync_parser.add_argument("--limit", type=int, default=20)
     garmin_sync_parser.add_argument("--max-activities", type=int, default=1)
     garmin_sync_parser.add_argument("--max-pages", type=int, default=100)
     garmin_sync_parser.add_argument("--force", action="store_true")
+    garmin_sync_parser.add_argument(
+        "--full-scan",
+        action="store_true",
+        help="Disable the automatic Garmin incremental time window.",
+    )
+    garmin_sync_parser.add_argument(
+        "--incremental-lookback-days",
+        type=int,
+        default=7,
+    )
     garmin_sync_parser.add_argument("--skip-fit", action="store_true")
     garmin_sync_parser.add_argument("--include-tcx", action="store_true")
     garmin_sync_parser.add_argument("--include-gpx", action="store_true")
@@ -672,10 +696,14 @@ def _run_garmin_fetch_activities(
         raw_store,
         state_store,
         start=args.start,
+        before=args.before,
+        after=args.after,
         limit=args.limit,
         max_activities=args.max_activities,
         max_pages=args.max_pages,
         force=args.force,
+        incremental=not args.full_scan,
+        incremental_lookback_days=args.incremental_lookback_days,
         include_fit=not args.skip_fit,
         include_tcx=args.include_tcx,
         include_gpx=args.include_gpx,
@@ -698,6 +726,8 @@ def _print_fetch_activities_result(
     )
     print(f"Raw root: {raw_store.raw_root}")
     print(f"State: {result.state_path}")
+    if result.stopped_reason:
+        print(f"Stopped early: {result.stopped_reason}")
     if result.stopped_reason:
         print(f"Stopped early: {result.stopped_reason}")
     rate_limit_line = _format_rate_limit(last_rate_limit)

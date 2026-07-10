@@ -45,10 +45,34 @@ FIT. En ese caso `nono-sports`:
 - conserva en `sport_specific` el formato original (`original_file_format`) y
   si Garmin lo considera original (`is_original`)
 
-La descarga raw es incremental. Si las primeras actividades ya están completas,
-el comando escanea páginas sucesivas de Garmin Connect y las salta hasta
-encontrar la siguiente actividad pendiente. Por tanto, no hace falta pedir
-siempre las 1153 actividades ni mover `--start` a mano.
+La descarga raw es incremental. En operación normal, `nono-sports` guarda en
+`logs/activity_sync_state.json` la última sincronización correcta y, en la
+siguiente ejecución, aplica una ventana temporal con solape. Así revisa solo
+las actividades recientes y deja de paginar cuando el listado llega a
+actividades anteriores a la ventana.
+
+Garmin Connect, a través de `garminconnect==0.3.6`, no expone un filtro fiable
+de "modificadas desde". Por eso la ventana incremental se basa en la fecha de
+inicio de la actividad, no en una fecha real de modificación. El solape reduce
+el riesgo de perder actividades recientes editadas o importadas.
+
+Los argumentos temporales están alineados con Strava:
+
+```bash
+./.venv/bin/python -m nono_sports garmin sync --after 1714521600 --before 1717200000
+```
+
+Si necesitas ignorar la ventana incremental y volver al escaneo histórico:
+
+```bash
+./.venv/bin/python -m nono_sports garmin sync --full-scan
+```
+
+El solape por defecto es de 7 días y puede ajustarse:
+
+```bash
+./.venv/bin/python -m nono_sports garmin sync --incremental-lookback-days 14
+```
 
 `--limit` es el tamaño de página del listado de Garmin, no el número de
 actividades que se van a descargar. Con `--limit 20`, cada página listada puede
@@ -59,9 +83,9 @@ ejecución. Con `--max-activities 1`, descarga como máximo una actividad nueva,
 aunque tenga que escanear varias páginas para encontrarla.
 
 `--max-pages` limita cuántas páginas del listado se pueden escanear en una
-ejecución. Con `--limit 20 --max-pages 100`, el comando puede revisar hasta
-2000 resúmenes, suficiente para localizar pendientes dentro de un histórico de
-1153 actividades.
+ejecución. En el uso diario normalmente se recorren pocas páginas por la
+ventana incremental; `--max-pages` queda como salvaguarda para backfills o
+escaneos completos.
 
 Para descargar varias actividades nuevas en una ejecución conservadora:
 

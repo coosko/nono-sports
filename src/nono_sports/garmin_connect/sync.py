@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from nono_sports.formats.fit import (
@@ -57,6 +57,7 @@ class GarminRawSyncResult:
     recoverable_errors: tuple[GarminRecoverableError, ...]
     warnings: tuple[GarminSyncWarning, ...]
     state_path: str
+    stopped_reason: str | None = None
 
 
 def sync_garmin_activities_raw(
@@ -65,10 +66,14 @@ def sync_garmin_activities_raw(
     state_store: GarminStateStore,
     *,
     start: int = 0,
+    before: int | None = None,
+    after: int | None = None,
     limit: int = 20,
     max_activities: int | None = 1,
     max_pages: int | None = 100,
     force: bool = False,
+    incremental: bool = True,
+    incremental_lookback_days: int = 7,
     include_fit: bool = True,
     include_tcx: bool = False,
     include_gpx: bool = False,
@@ -76,15 +81,29 @@ def sync_garmin_activities_raw(
 ) -> GarminRawSyncResult:
     now = clock or (lambda: datetime.now(UTC))
     state = state_store.load()
+    started_at = now().astimezone(UTC)
+    effective_after = _effective_after(
+        after=after,
+        force=force,
+        incremental=incremental,
+        incremental_lookback_days=incremental_lookback_days,
+        start=start,
+        state=state,
+    )
     written: list[RawWriteResult] = []
     recoverable_errors: list[GarminRecoverableError] = []
     warnings: list[GarminSyncWarning] = []
     run = {
+        "after": after,
+        "before": before,
         "completed_at": None,
+        "effective_after": effective_after,
         "force": force,
         "include_fit": include_fit,
         "include_gpx": include_gpx,
         "include_tcx": include_tcx,
+        "incremental": incremental,
+        "incremental_lookback_days": incremental_lookback_days,
         "limit": limit,
         "listed_activities": None,
         "max_activities": max_activities,
@@ -92,8 +111,9 @@ def sync_garmin_activities_raw(
         "processed_activities": None,
         "scanned_pages": None,
         "skipped_activities": None,
-        "started_at": now().astimezone(UTC).isoformat(),
+        "started_at": started_at.isoformat(),
         "start": start,
+        "stopped_reason": None,
     }
     state.setdefault("runs", []).append(run)
     state_store.save(state)
@@ -127,6 +147,14 @@ def sync_garmin_activities_raw(
             break
 
         for activity in activities_list:
+            activity_timestamp = _activity_timestamp(activity)
+            if before is not None and activity_timestamp is not None:
+                if activity_timestamp >= before:
+                    continue
+            if effective_after is not None and activity_timestamp is not None:
+                if activity_timestamp <= effective_after:
+                    run["stopped_reason"] = "incremental_after_reached"
+                    break
             activity_id = _activity_id(activity)
             if activity_id is None:
                 continue
@@ -158,6 +186,8 @@ def sync_garmin_activities_raw(
                 now=now,
             )
             state_store.save(state)
+        if run["stopped_reason"] == "incremental_after_reached":
+            break
         current_start += limit
 
     run["completed_at"] = now().astimezone(UTC).isoformat()
@@ -168,6 +198,9 @@ def sync_garmin_activities_raw(
     run["recoverable_errors"] = len(recoverable_errors)
     run["warnings"] = len(warnings)
     run["written_files"] = len(written)
+    if not force:
+        state["last_successful_activity_sync_at"] = started_at.isoformat()
+        state["last_successful_activity_sync_after"] = effective_after
     state_store.save(state)
 
     return GarminRawSyncResult(
@@ -179,6 +212,7 @@ def sync_garmin_activities_raw(
         recoverable_errors=tuple(recoverable_errors),
         warnings=tuple(warnings),
         state_path=str(state_store.path),
+        stopped_reason=run["stopped_reason"],
     )
 
 
@@ -605,6 +639,54 @@ def _has_fallback_track(state_entry: dict[str, Any]) -> bool:
 def _activity_id(activity: dict[str, Any]) -> str | None:
     value = activity.get("activityId")
     return str(value) if value is not None else None
+
+
+def _effective_after(
+    *,
+    after: int | None,
+    force: bool,
+    incremental: bool,
+    incremental_lookback_days: int,
+    start: int,
+    state: dict[str, Any],
+) -> int | None:
+    if after is not None:
+        return after
+    if force or not incremental or start != 0:
+        return None
+    last_sync_at = _parse_datetime(state.get("last_successful_activity_sync_at"))
+    if last_sync_at is None:
+        return None
+    lookback = max(incremental_lookback_days, 0)
+    return int((last_sync_at - timedelta(days=lookback)).timestamp())
+
+
+def _activity_timestamp(activity: dict[str, Any]) -> int | None:
+    for key in (
+        "beginTimestamp",
+        "startTimeGMT",
+        "startTimeLocal",
+        "startTime",
+    ):
+        parsed = _parse_datetime(activity.get(key))
+        if parsed is not None:
+            return int(parsed.timestamp())
+    return None
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = f"{normalized[:-1]}+00:00"
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _summarize_activity(activity: dict[str, Any]) -> dict[str, Any]:

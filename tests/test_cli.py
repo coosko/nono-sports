@@ -72,6 +72,10 @@ def test_parser_accepts_garmin_fetch_activities_options() -> None:
             "fetch-activities",
             "--start",
             "5",
+            "--after",
+            "1714521600",
+            "--before",
+            "1717200000",
             "--limit",
             "10",
             "--max-activities",
@@ -79,6 +83,9 @@ def test_parser_accepts_garmin_fetch_activities_options() -> None:
             "--max-pages",
             "3",
             "--force",
+            "--full-scan",
+            "--incremental-lookback-days",
+            "3",
             "--skip-fit",
             "--include-tcx",
             "--include-gpx",
@@ -88,10 +95,14 @@ def test_parser_accepts_garmin_fetch_activities_options() -> None:
     assert args.command == "garmin"
     assert args.garmin_command == "fetch-activities"
     assert args.start == 5
+    assert args.after == 1714521600
+    assert args.before == 1717200000
     assert args.limit == 10
     assert args.max_activities == 2
     assert args.max_pages == 3
     assert args.force is True
+    assert args.full_scan is True
+    assert args.incremental_lookback_days == 3
     assert args.skip_fit is True
     assert args.include_tcx is True
     assert args.include_gpx is True
@@ -139,6 +150,10 @@ def test_parser_accepts_garmin_sync_options() -> None:
             "--skip-fetch",
             "--start",
             "5",
+            "--after",
+            "1714521600",
+            "--before",
+            "1717200000",
             "--limit",
             "10",
             "--max-activities",
@@ -146,6 +161,9 @@ def test_parser_accepts_garmin_sync_options() -> None:
             "--max-pages",
             "3",
             "--force",
+            "--full-scan",
+            "--incremental-lookback-days",
+            "3",
             "--skip-fit",
             "--include-tcx",
             "--include-gpx",
@@ -159,10 +177,14 @@ def test_parser_accepts_garmin_sync_options() -> None:
     assert args.garmin_command == "sync"
     assert args.skip_fetch is True
     assert args.start == 5
+    assert args.after == 1714521600
+    assert args.before == 1717200000
     assert args.limit == 10
     assert args.max_activities == 2
     assert args.max_pages == 3
     assert args.force is True
+    assert args.full_scan is True
+    assert args.incremental_lookback_days == 3
     assert args.skip_fit is True
     assert args.include_tcx is True
     assert args.include_gpx is True

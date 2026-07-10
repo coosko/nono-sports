@@ -120,6 +120,17 @@ Resultado validado con una actividad real Garmin:
 
 Garmin debe seguir el patrón ya implementado para Strava.
 
+La sincronización diaria debe evitar recorrer todo el histórico. Como
+`garminconnect==0.3.6` no expone un filtro fiable de actividades modificadas
+desde una fecha, el sistema debe:
+
+- aceptar `--after` y `--before`, igual que Strava
+- guardar `last_successful_activity_sync_at` en `logs/activity_sync_state.json`
+- calcular una ventana incremental con solape configurable
+- cortar la paginación cuando el listado llega a actividades anteriores a esa
+  ventana
+- permitir `--full-scan` para backfills, auditorías o reparaciones
+
 ```text
 10_fuentes/
 └── garmin_connect/

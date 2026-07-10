@@ -271,6 +271,27 @@ contrato común (`record`, `hrv`, `lap`, `time_in_zone`) y debe reutilizar la
 salida normalizada si la huella de entrada no cambia, aunque no exista ningún
 derivado `fit_decoded`.
 
+### Incrementalidad Garmin
+
+Garmin Connect usa el mismo patrón de control que Strava:
+
+- `10_fuentes/garmin_connect/logs/activity_sync_state.json`
+- lista de `runs`
+- mapa `activities`
+- marca `last_successful_activity_sync_at`
+
+La sintaxis de ventana temporal se mantiene alineada con Strava mediante
+`--after` y `--before` en Unix timestamp. A diferencia de Strava, la librería
+Garmin Connect disponible no ofrece un filtro estable de "modified since"; por
+eso el fetch incremental Garmin calcula `effective_after` a partir de la última
+sincronización correcta menos un solape configurable
+(`--incremental-lookback-days`, 7 días por defecto) y corta la paginación cuando
+el listado ordenado por actividad llega a entradas anteriores a esa ventana.
+
+Para backfills, auditorías o reparaciones se puede desactivar ese corte con
+`--full-scan`. `--force` tampoco aplica la ventana incremental, porque su
+objetivo es reconstruir raw de forma explícita.
+
 ### `storage`
 
 Responsable de escritura y estado:

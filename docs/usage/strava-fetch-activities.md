@@ -88,6 +88,10 @@ Strava acepta marcas de tiempo Unix:
 ./.venv/bin/python -m nono_sports strava fetch-activities --after 1714521600 --before 1717200000
 ```
 
+Garmin Connect usa la misma sintaxis `--after`/`--before` en sus comandos de
+fetch/sync. En Garmin, cuando no se pasan esos argumentos, el sistema calcula
+una ventana incremental desde su estado local con solape configurable.
+
 ## Zonas de actividad
 
 Las zonas de actividad son opcionales y requieren funcionalidad Summit/suscripción en Strava. Solo se intentan descargar si lo pides explícitamente:

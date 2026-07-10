@@ -56,6 +56,32 @@ class PagedFakeGarminApi(FakeGarminApi):
         return activities[start : start + limit]
 
 
+class RecentPagedFakeGarminApi(FakeGarminApi):
+    def __init__(self):
+        self.list_calls = []
+
+    def get_activities(self, start=0, limit=20, activitytype=None):
+        self.list_calls.append((start, limit))
+        activities = [
+            {
+                "activityId": 10,
+                "activityName": "Recent 10",
+                "beginTimestamp": "2026-07-10T08:00:00+00:00",
+            },
+            {
+                "activityId": 9,
+                "activityName": "Old 9",
+                "beginTimestamp": "2026-07-01T08:00:00+00:00",
+            },
+            {
+                "activityId": 8,
+                "activityName": "Older 8",
+                "beginTimestamp": "2026-06-30T08:00:00+00:00",
+            },
+        ]
+        return activities[start : start + limit]
+
+
 class ImportedGpxGarminApi(FakeGarminApi):
     def get_activities(self, start=0, limit=20, activitytype=None):
         activities = [{"activityId": 456, "activityName": "Imported hike"}]
@@ -213,6 +239,66 @@ def test_sync_garmin_activities_raw_paginates_until_pending_activity(tmp_path) -
         / "activities"
         / "3.json"
     ).is_file()
+
+
+def test_sync_garmin_activities_raw_uses_incremental_watermark(tmp_path) -> None:
+    api = RecentPagedFakeGarminApi()
+    client = GarminConnectClient(api, garmin_module=FakeGarminModule)
+    raw_store = GarminRawStore(tmp_path)
+    state_store = GarminStateStore(tmp_path)
+    state = state_store.load()
+    state["last_successful_activity_sync_at"] = "2026-07-10T10:00:00+00:00"
+    state_store.save(state)
+
+    result = sync_garmin_activities_raw(
+        client,
+        raw_store,
+        state_store,
+        limit=2,
+        max_activities=None,
+        max_pages=5,
+        incremental_lookback_days=2,
+        clock=lambda: datetime(2026, 7, 11, 10, tzinfo=UTC),
+    )
+
+    assert api.list_calls == [(0, 2)]
+    assert result.listed_activities == 2
+    assert result.scanned_pages == 1
+    assert result.processed_activities == 1
+    assert result.stopped_reason == "incremental_after_reached"
+
+    saved_state = state_store.load()
+    last_run = saved_state["runs"][-1]
+    assert last_run["effective_after"] == int(
+        datetime(2026, 7, 8, 10, tzinfo=UTC).timestamp()
+    )
+    assert saved_state["last_successful_activity_sync_at"] == (
+        "2026-07-11T10:00:00+00:00"
+    )
+
+
+def test_sync_garmin_activities_raw_can_full_scan_without_watermark(tmp_path) -> None:
+    api = RecentPagedFakeGarminApi()
+    client = GarminConnectClient(api, garmin_module=FakeGarminModule)
+    raw_store = GarminRawStore(tmp_path)
+    state_store = GarminStateStore(tmp_path)
+    state = state_store.load()
+    state["last_successful_activity_sync_at"] = "2026-07-10T10:00:00+00:00"
+    state_store.save(state)
+
+    result = sync_garmin_activities_raw(
+        client,
+        raw_store,
+        state_store,
+        limit=2,
+        max_activities=None,
+        max_pages=5,
+        incremental=False,
+    )
+
+    assert api.list_calls == [(0, 2), (2, 2), (4, 2)]
+    assert result.processed_activities == 3
+    assert result.stopped_reason is None
 
 
 def test_sync_garmin_activities_raw_warns_and_falls_back_when_original_has_no_fit(

@@ -71,6 +71,9 @@ Todas las versiones y entregables se documentan aquí.
   excepcional.
 - La reutilización incremental Garmin sanea referencias históricas a
   `fit_decoded` ausentes sin forzar la decodificación completa de todos los FIT.
+- Garmin Connect incorpora ventana incremental diaria alineada con Strava:
+  `--after`, `--before`, `--full-scan`, `--incremental-lookback-days` y marca
+  `last_successful_activity_sync_at` en `activity_sync_state.json`.
 - Auditado y reparado el raw Garmin tras agotarse el espacio de Drive: nueve
   actividades redescargadas, payloads mal ubicados corregidos y derivados FIT
   voluminosos eliminados.
