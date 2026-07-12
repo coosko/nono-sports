@@ -23,10 +23,13 @@ Todas las versiones y entregables se documentan aquí.
   actividades y mediciones.
 - La documentación de Nono y Garmin Connect refleja `athletes.jsonl` y
   `equipment.jsonl` como contratos comunes normalizados y consolidados.
+- La escritura de JSONL normalizados y consolidados pasa a ser incremental en
+  disco: ya no construye ni lee ficheros grandes completos en memoria para
+  comparar cambios.
 
 ### Verified
 
-- Verificación local: `./.venv/bin/python scripts/check.py` con 141 tests
+- Verificación local: `./.venv/bin/python scripts/check.py` con 143 tests
   pasados.
 
 ## [0.3.0] - 2026-07-12

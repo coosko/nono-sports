@@ -27,11 +27,33 @@ class SourceNormalizedStore:
         relative_path: str | Path,
         records: list[Any],
     ) -> SourceNormalizedWriteResult:
-        payload = "".join(
-            json.dumps(_to_jsonable(record), ensure_ascii=False, sort_keys=True) + "\n"
-            for record in records
-        ).encode("utf-8")
-        return self._write_bytes(relative_path, payload, len(records))
+        path = self._resolve_relative_path(relative_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        digest = hashlib.sha256()
+        bytes_written = 0
+        temporary_path = _temporary_path(path)
+        with temporary_path.open("wb") as output:
+            for record in records:
+                line = (
+                    json.dumps(
+                        _to_jsonable(record),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                    + "\n"
+                ).encode("utf-8")
+                output.write(line)
+                digest.update(line)
+                bytes_written += len(line)
+        hexdigest = digest.hexdigest()
+        _replace_if_changed(path, temporary_path, hexdigest)
+        return SourceNormalizedWriteResult(
+            path=path,
+            relative_path=path.relative_to(self.normalized_root).as_posix(),
+            sha256=hexdigest,
+            records_written=len(records),
+            bytes_written=bytes_written,
+        )
 
     def write_json(
         self,
@@ -59,8 +81,9 @@ class SourceNormalizedStore:
         path = self._resolve_relative_path(relative_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         digest = hashlib.sha256(payload).hexdigest()
-        if not path.exists() or path.read_bytes() != payload:
-            path.write_bytes(payload)
+        temporary_path = _temporary_path(path)
+        temporary_path.write_bytes(payload)
+        _replace_if_changed(path, temporary_path, digest)
         return SourceNormalizedWriteResult(
             path=path,
             relative_path=path.relative_to(self.normalized_root).as_posix(),
@@ -94,3 +117,22 @@ def _drop_none(value: Any) -> Any:
     if isinstance(value, dict):
         return {key: item for key, item in value.items() if item is not None}
     return value
+
+
+def _temporary_path(path: Path) -> Path:
+    return path.with_name(f".{path.name}.tmp")
+
+
+def _replace_if_changed(path: Path, temporary_path: Path, digest: str) -> None:
+    if path.exists() and _file_sha256(path) == digest:
+        temporary_path.unlink()
+        return
+    temporary_path.replace(path)
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as input_file:
+        for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()

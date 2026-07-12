@@ -65,6 +65,8 @@
   cuando Garmin la expone
 - [x] normalizar y consolidar atleta/equipación entre Strava y Garmin Connect
   en `20_consolidado/athletes.jsonl` y `20_consolidado/equipment.jsonl`
+- [x] evitar lecturas/escrituras JSONL gigantes en memoria en stores
+  normalizados y consolidados
 
 ## Pendiente de validación
 
