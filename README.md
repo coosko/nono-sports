@@ -27,6 +27,7 @@ Documento de referencia del estado real:
 - `docs/usage/doctor.md`: diagnóstico local seguro del entorno
 - `docs/usage/garmin-connect-probe.md`: prueba aislada Garmin Connect
 - `docs/usage/garmin-fetch-activities.md`: sincronización, normalización y diagnóstico Garmin Connect
+- `docs/usage/measurements.md`: mediciones biométricas Garmin/manual y consolidado
 - `docs/usage/automation.md`: automatización controlada en Nono
 - `docs/usage/nono-operator-guide.md`: guía operativa y prompt sugerido para Nono
 - `docs/requirements/resources/Descripcion_inicial.md`: documento de entrada y descubrimiento
@@ -119,13 +120,16 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   │   ├── normalizado/
 │   │   │   ├── athletes.jsonl
 │   │   │   ├── activities.jsonl
-│   │   │   └── streams.jsonl
+│   │   │   ├── streams.jsonl
+│   │   │   ├── streams_index.jsonl
+│   │   │   └── state.json
 │   │   └── logs/
 │   │       └── activity_sync_state.json
 │   ├── garmin_connect/
 │   │   ├── raw/
 │   │   │   ├── activities/
 │   │   │   ├── activity_files/
+│   │   │   ├── biometrics/
 │   │   │   ├── fit_decoded/
 │   │   │   ├── splits/
 │   │   │   ├── typed_splits/
@@ -138,14 +142,27 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   │   │   ├── laps.jsonl
 │   │   │   ├── splits.jsonl
 │   │   │   ├── typed_splits.jsonl
+│   │   │   ├── segment_candidates.jsonl
+│   │   │   ├── measurements.jsonl
+│   │   │   ├── measurements_state.json
 │   │   │   └── state.json
 │   │   └── logs/
+│   │       └── activity_sync_state.json
 │   ├── komoot/
 │   └── manual/
+│       ├── biometria/
+│       │   └── mediciones_carlos.csv
+│       ├── normalizado/
+│       │   ├── measurements.jsonl
+│       │   └── measurements_state.json
+│       └── logs/
 ├── 20_consolidado/
 │   ├── activities.jsonl
 │   ├── activity_sources.jsonl
 │   ├── streams_index.jsonl
+│   ├── measurements.jsonl
+│   ├── measurement_sources.jsonl
+│   ├── measurements_state.json
 │   └── state.json
 ├── 30_analisis/
 │   ├── informes/

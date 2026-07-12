@@ -108,6 +108,16 @@ class GarminConnectClient:
     def get_activity_weather(self, activity_id: str | int) -> dict[str, Any]:
         return self._api.get_activity_weather(str(activity_id))
 
+    def get_weigh_ins(self, start_date: str, end_date: str) -> dict[str, Any]:
+        return self._api.get_weigh_ins(start_date, end_date)
+
+    def get_body_composition(
+        self,
+        start_date: str,
+        end_date: str,
+    ) -> dict[str, Any]:
+        return self._api.get_body_composition(start_date, end_date)
+
     def download_activity_file(
         self,
         activity_id: str | int,

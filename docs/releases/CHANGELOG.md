@@ -2,7 +2,35 @@
 
 Todas las versiones y entregables se documentan aquí.
 
-## [Unreleased]
+## [0.3.0] - 2026-07-12
+
+### Added
+
+- Añadida capa común de mediciones biométricas/puntuales con normalización desde
+  Garmin Connect y CSV manual, y consolidación en `20_consolidado`.
+- Añadido `garmin fetch-measurements` y ampliado `garmin sync` para incluir
+  descarga, normalización y consolidación de mediciones salvo
+  `--skip-measurements`.
+- Añadido `garmin auth` para renovar interactivamente el tokenstore cuando
+  Garmin Connect lo exija.
+- Añadido `manual normalize` para normalizar `manual/biometria/mediciones_carlos.csv`.
+
+### Changed
+
+- Alineado el contrato mínimo de normalizados por fuente: Strava y Garmin
+  Connect exponen `activities.jsonl`, `streams.jsonl`, `streams_index.jsonl`,
+  `state.json` y `logs/activity_sync_state.json`; los ficheros específicos de
+  cada fuente quedan documentados como extensiones.
+- Aclarado el TODO de ergonomía CLI: Strava y Garmin Connect ya comparten los
+  argumentos comunes de sincronización y mantienen separadas las opciones
+  específicas de cada API.
+- Retirado el script manual obsoleto `scripts/garmin_connect_loop.sh`, que
+  usaba límites antiguos y queda sustituido por `garmin sync`.
+
+### Verified
+
+- Verificación local: `./.venv/bin/python scripts/check.py` con 139 tests
+  pasados.
 
 ## [0.2.0] - 2026-07-10
 

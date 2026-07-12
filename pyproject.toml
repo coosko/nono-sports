@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nono-sports"
-version = "0.1.0"
+version = "0.3.0"
 description = "Sincronizador e integrador de datos deportivos desde Strava y otras fuentes."
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
@@ -42,8 +42,8 @@ fit-compare = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/<usuario>/nono-sports"
-"Source" = "https://github.com/<usuario>/nono-sports"
+"Homepage" = "https://github.com/coosko/nono-sports"
+"Source" = "https://github.com/coosko/nono-sports"
 
 [project.scripts]
 nono-sports = "nono_sports.__main__:main"

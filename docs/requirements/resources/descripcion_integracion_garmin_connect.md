@@ -606,21 +606,16 @@ Estrategia:
 
 Esto evita descargar todo en cada ejecución.
 
-Comandos sugeridos:
+Comandos operativos aprobados actualmente:
 
 ```bash
 nono-sports garmin auth
 nono-sports garmin doctor
-nono-sports garmin sync --since 2024-01-01
-nono-sports garmin sync --window-days 60
-nono-sports garmin sync --activity-id 123456789
-```
-
-Y para la sincronización general:
-
-```bash
-nono-sports sync --source garmin_connect
-nono-sports sync --all
+nono-sports garmin sync
+nono-sports garmin sync --full-scan
+nono-sports garmin sync --incremental-lookback-days 14
+nono-sports garmin fetch-measurements --full-measurement-scan
+nono-sports build-consolidated
 ```
 
 ---
@@ -727,16 +722,19 @@ Ubicación recomendada:
 ~/.config/nono-sports/
 └── env
 
-~/.config/nono-sports/garmin_connect/
-└── config.toml              # si hace falta configuración específica no secreta
-
 ~/.local/state/nono-sports/garmin_connect/
-├── tokenstore/
-└── auth_state.json           # si hace falta registrar metadata no sensible de autenticación
+└── tokenstore/
 
 ~/.local/state/nono-sports/
 └── nono-sports-garmin-sync.lock
 ```
+
+Reservas no implementadas actualmente:
+
+- `~/.config/nono-sports/garmin_connect/config.toml`: solo si en el futuro hace
+  falta configuración Garmin no secreta separada del `env` global.
+- `~/.local/state/nono-sports/garmin_connect/auth_state.json`: solo si en el
+  futuro hace falta guardar metadata no sensible de autenticación.
 
 Permisos:
 

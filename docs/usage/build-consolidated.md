@@ -17,12 +17,14 @@ actividades equivalentes de varias fuentes y conservar todos sus enlaces.
 ./.venv/bin/python -m nono_sports build-consolidated
 ```
 
-El comando no llama a Strava. Lee:
+El comando no llama a APIs externas. Lee:
 
 ```text
 10_fuentes/strava/normalizado/activities.jsonl
 10_fuentes/strava/normalizado/streams.jsonl
 10_fuentes/garmin_connect/normalizado/activities.jsonl
+10_fuentes/garmin_connect/normalizado/measurements.jsonl
+10_fuentes/manual/normalizado/measurements.jsonl
 ```
 
 Los ficheros que no existan se ignoran.
@@ -35,6 +37,9 @@ Y escribe:
 20_consolidado/streams_index.jsonl
 20_consolidado/duplicate_candidates.jsonl
 20_consolidado/state.json
+20_consolidado/measurements.jsonl
+20_consolidado/measurement_sources.jsonl
+20_consolidado/measurements_state.json
 ```
 
 Cada ejecución reescribe la salida consolidada desde los normalizados disponibles.
@@ -59,6 +64,11 @@ compatibilidad, pero no representa duplicados pendientes ni actividades
 adicionales.
 
 `state.json` resume la estrategia, entradas, salidas y conteos de la ejecución.
+
+`measurements.jsonl` contiene mediciones consolidadas como peso, frecuencia
+cardiaca en reposo o composición corporal.
+
+`measurement_sources.jsonl` conserva los enlaces a cada medición fuente.
 
 ## Estrategia v1
 

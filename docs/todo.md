@@ -89,14 +89,18 @@
 
 ## Backlog funcional próximo
 
-- [ ] Alinear ergonomía CLI entre fuentes: mantener nombres comunes para
-  `sync`, `--skip-fetch`, `--force`, `--max-activities`, `--lock-file` y
-  separar solo las opciones específicas de cada API.
+- [x] Alinear contrato mínimo de salidas normalizadas entre fuentes:
+  `activities.jsonl`, `streams.jsonl`, `streams_index.jsonl`, `state.json` y
+  `logs/activity_sync_state.json`, dejando extensiones específicas solo donde
+  aporten valor real.
+- [x] Alinear ergonomía CLI común entre Strava y Garmin Connect: ambas fuentes
+  usan `sync`, `--skip-fetch`, `--force`, `--max-activities`, `--lock-file`,
+  `--after` y `--before`; las opciones específicas quedan separadas por API.
 - [ ] Ampliar Garmin Connect para bajar todos los datos útiles del usuario, no
   solo actividades deportivas.
-- [ ] Incorporar datos de peso reportados por Garmin Connect y definir un
-  registro histórico de peso que pueda consolidar varias fuentes, incluyendo
-  entradas manuales.
+- [x] Incorporar mediciones biométricas: descarga de peso/composición desde
+  Garmin Connect, normalización de `manual/biometria/mediciones_carlos.csv` y
+  consolidación multi-fuente en `20_consolidado/measurements.jsonl`.
 - [ ] Asegurar que las actividades normalizadas identifican y clasifican bien el
   tipo de actividad, deporte e indicadores específicos, por ejemplo senderismo
   o peso levantado en gimnasio.
@@ -107,3 +111,7 @@
 - [ ] Permitir que el consolidado integre actividades subidas a mano desde FIT,
   GPX, TCX u otros formatos, deduplicándolas frente a Strava/Garmin si
   representan la misma actividad.
+- [ ] Optimizar `garmin sync` sin cambios nuevos: si no hay raw nuevo o
+  modificado, evitar releer/reconstruir splits, typed splits, normalizados y
+  consolidados completos. Mantener comandos explícitos para reconstrucción
+  completa cuando haga falta.

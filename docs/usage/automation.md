@@ -93,7 +93,9 @@ El comando ejecuta:
 
 - listado incremental de actividades recientes
 - descarga raw de actividades pendientes
+- descarga incremental de mediciones Garmin Connect de peso/composición
 - normalización Garmin Connect
+- normalización de mediciones manuales si existe
 - consolidación multi-fuente
 
 Garmin Connect no expone, mediante `garminconnect==0.3.6`, un filtro fiable de
@@ -111,11 +113,24 @@ Opciones operativas:
 ./.venv/bin/python -m nono_sports garmin sync --skip-fetch
 ./.venv/bin/python -m nono_sports garmin sync --full-scan
 ./.venv/bin/python -m nono_sports garmin sync --incremental-lookback-days 14
+./.venv/bin/python -m nono_sports garmin fetch-measurements --full-measurement-scan
 ```
 
 `--skip-fetch` solo reconstruye normalizado y consolidado desde raw local.
 `--full-scan` se reserva para backfills o auditorías. `--force` requiere
 confirmación explícita porque puede reprocesar mucho histórico.
+
+Las mediciones usan opciones propias porque Garmin trabaja por fechas y no por
+timestamp Unix de actividad:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-measurements \
+  --start-date 2023-01-01 \
+  --end-date 2026-07-12
+```
+
+En el modo diario, `garmin sync` incluye mediciones salvo que se indique
+`--skip-measurements`.
 
 El flujo normal no conserva `raw/fit_decoded/*.fitdecode.json`. Si se genera un
 derivado de diagnóstico para una actividad concreta, límpialo después:

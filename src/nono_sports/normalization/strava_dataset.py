@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,10 @@ from nono_sports.domain.stream import NormalizedStream
 from nono_sports.normalization.strava_activity import normalize_strava_activity
 from nono_sports.normalization.strava_athlete import normalize_strava_athlete
 from nono_sports.normalization.strava_stream import normalize_strava_stream
-from nono_sports.storage.normalized_store import NormalizedStore, NormalizedWriteResult
+from nono_sports.storage.source_normalized_store import (
+    SourceNormalizedStore,
+    SourceNormalizedWriteResult,
+)
 
 SOURCE = "strava"
 
@@ -25,29 +29,61 @@ class StravaNormalizationResult:
     athletes: int
     activities: int
     streams: int
-    written: tuple[NormalizedWriteResult, ...]
+    streams_index: int
+    written: tuple[SourceNormalizedWriteResult, ...]
     normalized_root: str
 
 
-def normalize_strava_dataset(data_root: Path) -> StravaNormalizationResult:
+def normalize_strava_dataset(
+    data_root: Path,
+    *,
+    generated_at: datetime | None = None,
+) -> StravaNormalizationResult:
+    generated_at = generated_at or datetime.now(UTC)
     raw_root = strava_path(data_root, "raw")
+    normalized_root = strava_path(data_root, "normalizado")
     manifest_index = _read_manifest_index(raw_root / "manifest.jsonl")
-    store = NormalizedStore(data_root)
+    store = SourceNormalizedStore(normalized_root)
 
     athletes = _normalize_athletes(raw_root, manifest_index)
     activities, streams = _normalize_activities(raw_root, manifest_index)
+    streams_index = [_stream_index(stream) for stream in streams]
+    state = {
+        "schema_version": "nono.strava.normalization_state.v1",
+        "generated_at": generated_at.astimezone(UTC).isoformat(),
+        "inputs": {
+            "raw_root": str(raw_root),
+            "manifest": str(raw_root / "manifest.jsonl"),
+        },
+        "outputs": {
+            "athletes": "athletes.jsonl",
+            "activities": "activities.jsonl",
+            "streams": "streams.jsonl",
+            "streams_index": "streams_index.jsonl",
+            "state": "state.json",
+        },
+        "counts": {
+            "athletes": len(athletes),
+            "activities": len(activities),
+            "streams": len(streams),
+            "streams_index": len(streams_index),
+        },
+    }
 
     written = [
         store.write_jsonl("athletes.jsonl", athletes),
         store.write_jsonl("activities.jsonl", activities),
         store.write_jsonl("streams.jsonl", streams),
+        store.write_jsonl("streams_index.jsonl", streams_index),
+        store.write_json("state.json", state),
     ]
     return StravaNormalizationResult(
         athletes=len(athletes),
         activities=len(activities),
         streams=len(streams),
+        streams_index=len(streams_index),
         written=tuple(written),
-        normalized_root=str(store.normalized_root),
+        normalized_root=str(normalized_root),
     )
 
 
@@ -206,6 +242,18 @@ def _extract_segment_ids(activity: dict[str, Any]) -> list[str]:
         elif effort.get("segment_id") is not None:
             segment_ids.add(str(effort["segment_id"]))
     return sorted(segment_ids)
+
+
+def _stream_index(stream: NormalizedStream) -> dict[str, Any]:
+    return {
+        "schema_version": "nono.streams_index.v1",
+        "activity_uid": stream.activity_uid,
+        "stream_uid": stream.stream_uid,
+        "source": stream.source,
+        "source_activity_id": stream.source_activity_id,
+        "samples": stream.samples,
+        "source_reference": stream.source_reference,
+    }
 
 
 def _source_reference(

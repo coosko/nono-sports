@@ -14,8 +14,8 @@ Este backlog deriva de `requirements.md` y `architecture.md`.
 - [x] Implementar `nono-sports strava doctor`
 - [x] Implementar `nono-sports garmin doctor`
 - [x] Preparar prueba aislada de Garmin Connect con `garminconnect==0.3.6`
-- [ ] Ejecutar prueba aislada de Garmin Connect con cuenta real
-- [ ] Validar autonomía Garmin Connect basada en tokenstore
+- [x] Ejecutar prueba aislada de Garmin Connect con cuenta real
+- [x] Validar autonomía Garmin Connect basada en tokenstore
 
 ## Prioridad media
 
@@ -27,12 +27,14 @@ Este backlog deriva de `requirements.md` y `architecture.md`.
 - [x] Generar informe de validación de datos
 - [ ] Registrar logs operativos por fuente
 - [x] Implementar adaptador Garmin Connect de solo lectura
-- [ ] Descargar raw Garmin Connect con actividades, detalles, FIT, GPX/TCX, splits, typed splits, laps y weather
+- [x] Descargar raw Garmin Connect con actividades, detalles, FIT, GPX/TCX, splits, typed splits, laps y weather
 - [x] Parsear FIT conservando máxima información y trazabilidad
 - [x] Separar decodificación FIT en módulo independiente de la fuente
 - [x] Normalizar actividades Garmin Connect
 - [ ] Investigar candidatos de segmentos Garmin
-- [ ] Alinear ergonomía de comandos comunes entre Strava, Garmin y futuras fuentes
+- [x] Alinear contrato mínimo de salidas normalizadas entre fuentes
+- [x] Alinear ergonomía de comandos comunes entre Strava y Garmin Connect
+- [x] Incorporar mediciones biométricas Garmin/manual y consolidado común
 
 ## Prioridad futura
 
@@ -44,7 +46,6 @@ Este backlog deriva de `requirements.md` y `architecture.md`.
 - [ ] Segmentos propios de Nono
 - [ ] Salud/recuperación Garmin
 - [ ] Descarga de datos completos de usuario Garmin más allá de actividades
-- [ ] Histórico de peso multifuente con datos Garmin y registros manuales
 - [ ] Clasificación avanzada por tipo de actividad e indicadores específicos
 - [ ] Equipación por actividad y catálogo de equipación por fuente
 - [ ] Consolidación de actividades importadas manualmente con deduplicación

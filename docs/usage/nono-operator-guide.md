@@ -204,10 +204,43 @@ Datos normalizados:
 /home/nono/drive/01_ambitos/02_personal/40_deporte/10_fuentes/garmin_connect/normalizado
 ```
 
+Cada fuente normalizada debe exponer, como mínimo:
+
+```text
+normalizado/activities.jsonl
+normalizado/streams.jsonl
+normalizado/streams_index.jsonl
+normalizado/state.json
+logs/activity_sync_state.json
+```
+
+No todas las fuentes tienen que generar los mismos ficheros extra. Garmin
+Connect puede tener `laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
+`segment_candidates.jsonl`; Strava puede tener `athletes.jsonl` y detalles de
+laps, segmentos o equipación dentro de `activities.jsonl`. Para responder a
+consultas normales, prioriza siempre `20_consolidado`.
+
 Capa consolidada principal:
 
 ```text
 /home/nono/drive/01_ambitos/02_personal/40_deporte/20_consolidado
+```
+
+Para actividades, consulta:
+
+```text
+20_consolidado/activities.jsonl
+20_consolidado/activity_sources.jsonl
+20_consolidado/streams_index.jsonl
+```
+
+Para peso, frecuencia cardiaca en reposo, composición corporal u otras
+mediciones puntuales, consulta:
+
+```text
+20_consolidado/measurements.jsonl
+20_consolidado/measurement_sources.jsonl
+20_consolidado/measurements_state.json
 ```
 
 Informe de validación:
@@ -349,8 +382,10 @@ Este comando:
 - usa `last_successful_activity_sync_at` y un solape por defecto de 7 días
 - deja de paginar al llegar a actividades anteriores a la ventana incremental
 - descarga solo actividades pendientes o incompletas
+- descarga mediciones recientes de peso/composición desde Garmin Connect
 - conserva el ZIP/FIT/GPX/TCX original que corresponda
 - normaliza Garmin Connect
+- normaliza el CSV manual de biometría si existe
 - reconstruye el consolidado multi-fuente
 - no genera `fit_decoded/*.fitdecode.json` en el flujo normal
 
@@ -363,6 +398,27 @@ Si Carlos pide una auditoría o backfill histórico, puede usarse:
 
 ```bash
 ./.venv/bin/python -m nono_sports garmin sync --full-scan
+```
+
+Si Garmin Connect rechaza el tokenstore, no reloguear en automatización. Pedir
+intervención humana y ejecutar:
+
+```bash
+./.venv/bin/python -m nono_sports garmin auth
+```
+
+Para forzar solo una descarga histórica de mediciones Garmin:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-measurements \
+  --full-measurement-scan
+./.venv/bin/python -m nono_sports garmin sync --skip-fetch
+```
+
+Para normalizar solo el CSV manual de biometría:
+
+```bash
+./.venv/bin/python -m nono_sports manual normalize
 ```
 
 No uses `--force` sin confirmación explícita: puede reprocesar mucho histórico.

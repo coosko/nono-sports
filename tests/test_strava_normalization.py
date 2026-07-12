@@ -91,10 +91,13 @@ def test_normalize_strava_dataset_writes_jsonl_outputs(tmp_path: Path) -> None:
     assert result.athletes == 1
     assert result.activities == 1
     assert result.streams == 1
+    assert result.streams_index == 1
     assert {item.relative_path for item in result.written} == {
         "athletes.jsonl",
         "activities.jsonl",
         "streams.jsonl",
+        "streams_index.jsonl",
+        "state.json",
     }
     activities = _read_jsonl(tmp_path, "activities.jsonl")
     assert activities[0]["activity_uid"] == "strava:activity:100"
@@ -108,6 +111,22 @@ def test_normalize_strava_dataset_writes_jsonl_outputs(tmp_path: Path) -> None:
     streams = _read_jsonl(tmp_path, "streams.jsonl")
     assert streams[0]["samples"] == {"distance": 2, "heartrate": 2}
     assert streams[0]["streams"]["distance"]["unit"] == "m"
+    streams_index = _read_jsonl(tmp_path, "streams_index.jsonl")
+    assert streams_index[0]["schema_version"] == "nono.streams_index.v1"
+    assert streams_index[0]["activity_uid"] == "strava:activity:100"
+    assert streams_index[0]["stream_uid"] == "strava:stream:100"
+    state = json.loads(
+        (
+            tmp_path
+            / "10_fuentes"
+            / "strava"
+            / "normalizado"
+            / "state.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert state["schema_version"] == "nono.strava.normalization_state.v1"
+    assert state["outputs"]["streams_index"] == "streams_index.jsonl"
+    assert state["counts"]["streams_index"] == 1
 
 
 def test_normalize_strava_activity_supports_non_distance_sports() -> None:

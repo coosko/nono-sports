@@ -245,6 +245,8 @@ no ha cambiado. En la salida:
 
 - `processed`: actividades recalculadas desde raw/FIT.
 - `reused`: actividades reutilizadas sin volver a leer FIT decodificado.
+- `streams_index.jsonl` y `state.json` forman parte del contrato mínimo común
+  de normalizados por fuente, igual que en Strava.
 
 Usa `--force` solo si quieres recalcular todo:
 
@@ -275,6 +277,52 @@ Escribe:
 10_fuentes/garmin_connect/normalizado/typed_splits.jsonl
 10_fuentes/garmin_connect/normalizado/segment_candidates.jsonl
 10_fuentes/garmin_connect/normalizado/state.json
+```
+
+Los ficheros `laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
+`segment_candidates.jsonl` son extensiones específicas de Garmin Connect. No
+implican que Strava o futuras fuentes tengan que crear ficheros vacíos: el
+contrato común está en `activities.jsonl`, `streams.jsonl`,
+`streams_index.jsonl`, `state.json` y `logs/activity_sync_state.json`.
+
+## Mediciones Garmin Connect
+
+Garmin Connect también aporta mediciones puntuales, empezando por peso y
+composición corporal. La descarga raw usa endpoints de rango de fechas:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-measurements \
+  --start-date 2023-01-01 \
+  --end-date 2026-07-12
+```
+
+Para un backfill completo:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-measurements \
+  --full-measurement-scan
+```
+
+`garmin sync` incluye esta descarga por defecto con una ventana incremental y
+solape de 30 días. Si alguna operación excepcional no debe tocar mediciones,
+puede usarse `--skip-measurements`.
+
+Si el tokenstore Garmin ha caducado o Garmin exige reautenticación:
+
+```bash
+./.venv/bin/python -m nono_sports garmin auth
+```
+
+Salidas:
+
+```text
+10_fuentes/garmin_connect/raw/biometrics/*.json
+10_fuentes/garmin_connect/logs/measurement_sync_state.json
+10_fuentes/garmin_connect/normalizado/measurements.jsonl
+10_fuentes/garmin_connect/normalizado/measurements_state.json
+20_consolidado/measurements.jsonl
+20_consolidado/measurement_sources.jsonl
+20_consolidado/measurements_state.json
 ```
 
 ## Validación local inicial

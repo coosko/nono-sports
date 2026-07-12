@@ -440,7 +440,9 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   │   ├── normalizado/
 │   │   │   ├── athletes.jsonl
 │   │   │   ├── activities.jsonl
-│   │   │   └── streams.jsonl
+│   │   │   ├── streams.jsonl
+│   │   │   ├── streams_index.jsonl
+│   │   │   └── state.json
 │   │   └── logs/
 │   │       └── activity_sync_state.json
 │   ├── garmin_connect/
@@ -448,6 +450,7 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   │   │   ├── athlete/
 │   │   │   ├── activities/
 │   │   │   ├── activity_files/
+│   │   │   ├── biometrics/
 │   │   │   ├── fit_decoded/          # diagnóstico explícito, no flujo normal
 │   │   │   ├── splits/
 │   │   │   ├── typed_splits/
@@ -464,17 +467,26 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   │   │   ├── splits.jsonl
 │   │   │   ├── typed_splits.jsonl
 │   │   │   ├── segment_candidates.jsonl
+│   │   │   ├── measurements.jsonl
+│   │   │   ├── measurements_state.json
 │   │   │   └── state.json
 │   │   └── logs/
 │   │       └── activity_sync_state.json
 │   └── manual/
 │       ├── biometria/
 │       │   └── mediciones_carlos.csv
+│       ├── normalizado/
+│       │   ├── measurements.jsonl
+│       │   └── measurements_state.json
+│       ├── logs/
 │       └── sensaciones/
 ├── 20_consolidado/
 │   ├── activities.jsonl
 │   ├── activity_sources.jsonl
 │   ├── streams_index.jsonl
+│   ├── measurements.jsonl
+│   ├── measurement_sources.jsonl
+│   ├── measurements_state.json
 │   └── state.json
 ├── 30_analisis/
 │   ├── informes/
@@ -485,6 +497,34 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 └── 90_archivo/
 ```
 
+Contrato mínimo por fuente normalizada:
+
+- `normalizado/activities.jsonl`: actividades en el esquema común.
+- `normalizado/streams.jsonl`: streams normalizados cuando existan.
+- `normalizado/streams_index.jsonl`: índice ligero para localizar streams sin
+  leer todo el fichero de streams.
+- `normalizado/state.json`: estado, entradas, salidas y conteos de la última
+  normalización.
+- `logs/activity_sync_state.json`: estado incremental de descarga/sincronización.
+
+Cada fuente puede añadir ficheros específicos si aportan valor real. Garmin
+Connect añade `laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
+`segment_candidates.jsonl`; Strava mantiene `athletes.jsonl` y conserva
+laps/segmentos/equipación dentro del registro de actividad porque esa es la
+forma más útil con su raw actual.
+
+Contrato de mediciones:
+
+- Cada fuente que aporte biometría o métricas puntuales escribe
+  `normalizado/measurements.jsonl`.
+- Cada medición normalizada incluye `metric`, `value`, `unit`,
+  `measurement_date`, `measured_at_utc`, `source_reference` y `attributes`.
+- El consolidado escribe `20_consolidado/measurements.jsonl` y
+  `20_consolidado/measurement_sources.jsonl`.
+- La deduplicación inicial agrupa mediciones de la misma métrica, fecha, unidad
+  y valor equivalente. Garmin Connect tiene prioridad frente a entradas
+  manuales cuando ambas representan la misma medición importada desde Garmin.
+
 Los secretos de autenticación no viven en `<data_root>`. Los tokens OAuth de Strava se guardan como estado local de aplicación:
 
 ```text
@@ -494,10 +534,13 @@ Los secretos de autenticación no viven en `<data_root>`. Los tokens OAuth de St
 Garmin Connect debe usar el mismo criterio:
 
 ```text
-~/.config/nono-sports/garmin_connect/config.toml
 ~/.local/state/nono-sports/garmin_connect/tokenstore/
-~/.local/state/nono-sports/garmin_connect/auth_state.json
 ```
+
+No hay, por ahora, configuración específica Garmin en
+`~/.config/nono-sports/garmin_connect/config.toml` ni estado adicional en
+`~/.local/state/nono-sports/garmin_connect/auth_state.json`. Si se necesitan en
+el futuro, deberán incorporarse como una decisión explícita de arquitectura.
 
 ## Decisiones técnicas
 

@@ -24,6 +24,7 @@ La documentación se organiza por niveles de autoridad.
 - `docs/usage/doctor.md`: diagnóstico local seguro de entorno y fuentes
 - `docs/usage/garmin-connect-probe.md`: prueba aislada Garmin Connect
 - `docs/usage/garmin-fetch-activities.md`: descarga raw Garmin Connect
+- `docs/usage/measurements.md`: mediciones biométricas Garmin/manual y consolidado
 - `docs/usage/strava-auth.md`: guía de autenticación Strava
 - `docs/usage/strava-fetch-context.md`: guía de descarga raw de perfil y contexto Strava
 - `docs/usage/strava-fetch-activities.md`: guía de descarga raw de actividades Strava

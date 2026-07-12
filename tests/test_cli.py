@@ -47,6 +47,13 @@ def test_parser_accepts_garmin_doctor_command() -> None:
     assert args.garmin_command == "doctor"
 
 
+def test_parser_accepts_garmin_auth_command() -> None:
+    args = build_parser().parse_args(["garmin", "auth"])
+
+    assert args.command == "garmin"
+    assert args.garmin_command == "auth"
+
+
 def test_parser_accepts_garmin_prepare_dirs_command() -> None:
     args = build_parser().parse_args(["garmin", "prepare-dirs"])
 
@@ -108,6 +115,29 @@ def test_parser_accepts_garmin_fetch_activities_options() -> None:
     assert args.include_gpx is True
 
 
+def test_parser_accepts_garmin_fetch_measurements_options() -> None:
+    args = build_parser().parse_args(
+        [
+            "garmin",
+            "fetch-measurements",
+            "--start-date",
+            "2023-01-01",
+            "--end-date",
+            "2026-07-12",
+            "--measurement-lookback-days",
+            "14",
+            "--full-measurement-scan",
+        ]
+    )
+
+    assert args.command == "garmin"
+    assert args.garmin_command == "fetch-measurements"
+    assert args.start_date == "2023-01-01"
+    assert args.end_date == "2026-07-12"
+    assert args.measurement_lookback_days == 14
+    assert args.full_measurement_scan is True
+
+
 def test_parser_accepts_garmin_decode_fit_options() -> None:
     args = build_parser().parse_args(
         [
@@ -167,6 +197,11 @@ def test_parser_accepts_garmin_sync_options() -> None:
             "--skip-fit",
             "--include-tcx",
             "--include-gpx",
+            "--skip-measurements",
+            "--start-date",
+            "2023-01-01",
+            "--end-date",
+            "2026-07-12",
             "--lock-file",
             "garmin.lock",
             "--keep-intermediate-files",
@@ -188,6 +223,9 @@ def test_parser_accepts_garmin_sync_options() -> None:
     assert args.skip_fit is True
     assert args.include_tcx is True
     assert args.include_gpx is True
+    assert args.skip_measurements is True
+    assert args.start_date == "2023-01-01"
+    assert args.end_date == "2026-07-12"
     assert args.lock_file == "garmin.lock"
     assert args.keep_intermediate_files is True
 
@@ -200,6 +238,13 @@ def test_parser_defaults_garmin_sync_to_unbounded_incremental_scan() -> None:
     assert args.limit == 20
     assert args.max_activities is None
     assert args.max_pages is None
+
+
+def test_parser_accepts_manual_normalize_command() -> None:
+    args = build_parser().parse_args(["manual", "normalize"])
+
+    assert args.command == "manual"
+    assert args.manual_command == "normalize"
 
 
 def test_clean_garmin_intermediate_files_supports_dry_run_and_delete(

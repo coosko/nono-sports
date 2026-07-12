@@ -163,6 +163,12 @@ desde una fecha, el sistema debe:
         └── activity_sync_state.json
 ```
 
+Garmin Connect cumple el contrato mínimo común de normalizados por fuente:
+`activities.jsonl`, `streams.jsonl`, `streams_index.jsonl`, `state.json` y
+`logs/activity_sync_state.json`. Los ficheros `laps.jsonl`, `splits.jsonl`,
+`typed_splits.jsonl` y `segment_candidates.jsonl` son extensiones propias de
+Garmin porque la fuente aporta ese detalle de forma útil.
+
 ## Configuración y secretos
 
 La configuración y el estado sensible deben seguir el estándar XDG ya usado en
@@ -170,11 +176,13 @@ Strava.
 
 ```text
 ~/.config/nono-sports/env
-~/.config/nono-sports/garmin_connect/config.toml
 ~/.local/state/nono-sports/garmin_connect/tokenstore/
-~/.local/state/nono-sports/garmin_connect/auth_state.json
 ~/.local/state/nono-sports/nono-sports-garmin-sync.lock
 ```
+
+Actualmente Garmin Connect no usa un `config.toml` específico ni un
+`auth_state.json`: la configuración operativa vive en el `env` global y la
+autenticación reutiliza el tokenstore.
 
 Reglas:
 
@@ -203,10 +211,11 @@ credenciales.
 ```bash
 nono-sports garmin auth
 nono-sports garmin doctor
-nono-sports garmin sync --window-days 60
-nono-sports garmin sync --activity-id <garmin_activity_id>
-nono-sports sync --source garmin_connect
-nono-sports sync --all
+nono-sports garmin sync
+nono-sports garmin sync --skip-fetch
+nono-sports garmin sync --full-scan
+nono-sports garmin fetch-measurements --full-measurement-scan
+nono-sports build-consolidated
 ```
 
 ## Doctor

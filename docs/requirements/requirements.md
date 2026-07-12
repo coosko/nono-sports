@@ -31,17 +31,31 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 - RF18: La decodificación de formatos deportivos debe seguir un patrón replicable para FIT, GPX, TCX u otros formatos: raw original, derivado parseado trazable, normalización y consolidación.
 - RF19: La consolidación debe permitir que una actividad consolidada tenga varias actividades fuente enlazadas.
 - RF20: La consolidación debe generar un informe auditable de candidatos duplicados antes de endurecer reglas de fusión o selección por métrica.
+- RF21: El sistema debe importar mediciones biométricas y métricas puntuales
+  desde fuentes automáticas o manuales.
+- RF22: El sistema debe normalizar y consolidar mediciones como peso,
+  frecuencia cardiaca en reposo, composición corporal u otras métricas futuras
+  mediante un contrato común.
 
 ## Requisitos de datos
 
 - RDAT1: Los datos `raw` deben conservarse sin transformación funcional.
 - RDAT2: Los datos `normalizado` deben seguir un esquema común entre fuentes.
+  El contrato mínimo por fuente es `activities.jsonl`, `streams.jsonl`,
+  `streams_index.jsonl`, `state.json` y `logs/activity_sync_state.json`; cada
+  fuente puede añadir extensiones específicas si aportan información real.
 - RDAT3: La capa consolidada debe conservar la relación entre actividad consolidada y actividades fuente.
 - RDAT4: El sistema debe priorizar trazabilidad sobre compactación prematura.
 - RDAT5: Los ficheros FIT originales deben conservarse siempre como raw antes de cualquier parseo.
 - RDAT6: El parseo de FIT debe priorizar conservación de información y trazabilidad frente a simplicidad.
 - RDAT7: Si una fuente entrega un contenedor, como ZIP con FIT interno, se debe conservar el contenedor original y extraer el fichero parseable como derivado raw trazable.
 - RDAT8: Una actividad consolidada debe conservar todos los enlaces fuente que participaron en su agrupación.
+- RDAT9: Las mediciones normalizadas deben escribirse en
+  `normalizado/measurements.jsonl` por fuente, con `metric`, `value`, `unit`,
+  fecha/hora, trazabilidad raw y atributos extensibles.
+- RDAT10: Las mediciones consolidadas deben escribirse en
+  `20_consolidado/measurements.jsonl` y conservar enlaces fuente en
+  `20_consolidado/measurement_sources.jsonl`.
 
 ## Requisitos no funcionales
 

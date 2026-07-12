@@ -36,6 +36,7 @@ GARMIN_CONNECT_DIRECTORIES = [
     "10_fuentes/garmin_connect/raw/athlete",
     "10_fuentes/garmin_connect/raw/activities",
     "10_fuentes/garmin_connect/raw/activity_files",
+    "10_fuentes/garmin_connect/raw/biometrics",
     "10_fuentes/garmin_connect/raw/fit_decoded",
     "10_fuentes/garmin_connect/raw/splits",
     "10_fuentes/garmin_connect/raw/typed_splits",
@@ -44,6 +45,12 @@ GARMIN_CONNECT_DIRECTORIES = [
     "10_fuentes/garmin_connect/raw/segment_candidates",
     "10_fuentes/garmin_connect/normalizado",
     "10_fuentes/garmin_connect/logs",
+]
+
+MANUAL_DIRECTORIES = [
+    "10_fuentes/manual/biometria",
+    "10_fuentes/manual/normalizado",
+    "10_fuentes/manual/logs",
 ]
 
 
@@ -63,6 +70,10 @@ def strava_path(data_root: Path, *parts: str) -> Path:
 
 def garmin_connect_path(data_root: Path, *parts: str) -> Path:
     return data_root.joinpath("10_fuentes", "garmin_connect", *parts)
+
+
+def manual_path(data_root: Path, *parts: str) -> Path:
+    return data_root.joinpath("10_fuentes", "manual", *parts)
 
 
 def app_state_dir() -> Path:
@@ -89,6 +100,15 @@ def garmin_connect_tokenstore_path() -> Path:
 def ensure_garmin_connect_directories(data_root: Path) -> list[Path]:
     created_paths: list[Path] = []
     for directory in GARMIN_CONNECT_DIRECTORIES:
+        path = data_root / directory
+        path.mkdir(parents=True, exist_ok=True)
+        created_paths.append(path)
+    return created_paths
+
+
+def ensure_manual_directories(data_root: Path) -> list[Path]:
+    created_paths: list[Path] = []
+    for directory in MANUAL_DIRECTORIES:
         path = data_root / directory
         path.mkdir(parents=True, exist_ok=True)
         created_paths.append(path)

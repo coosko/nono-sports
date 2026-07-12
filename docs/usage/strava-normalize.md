@@ -24,9 +24,15 @@ Y escribe:
 10_fuentes/strava/normalizado/athletes.jsonl
 10_fuentes/strava/normalizado/activities.jsonl
 10_fuentes/strava/normalizado/streams.jsonl
+10_fuentes/strava/normalizado/streams_index.jsonl
+10_fuentes/strava/normalizado/state.json
 ```
 
 Cada ejecución reescribe los JSONL desde los raw disponibles, por lo que es idempotente.
+
+`streams_index.jsonl` y `state.json` forman parte del contrato mínimo común de
+normalizados por fuente. No sustituyen a `streams.jsonl`: permiten localizar
+streams y revisar conteos/entradas sin leer todos los datos de detalle.
 
 ## Contrato de actividad
 
@@ -61,7 +67,8 @@ La consolidación posterior decidirá qué fuente manda para cada campo.
 
 Después de normalizar, revisa:
 
-- que existen los tres JSONL esperados
+- que existen los ficheros esperados de la fuente, incluyendo
+  `streams_index.jsonl` y `state.json`
 - que el número de actividades coincide con los raw de `activities/<id>.json` disponibles
 - que `activities.jsonl` conserva `source_reference.raw_path`
 - que una actividad con stream tiene `stream_uid` y registro correspondiente en `streams.jsonl`
