@@ -44,6 +44,7 @@ Este roadmap deriva de `docs/requirements/requirements.md` y `docs/technical/arc
 - decidir estrategia de parseo FIT conservando máxima información
 - normalizar actividades Garmin Connect
 - descargar y normalizar mediciones de peso/composición Garmin Connect
+- descargar y normalizar perfil, dispositivos y equipación Garmin Connect
 - normalizar biometría manual desde CSV
 - investigar segmentos Garmin sin cerrar todavía modelo consolidado
 
@@ -52,6 +53,7 @@ Este roadmap deriva de `docs/requirements/requirements.md` y `docs/technical/arc
 - detectar actividades equivalentes entre Strava y Garmin Connect: implementado
 - permitir varias fuentes por actividad consolidada: implementado
 - consolidar mediciones biométricas multi-fuente: implementado
+- consolidar atleta/equipación multi-fuente: implementado
 - generar informe auditable de candidatos duplicados: implementado
 - elegir fuente primaria por tipo de métrica
 - preparar segmentos propios de Nono si Garmin/Strava no cubren el análisis necesario

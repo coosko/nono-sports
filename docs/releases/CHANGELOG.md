@@ -2,6 +2,33 @@
 
 Todas las versiones y entregables se documentan aquí.
 
+## [Unreleased]
+
+### Added
+
+- Añadida descarga raw Garmin Connect de perfil/settings, equipación declarada,
+  estadísticas de equipación, dispositivos y equipación usada por actividad
+  cuando Garmin lo expone.
+- Añadida normalización común de equipación en `equipment.jsonl` para Strava y
+  Garmin Connect.
+- Añadida consolidación multi-fuente de atleta y equipación en
+  `20_consolidado/athletes.jsonl`, `athlete_sources.jsonl`,
+  `equipment.jsonl` y `equipment_sources.jsonl`.
+- Añadido comando `garmin fetch-user-data` e integración por defecto en
+  `garmin sync`, con `--skip-user-data` para casos excepcionales.
+
+### Changed
+
+- `garmin sync` incorpora datos de usuario/equipación al flujo diario junto a
+  actividades y mediciones.
+- La documentación de Nono y Garmin Connect refleja `athletes.jsonl` y
+  `equipment.jsonl` como contratos comunes normalizados y consolidados.
+
+### Verified
+
+- Verificación local: `./.venv/bin/python scripts/check.py` con 141 tests
+  pasados.
+
 ## [0.3.0] - 2026-07-12
 
 ### Added

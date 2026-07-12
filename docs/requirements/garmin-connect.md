@@ -138,6 +138,11 @@ desde una fecha, el sistema debe:
     │   ├── manifest.jsonl
     │   ├── athlete/
     │   │   └── profile.json
+    │   ├── devices/
+    │   ├── gear/
+    │   │   ├── gear.json
+    │   │   ├── activity_<garmin_activity_id>.json
+    │   │   └── stats/
     │   ├── activities/
     │   │   └── <garmin_activity_id>.json
     │   ├── activity_files/
@@ -151,6 +156,7 @@ desde una fecha, el sistema debe:
     │   └── segment_candidates/
     ├── normalizado/
     │   ├── athletes.jsonl
+    │   ├── equipment.jsonl
     │   ├── activities.jsonl
     │   ├── streams.jsonl
     │   ├── streams_index.jsonl
@@ -164,10 +170,11 @@ desde una fecha, el sistema debe:
 ```
 
 Garmin Connect cumple el contrato mínimo común de normalizados por fuente:
-`activities.jsonl`, `streams.jsonl`, `streams_index.jsonl`, `state.json` y
-`logs/activity_sync_state.json`. Los ficheros `laps.jsonl`, `splits.jsonl`,
-`typed_splits.jsonl` y `segment_candidates.jsonl` son extensiones propias de
-Garmin porque la fuente aporta ese detalle de forma útil.
+`athletes.jsonl`, `equipment.jsonl`, `activities.jsonl`, `streams.jsonl`,
+`streams_index.jsonl`, `state.json` y `logs/activity_sync_state.json`. Los
+ficheros `laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
+`segment_candidates.jsonl` son extensiones propias de Garmin porque la fuente
+aporta ese detalle de forma útil.
 
 ## Configuración y secretos
 

@@ -19,6 +19,7 @@ from nono_sports.automation.adaptive import (
 )
 from nono_sports.consolidation.measurements import build_consolidated_measurements
 from nono_sports.consolidation.multi_source import build_multi_source_consolidated
+from nono_sports.consolidation.user_data import build_consolidated_user_data
 from nono_sports.core.config import (
     ProjectConfig,
     load_config,
@@ -59,12 +60,21 @@ from nono_sports.garmin_connect.sync import (
     GarminRawSyncResult,
     sync_garmin_activities_raw,
 )
+from nono_sports.garmin_connect.user_data import (
+    GarminUserDataStateStore,
+    GarminUserDataSyncResult,
+    sync_garmin_user_data_raw,
+)
 from nono_sports.normalization.garmin_dataset import (
     GarminNormalizationResult,
     normalize_garmin_dataset,
 )
 from nono_sports.normalization.garmin_measurements import (
     normalize_garmin_measurements,
+)
+from nono_sports.normalization.garmin_user_data import (
+    GarminUserDataNormalizationResult,
+    normalize_garmin_user_data,
 )
 from nono_sports.normalization.manual_measurements import normalize_manual_measurements
 from nono_sports.normalization.strava_dataset import normalize_strava_dataset
@@ -158,6 +168,7 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_fetch_parser.add_argument("--include-gpx", action="store_true")
     garmin_measurements_parser = garmin_subparsers.add_parser("fetch-measurements")
     _add_measurement_fetch_options(garmin_measurements_parser)
+    garmin_subparsers.add_parser("fetch-user-data")
     garmin_decode_parser = garmin_subparsers.add_parser("decode-fit")
     garmin_decode_parser.add_argument("--activity-id", default=None)
     garmin_decode_parser.add_argument("--force", action="store_true")
@@ -187,6 +198,7 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_sync_parser.add_argument("--include-tcx", action="store_true")
     garmin_sync_parser.add_argument("--include-gpx", action="store_true")
     garmin_sync_parser.add_argument("--skip-measurements", action="store_true")
+    garmin_sync_parser.add_argument("--skip-user-data", action="store_true")
     _add_measurement_fetch_options(garmin_sync_parser)
     garmin_sync_parser.add_argument("--lock-file", default=None)
     garmin_sync_parser.add_argument(
@@ -281,6 +293,13 @@ def main(argv: list[str] | None = None) -> int:
         _print_garmin_fetch_measurements_result(result)
         return 0
 
+    if args.command == "garmin" and args.garmin_command == "fetch-user-data":
+        project_config = load_config()
+        ensure_garmin_connect_directories(project_config.data_root)
+        result = _run_garmin_fetch_user_data(project_config)
+        _print_garmin_fetch_user_data_result(result)
+        return 0
+
     if args.command == "garmin" and args.garmin_command == "sync":
         project_config = load_config()
         ensure_garmin_connect_directories(project_config.data_root)
@@ -305,6 +324,8 @@ def main(argv: list[str] | None = None) -> int:
             len(measurement_result.written),
             measurement_result.normalized_root,
         )
+        user_data_result = normalize_garmin_user_data(project_config.data_root)
+        _print_user_data_normalization_result("Garmin Connect", user_data_result)
         return 0
 
     if args.command == "manual" and args.manual_command == "normalize":
@@ -435,6 +456,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "Normalized Strava raw data: "
             f"{result.athletes} athletes, "
+            f"{result.equipment} equipment records, "
             f"{result.activities} activities, "
             f"{result.streams} streams, "
             f"{result.streams_index} stream index records, "
@@ -589,12 +611,33 @@ def _run_garmin_fetch_measurements(
     )
 
 
+def _run_garmin_fetch_user_data(
+    project_config: ProjectConfig,
+) -> GarminUserDataSyncResult:
+    client = login_from_tokenstore()
+    return sync_garmin_user_data_raw(
+        client,
+        GarminRawStore(project_config.data_root),
+        GarminUserDataStateStore(project_config.data_root),
+    )
+
+
 def _print_garmin_fetch_measurements_result(
     result: GarminMeasurementSyncResult,
 ) -> None:
     print(
         "Downloaded Garmin Connect measurement raw files: "
         f"{result.start_date} to {result.end_date}, "
+        f"{len(result.written)} written."
+    )
+    print(f"State: {result.state_path}")
+
+
+def _print_garmin_fetch_user_data_result(
+    result: GarminUserDataSyncResult,
+) -> None:
+    print(
+        "Downloaded Garmin Connect user raw files: "
         f"{len(result.written)} written."
     )
     print(f"State: {result.state_path}")
@@ -611,6 +654,19 @@ def _print_measurement_normalization_result(
         f"{measurements} measurements, {files_written} files written."
     )
     print(f"Normalized root: {normalized_root}")
+
+
+def _print_user_data_normalization_result(
+    source_label: str,
+    result: GarminUserDataNormalizationResult,
+) -> None:
+    print(
+        f"Normalized {source_label} user data: "
+        f"{result.athletes} athletes, "
+        f"{result.equipment} equipment records, "
+        f"{len(result.written)} files written."
+    )
+    print(f"Normalized root: {result.normalized_root}")
 
 
 def _normalize_manual_measurements_if_available(
@@ -643,6 +699,15 @@ def _run_consolidation(project_config: ProjectConfig) -> None:
         f"{measurements_result.measurement_sources} measurement source links, "
         f"{len(measurements_result.written)} files written."
     )
+    user_data_result = build_consolidated_user_data(project_config.data_root)
+    print(
+        "Built consolidated user dataset: "
+        f"{user_data_result.athletes} athletes, "
+        f"{user_data_result.athlete_sources} athlete source links, "
+        f"{user_data_result.equipment} equipment records, "
+        f"{user_data_result.equipment_sources} equipment source links, "
+        f"{len(user_data_result.written)} files written."
+    )
     print(f"Consolidated root: {activities_result.consolidated_root}")
 
 
@@ -661,6 +726,7 @@ def _run_strava_sync(args: argparse.Namespace, project_config: ProjectConfig) ->
     print(
         "Normalized Strava raw data: "
         f"{normalize_result.athletes} athletes, "
+        f"{normalize_result.equipment} equipment records, "
         f"{normalize_result.activities} activities, "
         f"{normalize_result.streams} streams, "
         f"{normalize_result.streams_index} stream index records, "
@@ -684,6 +750,9 @@ def _run_garmin_sync(args: argparse.Namespace, project_config: ProjectConfig) ->
         if not args.skip_measurements:
             measurement_result = _run_garmin_fetch_measurements(args, project_config)
             _print_garmin_fetch_measurements_result(measurement_result)
+        if not args.skip_user_data:
+            user_data_result = _run_garmin_fetch_user_data(project_config)
+            _print_garmin_fetch_user_data_result(user_data_result)
 
     if args.keep_intermediate_files:
         print(
@@ -709,6 +778,8 @@ def _run_garmin_sync(args: argparse.Namespace, project_config: ProjectConfig) ->
         len(measurement_result.written),
         measurement_result.normalized_root,
     )
+    user_data_result = normalize_garmin_user_data(project_config.data_root)
+    _print_user_data_normalization_result("Garmin Connect", user_data_result)
     _normalize_manual_measurements_if_available(project_config)
 
     _run_consolidation(project_config)

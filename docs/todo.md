@@ -60,6 +60,11 @@
   sin cambios
 - [x] hacer incremental el backfill Garmin: paginar listados y saltar
   actividades ya completas hasta encontrar pendientes
+- [x] ampliar Garmin Connect con perfil/settings, equipación declarada,
+  estadísticas de equipación, dispositivos y equipación usada por actividad
+  cuando Garmin la expone
+- [x] normalizar y consolidar atleta/equipación entre Strava y Garmin Connect
+  en `20_consolidado/athletes.jsonl` y `20_consolidado/equipment.jsonl`
 
 ## Pendiente de validación
 
@@ -96,18 +101,23 @@
 - [x] Alinear ergonomía CLI común entre Strava y Garmin Connect: ambas fuentes
   usan `sync`, `--skip-fetch`, `--force`, `--max-activities`, `--lock-file`,
   `--after` y `--before`; las opciones específicas quedan separadas por API.
-- [ ] Ampliar Garmin Connect para bajar todos los datos útiles del usuario, no
-  solo actividades deportivas.
+- [x] Ampliar Garmin Connect para bajar datos útiles iniciales del usuario:
+  perfil/settings, equipación, dispositivos y mediciones de peso/composición.
 - [x] Incorporar mediciones biométricas: descarga de peso/composición desde
   Garmin Connect, normalización de `manual/biometria/mediciones_carlos.csv` y
   consolidación multi-fuente en `20_consolidado/measurements.jsonl`.
 - [ ] Asegurar que las actividades normalizadas identifican y clasifican bien el
   tipo de actividad, deporte e indicadores específicos, por ejemplo senderismo
   o peso levantado en gimnasio.
-- [ ] Recoger la equipación usada por actividad y guardar el detalle de cada
+- [x] Recoger la equipación usada por actividad y guardar el detalle de cada
   elemento de equipación, incluyendo bicicletas, para mejorar análisis como la
   estimación de potencia.
-- [ ] Verificar y completar, si hace falta, la recogida de equipación en Strava.
+- [x] Verificar y completar, si hace falta, la recogida de equipación en Strava.
+- [ ] Ampliar el modelo manual de equipación para registrar specs no presentes
+  en APIs, por ejemplo peso real en orden de marcha, ruedas, cubiertas,
+  desarrollos o cambios de componentes.
+- [ ] Investigar datos Garmin adicionales de salud/recuperación/sueño si
+  aportan valor deportivo y pueden sincronizarse de forma autónoma.
 - [ ] Permitir que el consolidado integre actividades subidas a mano desde FIT,
   GPX, TCX u otros formatos, deduplicándolas frente a Strava/Garmin si
   representan la misma actividad.
@@ -115,3 +125,7 @@
   modificado, evitar releer/reconstruir splits, typed splits, normalizados y
   consolidados completos. Mantener comandos explícitos para reconstrucción
   completa cuando haga falta.
+- [ ] Optimizar `strava sync --skip-fetch` sobre Drive: evitar lecturas
+  masivas de segmentos y actividades cuando no hay raw nuevo. Ya existe caché
+  de segmentos en memoria por ejecución, pero falta una estrategia incremental
+  equivalente a Garmin para reconstrucciones grandes.

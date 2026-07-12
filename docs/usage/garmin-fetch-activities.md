@@ -1,7 +1,8 @@
 # Sincronización Garmin Connect
 
 `nono-sports garmin sync` encadena descarga raw, decodificación FIT,
-normalización Garmin Connect y consolidación multi-fuente.
+normalización Garmin Connect y consolidación multi-fuente. En el flujo normal
+también descarga mediciones recientes y datos de usuario/equipación.
 
 Usa el tokenstore validado en:
 
@@ -30,6 +31,18 @@ aislada o reautenticar manualmente antes de automatizar.
 Por defecto descarga FIT original y no descarga GPX/TCX para reducir llamadas.
 Garmin entrega el formato `ORIGINAL` como ZIP; `nono-sports` conserva ese ZIP y
 extrae el FIT interno.
+
+El flujo normal también intenta descargar:
+
+- perfil y settings del usuario
+- equipación declarada y estadísticas de equipación
+- dispositivos Garmin conocidos, último dispositivo usado y dispositivo
+  principal de entrenamiento
+- equipación asociada a cada actividad cuando Garmin la expone
+
+Estas partes son de solo lectura y reutilizan el tokenstore. Si una pieza
+secundaria de equipación o dispositivos no está disponible, la sincronización
+debe poder continuar con los datos restantes.
 
 Si una actividad no procede de un dispositivo Garmin sino de una importación,
 por ejemplo un GPX subido a Garmin Connect, el ZIP `ORIGINAL` puede no contener
@@ -115,6 +128,10 @@ Para ejecutar solo la parte offline sobre raw ya descargado:
 ./.venv/bin/python -m nono_sports garmin sync --skip-fetch
 ```
 
+Con `--skip-fetch` no se llama a Garmin Connect. Solo se reconstruyen
+normalizados y consolidados desde raw ya existente, incluyendo
+`athletes.jsonl`, `equipment.jsonl` y `measurements.jsonl`.
+
 ## Opciones
 
 ```bash
@@ -123,6 +140,8 @@ Para ejecutar solo la parte offline sobre raw ya descargado:
 ./.venv/bin/python -m nono_sports garmin sync --skip-fit
 ./.venv/bin/python -m nono_sports garmin sync --include-gpx
 ./.venv/bin/python -m nono_sports garmin sync --include-tcx
+./.venv/bin/python -m nono_sports garmin sync --skip-measurements
+./.venv/bin/python -m nono_sports garmin sync --skip-user-data
 ./.venv/bin/python -m nono_sports garmin sync --lock-file /ruta/garmin.lock
 ```
 
@@ -144,6 +163,7 @@ Los comandos parciales siguen disponibles para diagnóstico:
 ./.venv/bin/python -m nono_sports garmin fetch-activities --skip-fit
 ./.venv/bin/python -m nono_sports garmin fetch-activities --include-gpx
 ./.venv/bin/python -m nono_sports garmin fetch-activities --include-tcx
+./.venv/bin/python -m nono_sports garmin fetch-user-data
 ```
 
 ## Salida raw
@@ -154,6 +174,8 @@ La estructura inicial es:
 10_fuentes/garmin_connect/
 ├── raw/
 │   ├── manifest.jsonl
+│   ├── athlete/profile.json
+│   ├── athlete/settings.json
 │   ├── activities_index_<start>.json
 │   ├── activities/<id>.json
 │   ├── activities/<id>.details.json
@@ -161,6 +183,10 @@ La estructura inicial es:
 │   ├── activity_files/<id>.fit
 │   ├── activity_files/<id>.gpx
 │   ├── activity_files/<id>.tcx
+│   ├── gear/gear.json
+│   ├── gear/activity_<id>.json
+│   ├── gear/stats/<gear_id>.json
+│   ├── devices/devices.json
 │   ├── fit_decoded/<id>.fitdecode.json  # solo diagnóstico explícito
 │   ├── splits/<id>.json
 │   ├── splits/<id>.summaries.json
@@ -243,6 +269,8 @@ La normalización es incremental: guarda fingerprints por actividad en
 `normalizado/state.json` y reutiliza los registros ya normalizados si el raw/FIT
 no ha cambiado. En la salida:
 
+- `athletes.jsonl`: perfil/settings Garmin normalizados.
+- `equipment.jsonl`: equipación declarada y dispositivos Garmin.
 - `processed`: actividades recalculadas desde raw/FIT.
 - `reused`: actividades reutilizadas sin volver a leer FIT decodificado.
 - `streams_index.jsonl` y `state.json` forman parte del contrato mínimo común

@@ -118,6 +118,33 @@ class GarminConnectClient:
     ) -> dict[str, Any]:
         return self._api.get_body_composition(start_date, end_date)
 
+    def get_user_profile(self) -> dict[str, Any]:
+        return self._api.get_user_profile()
+
+    def get_userprofile_settings(self) -> dict[str, Any]:
+        return self._api.get_userprofile_settings()
+
+    def get_gear(self, user_profile_number: str) -> dict[str, Any]:
+        return self._api.get_gear(user_profile_number)
+
+    def get_gear_defaults(self, user_profile_number: str) -> dict[str, Any]:
+        return self._api.get_gear_defaults(user_profile_number)
+
+    def get_gear_stats(self, gear_uuid: str) -> dict[str, Any]:
+        return self._api.get_gear_stats(gear_uuid)
+
+    def get_activity_gear(self, activity_id: str | int) -> dict[str, Any]:
+        return self._api.get_activity_gear(activity_id)
+
+    def get_devices(self) -> list[dict[str, Any]]:
+        return self._api.get_devices()
+
+    def get_device_last_used(self) -> dict[str, Any]:
+        return self._api.get_device_last_used()
+
+    def get_primary_training_device(self) -> dict[str, Any]:
+        return self._api.get_primary_training_device()
+
     def download_activity_file(
         self,
         activity_id: str | int,

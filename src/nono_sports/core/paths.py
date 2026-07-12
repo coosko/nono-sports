@@ -38,6 +38,8 @@ GARMIN_CONNECT_DIRECTORIES = [
     "10_fuentes/garmin_connect/raw/activity_files",
     "10_fuentes/garmin_connect/raw/biometrics",
     "10_fuentes/garmin_connect/raw/fit_decoded",
+    "10_fuentes/garmin_connect/raw/gear",
+    "10_fuentes/garmin_connect/raw/devices",
     "10_fuentes/garmin_connect/raw/splits",
     "10_fuentes/garmin_connect/raw/typed_splits",
     "10_fuentes/garmin_connect/raw/laps",

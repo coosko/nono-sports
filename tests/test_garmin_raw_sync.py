@@ -32,6 +32,9 @@ class FakeGarminApi:
     def get_activity_weather(self, activity_id):
         return {"activityId": activity_id, "weather": "clear"}
 
+    def get_activity_gear(self, activity_id):
+        return {"activityId": activity_id, "gear": [{"gearUuid": "bike-1"}]}
+
     def download_activity(self, activity_id, dl_fmt):
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w") as archive:
@@ -173,7 +176,7 @@ def test_sync_garmin_activities_raw_writes_expected_files(tmp_path) -> None:
     assert result.listed_activities == 1
     assert result.processed_activities == 1
     assert result.skipped_activities == 0
-    assert len(result.written) == 9
+    assert len(result.written) == 10
     raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
     assert (raw_root / "activities_index_0.json").is_file()
     assert (raw_root / "activities/123.json").is_file()
@@ -182,6 +185,7 @@ def test_sync_garmin_activities_raw_writes_expected_files(tmp_path) -> None:
     assert (raw_root / "typed_splits/123.json").is_file()
     assert (raw_root / "splits/123.summaries.json").is_file()
     assert (raw_root / "weather/123.json").is_file()
+    assert (raw_root / "gear/activity_123.json").is_file()
     assert (raw_root / "activity_files/123.original.zip").is_file()
     assert (raw_root / "activity_files/123.fit").is_file()
 
@@ -207,11 +211,13 @@ def test_sync_garmin_activities_raw_paginates_until_pending_activity(tmp_path) -
     state = state_store.load()
     state["activities"]["1"] = {
         "activity": "activities/1.json",
+        "activity_gear": "gear/activity_1.json",
         "details": "activities/1.details.json",
         "fit": "activity_files/1.fit",
     }
     state["activities"]["2"] = {
         "activity": "activities/2.json",
+        "activity_gear": "gear/activity_2.json",
         "details": "activities/2.details.json",
         "fit": "activity_files/2.fit",
     }

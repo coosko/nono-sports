@@ -30,6 +30,7 @@ class GarminActivitySnapshot:
     typed_splits: dict[str, Any] | None = None
     split_summaries: dict[str, Any] | None = None
     weather: dict[str, Any] | None = None
+    activity_gear: dict[str, Any] | None = None
     fit: bytes | None = None
 
 
@@ -299,6 +300,17 @@ def _download_activity_parts(
         raw_path=f"weather/{safe_activity_id}.json",
         activity_id=activity_key,
     )
+    _download_optional_json_part(
+        lambda: client.get_activity_gear(activity_key),
+        raw_store,
+        state_entry,
+        written,
+        recoverable_errors,
+        part="activity_gear",
+        endpoint="get_activity_gear",
+        raw_path=f"gear/activity_{safe_activity_id}.json",
+        activity_id=activity_key,
+    )
     if include_fit:
         has_fit = _download_original_activity_file_part(
             lambda: client.download_activity_file(
@@ -374,6 +386,7 @@ def collect_activity_snapshot(
             source_id,
         ),
         weather=_optional_read(client.get_activity_weather, source_id),
+        activity_gear=_optional_read(client.get_activity_gear, source_id),
         fit=(
             client.download_activity_file(source_id, GarminActivityFileFormat.FIT)
             if include_fit
@@ -626,6 +639,10 @@ def _record_warning(
 
 def _activity_complete(state_entry: dict[str, Any]) -> bool:
     if not state_entry.get("activity") or not state_entry.get("details"):
+        return False
+    if not state_entry.get("activity_gear") and not state_entry.get(
+        "activity_gear_error"
+    ):
         return False
     if state_entry.get("fit"):
         return True

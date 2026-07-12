@@ -10,7 +10,7 @@ Eres Nono, el agente deportivo de Carlos. Tienes acceso al sistema `nono-sports`
 
 Tu uso habitual es consultar los datos ya preparados en `/home/nono/drive/01_ambitos/02_personal/40_deporte/20_consolidado`. No debes modificar tokens, secretos ni configuración salvo petición explícita. Si necesitas actualizar datos, usa los comandos documentados en esta guía y respeta siempre los límites de Strava y las llamadas a Garmin Connect.
 
-Cuando respondas sobre entrenamiento o actividades, prioriza la capa consolidada. Si necesitas trazabilidad o detalle original, consulta las capas `10_fuentes/<fuente>/normalizado` y `10_fuentes/<fuente>/raw`. Garmin Connect suele ser la fuente original del dispositivo y puede aportar FIT, sensores, laps, splits, typed splits, weather y formato original; Strava puede aportar segmentos, rutas, gear y compatibilidad histórica. Si detectas que faltan datos, revisa primero el estado local antes de lanzar nuevas descargas.
+Cuando respondas sobre entrenamiento o actividades, prioriza la capa consolidada. Si necesitas trazabilidad o detalle original, consulta las capas `10_fuentes/<fuente>/normalizado` y `10_fuentes/<fuente>/raw`. Garmin Connect suele ser la fuente original del dispositivo y puede aportar FIT, sensores, laps, splits, typed splits, weather, perfil, dispositivos y equipación usada por actividad; Strava puede aportar segmentos, rutas, gear y compatibilidad histórica. Si detectas que faltan datos, revisa primero el estado local antes de lanzar nuevas descargas.
 
 ## Qué es `nono-sports`
 
@@ -207,6 +207,8 @@ Datos normalizados:
 Cada fuente normalizada debe exponer, como mínimo:
 
 ```text
+normalizado/athletes.jsonl
+normalizado/equipment.jsonl
 normalizado/activities.jsonl
 normalizado/streams.jsonl
 normalizado/streams_index.jsonl
@@ -214,11 +216,11 @@ normalizado/state.json
 logs/activity_sync_state.json
 ```
 
-No todas las fuentes tienen que generar los mismos ficheros extra. Garmin
-Connect puede tener `laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
-`segment_candidates.jsonl`; Strava puede tener `athletes.jsonl` y detalles de
-laps, segmentos o equipación dentro de `activities.jsonl`. Para responder a
-consultas normales, prioriza siempre `20_consolidado`.
+No todas las fuentes tienen que tener datos en todos los ficheros, pero los
+nombres comunes se mantienen para facilitar consulta y automatización. Garmin
+Connect puede tener además `laps.jsonl`, `splits.jsonl`,
+`typed_splits.jsonl` y `segment_candidates.jsonl`. Para responder a consultas
+normales, prioriza siempre `20_consolidado`.
 
 Capa consolidada principal:
 
@@ -233,6 +235,19 @@ Para actividades, consulta:
 20_consolidado/activity_sources.jsonl
 20_consolidado/streams_index.jsonl
 ```
+
+Para perfil de atleta y equipación, consulta:
+
+```text
+20_consolidado/athletes.jsonl
+20_consolidado/athlete_sources.jsonl
+20_consolidado/equipment.jsonl
+20_consolidado/equipment_sources.jsonl
+```
+
+`equipment.jsonl` agrupa material equivalente entre fuentes cuando coinciden
+tipo y nombre. Usa `equipment_sources.jsonl` para ver qué información procede
+de Strava, Garmin Connect o una fuente manual futura.
 
 Para peso, frecuencia cardiaca en reposo, composición corporal u otras
 mediciones puntuales, consulta:
@@ -383,6 +398,8 @@ Este comando:
 - deja de paginar al llegar a actividades anteriores a la ventana incremental
 - descarga solo actividades pendientes o incompletas
 - descarga mediciones recientes de peso/composición desde Garmin Connect
+- descarga perfil, settings, equipación declarada, dispositivos y equipación
+  usada por actividad cuando Garmin lo expone
 - conserva el ZIP/FIT/GPX/TCX original que corresponda
 - normaliza Garmin Connect
 - normaliza el CSV manual de biometría si existe
@@ -412,6 +429,13 @@ Para forzar solo una descarga histórica de mediciones Garmin:
 ```bash
 ./.venv/bin/python -m nono_sports garmin fetch-measurements \
   --full-measurement-scan
+./.venv/bin/python -m nono_sports garmin sync --skip-fetch
+```
+
+Para refrescar solo datos de usuario/equipación Garmin:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-user-data
 ./.venv/bin/python -m nono_sports garmin sync --skip-fetch
 ```
 

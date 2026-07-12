@@ -36,6 +36,12 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 - RF22: El sistema debe normalizar y consolidar mediciones como peso,
   frecuencia cardiaca en reposo, composición corporal u otras métricas futuras
   mediante un contrato común.
+- RF23: El sistema debe importar datos útiles del usuario/atleta desde las
+  fuentes disponibles, normalizarlos por fuente y consolidarlos en una vista
+  común auditable.
+- RF24: El sistema debe importar equipación usada o declarada por las fuentes,
+  incluyendo bicicletas, zapatillas, dispositivos y sensores cuando existan,
+  con detalle por fuente y relación con actividades cuando la API lo exponga.
 
 ## Requisitos de datos
 
@@ -56,6 +62,18 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 - RDAT10: Las mediciones consolidadas deben escribirse en
   `20_consolidado/measurements.jsonl` y conservar enlaces fuente en
   `20_consolidado/measurement_sources.jsonl`.
+- RDAT11: Los perfiles de atleta normalizados deben escribirse por fuente en
+  `normalizado/athletes.jsonl`; la vista multi-fuente se escribe en
+  `20_consolidado/athletes.jsonl` y sus enlaces en
+  `20_consolidado/athlete_sources.jsonl`.
+- RDAT12: La equipación normalizada debe escribirse por fuente en
+  `normalizado/equipment.jsonl`; la vista multi-fuente se escribe en
+  `20_consolidado/equipment.jsonl` y sus enlaces en
+  `20_consolidado/equipment_sources.jsonl`.
+- RDAT13: La equipación debe usar un contrato extensible con `equipment_type`,
+  `name`, `brand`, `model`, `distance_m`, `weight_kg`, `attributes` y
+  `source_reference`, para permitir fusionar datos complementarios de Strava,
+  Garmin Connect, fuentes manuales u otras fuentes futuras.
 
 ## Requisitos no funcionales
 

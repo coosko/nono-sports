@@ -9,7 +9,9 @@ El proyecto tiene Strava v1 y Garmin Connect v1 operativos. El código activo pe
 - paquete Python en `src/nono_sports/`
 - comandos para diagnosticar entorno, preparar directorios, autenticar Strava, sincronizar Strava y Garmin Connect, normalizar raw por fuente, construir `20_consolidado` y validar datos
 - documentación canónica de requisitos y arquitectura
-- Garmin Connect integrado con descarga raw, FIT/GPX/TCX, normalización incremental, consolidación multi-fuente y limpieza de intermedios pesados
+- Garmin Connect integrado con descarga raw, FIT/GPX/TCX, perfil/equipación,
+  mediciones, normalización incremental, consolidación multi-fuente y limpieza
+  de intermedios pesados
 - código bootstrap anterior archivado en `deprecated/initial-bootstrap/`
 
 Documento de referencia del estado real:
@@ -119,6 +121,7 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   │   │   └── manifest.jsonl
 │   │   ├── normalizado/
 │   │   │   ├── athletes.jsonl
+│   │   │   ├── equipment.jsonl
 │   │   │   ├── activities.jsonl
 │   │   │   ├── streams.jsonl
 │   │   │   ├── streams_index.jsonl
@@ -127,15 +130,20 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   │       └── activity_sync_state.json
 │   ├── garmin_connect/
 │   │   ├── raw/
+│   │   │   ├── athlete/
 │   │   │   ├── activities/
 │   │   │   ├── activity_files/
 │   │   │   ├── biometrics/
+│   │   │   ├── devices/
 │   │   │   ├── fit_decoded/
+│   │   │   ├── gear/
 │   │   │   ├── splits/
 │   │   │   ├── typed_splits/
 │   │   │   ├── weather/
 │   │   │   └── manifest.jsonl
 │   │   ├── normalizado/
+│   │   │   ├── athletes.jsonl
+│   │   │   ├── equipment.jsonl
 │   │   │   ├── activities.jsonl
 │   │   │   ├── streams.jsonl
 │   │   │   ├── streams_index.jsonl
@@ -163,6 +171,10 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   ├── measurements.jsonl
 │   ├── measurement_sources.jsonl
 │   ├── measurements_state.json
+│   ├── athletes.jsonl
+│   ├── athlete_sources.jsonl
+│   ├── equipment.jsonl
+│   ├── equipment_sources.jsonl
 │   └── state.json
 ├── 30_analisis/
 │   ├── informes/

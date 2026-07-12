@@ -4,8 +4,8 @@ Este documento describe la construcción de la capa `20_consolidado` para consum
 
 ## Objetivo
 
-La consolidación inicial crea una vista única de actividades a partir de las
-capas normalizadas disponibles.
+La consolidación inicial crea vistas únicas de actividades, mediciones,
+atleta y equipación a partir de las capas normalizadas disponibles.
 
 La estrategia actual es `multi_source_initial`: mantiene compatibilidad con
 Strava como fuente primaria cuando solo existe Strava, pero ya permite agrupar
@@ -22,7 +22,11 @@ El comando no llama a APIs externas. Lee:
 ```text
 10_fuentes/strava/normalizado/activities.jsonl
 10_fuentes/strava/normalizado/streams.jsonl
+10_fuentes/strava/normalizado/athletes.jsonl
+10_fuentes/strava/normalizado/equipment.jsonl
 10_fuentes/garmin_connect/normalizado/activities.jsonl
+10_fuentes/garmin_connect/normalizado/athletes.jsonl
+10_fuentes/garmin_connect/normalizado/equipment.jsonl
 10_fuentes/garmin_connect/normalizado/measurements.jsonl
 10_fuentes/manual/normalizado/measurements.jsonl
 ```
@@ -40,6 +44,11 @@ Y escribe:
 20_consolidado/measurements.jsonl
 20_consolidado/measurement_sources.jsonl
 20_consolidado/measurements_state.json
+20_consolidado/athletes.jsonl
+20_consolidado/athlete_sources.jsonl
+20_consolidado/equipment.jsonl
+20_consolidado/equipment_sources.jsonl
+20_consolidado/user_data_state.json
 ```
 
 Cada ejecución reescribe la salida consolidada desde los normalizados disponibles.
@@ -70,6 +79,15 @@ cardiaca en reposo o composición corporal.
 
 `measurement_sources.jsonl` conserva los enlaces a cada medición fuente.
 
+`athletes.jsonl` contiene la identidad consolidada del atleta/usuario del
+proyecto, con datos complementarios procedentes de las fuentes disponibles.
+
+`equipment.jsonl` contiene bicicletas, zapatillas, dispositivos y otro material
+consolidado por tipo y nombre normalizado.
+
+`athlete_sources.jsonl` y `equipment_sources.jsonl` conservan la trazabilidad de
+cada registro consolidado hacia sus fuentes.
+
 ## Estrategia v1
 
 - `strategy`: `multi_source_initial`
@@ -84,6 +102,8 @@ cardiaca en reposo o composición corporal.
 - `activity_sources.jsonl`: un enlace por fuente normalizada
 - `duplicate_candidates.jsonl`: informe auditable de agrupaciones ya aplicadas,
   con estrategia, confianza y señales
+- `equipment.jsonl`: agrupación inicial por `equipment_type` y nombre
+  normalizado, manteniendo enlaces de fuente
 
 La selección avanzada por tipo de métrica todavía no está aprobada. Por ejemplo,
 Garmin puede ser mejor para sensores/FIT y Strava para segmentos sociales, pero
@@ -93,10 +113,11 @@ esa decisión queda para la siguiente iteración de consolidación.
 
 Después de ejecutar el comando, revisa:
 
-- que existen los cinco ficheros esperados en `20_consolidado`
+- que existen los ficheros esperados en `20_consolidado`
 - que `state.json` muestra los conteos esperados
 - que cada actividad tiene `consolidated_activity_uid`
 - que cada actividad tiene un enlace correspondiente en `activity_sources.jsonl`
 - que una actividad con stream tiene entrada en `streams_index.jsonl`
 - que los candidatos de `duplicate_candidates.jsonl` son agrupaciones correctas
   antes de endurecer reglas
+- que `equipment_sources.jsonl` enlaza cada equipación consolidada con su fuente

@@ -22,6 +22,7 @@ Y escribe:
 
 ```text
 10_fuentes/strava/normalizado/athletes.jsonl
+10_fuentes/strava/normalizado/equipment.jsonl
 10_fuentes/strava/normalizado/activities.jsonl
 10_fuentes/strava/normalizado/streams.jsonl
 10_fuentes/strava/normalizado/streams_index.jsonl
@@ -30,9 +31,10 @@ Y escribe:
 
 Cada ejecución reescribe los JSONL desde los raw disponibles, por lo que es idempotente.
 
-`streams_index.jsonl` y `state.json` forman parte del contrato mínimo común de
-normalizados por fuente. No sustituyen a `streams.jsonl`: permiten localizar
-streams y revisar conteos/entradas sin leer todos los datos de detalle.
+`athletes.jsonl`, `equipment.jsonl`, `streams_index.jsonl` y `state.json`
+forman parte del contrato mínimo común de normalizados por fuente.
+`streams_index.jsonl` no sustituye a `streams.jsonl`: permite localizar streams
+y revisar conteos/entradas sin leer todos los datos de detalle.
 
 ## Contrato de actividad
 

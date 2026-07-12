@@ -35,6 +35,7 @@ Este backlog deriva de `requirements.md` y `architecture.md`.
 - [x] Alinear contrato mínimo de salidas normalizadas entre fuentes
 - [x] Alinear ergonomía de comandos comunes entre Strava y Garmin Connect
 - [x] Incorporar mediciones biométricas Garmin/manual y consolidado común
+- [x] Incorporar perfil/equipación Garmin y Strava con consolidado común
 
 ## Prioridad futura
 
@@ -45,8 +46,9 @@ Este backlog deriva de `requirements.md` y `architecture.md`.
 - [ ] Informes y análisis para Nono
 - [ ] Segmentos propios de Nono
 - [ ] Salud/recuperación Garmin
-- [ ] Descarga de datos completos de usuario Garmin más allá de actividades
+- [x] Descarga inicial de datos útiles de usuario Garmin más allá de actividades
 - [ ] Clasificación avanzada por tipo de actividad e indicadores específicos
-- [ ] Equipación por actividad y catálogo de equipación por fuente
+- [x] Equipación por actividad y catálogo de equipación por fuente
+- [ ] Modelo manual de equipación y componentes para specs no presentes en APIs
 - [ ] Consolidación de actividades importadas manualmente con deduplicación
   frente a actividades de fuentes conectadas

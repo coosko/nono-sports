@@ -2,13 +2,15 @@
 
 Este documento es la fuente de verdad técnica del proyecto.
 
-## Objetivo de la v1
+## Objetivo operativo
 
-La primera versión debe permitir que Nono recoja de Strava la información más completa posible del atleta autenticado, preserve los datos originales y genere una base normalizada preparada para consolidación posterior.
+El sistema debe permitir que Nono recoja datos deportivos, biométricos, de
+atleta y de equipación desde Strava, Garmin Connect y fuentes manuales,
+preserve los datos originales y genere una capa normalizada y consolidada
+preparada para consulta y análisis.
 
-La v1 se centra solo en Strava, pero la arquitectura debe permitir añadir Garmin, Komoot o importaciones manuales sin rehacer el núcleo.
-
-Garmin Connect queda aprobado como siguiente fuente objetivo, documentada en `docs/requirements/garmin-connect.md`.
+La arquitectura debe permitir añadir Garmin, Komoot, rutas externas o
+importaciones manuales FIT/GPX/TCX/CSV sin rehacer el núcleo.
 
 ## Fuentes oficiales consultadas
 
@@ -50,11 +52,12 @@ No se pedirá `activity:write` ni `profile:write` en la v1.
 CLI
   -> configuración
   -> autenticación Strava
-  -> cliente Strava
+  -> tokenstore Garmin Connect
+  -> clientes por fuente
   -> sincronización
   -> almacenamiento raw
   -> normalización
-  -> consolidación inicial
+  -> consolidación multi-fuente
   -> validación
 ```
 
@@ -96,18 +99,28 @@ src/nono_sports/
 │   ├── source.py
 │   ├── activity.py
 │   ├── athlete.py
+│   ├── equipment.py
+│   ├── measurement.py
 │   └── stream.py
 ├── normalization/
 │   ├── strava_activity.py
 │   ├── strava_athlete.py
+│   ├── strava_equipment.py
 │   ├── strava_dataset.py
 │   ├── strava_stream.py
-│   ├── garmin_connect_activity.py
-│   ├── garmin_connect_athlete.py
-│   ├── garmin_connect_dataset.py
-│   └── garmin_connect_stream.py
+│   ├── garmin_activity.py
+│   ├── garmin_dataset.py
+│   ├── garmin_measurements.py
+│   ├── garmin_user_data.py
+│   ├── garmin_stream.py
+│   ├── manual_measurements.py
+│   ├── measurement_utils.py
+│   └── equipment_utils.py
 ├── consolidation/
-│   └── single_source.py
+│   ├── multi_source.py
+│   ├── measurements.py
+│   ├── single_source.py
+│   └── user_data.py
 ├── automation/
 │   └── adaptive.py
 └── validation/
@@ -216,6 +229,12 @@ Datos objetivo:
 - typed splits
 - laps
 - weather
+- equipación usada por actividad cuando Garmin la exponga
+- perfil/settings del usuario
+- equipación declarada y estadísticas de equipación
+- dispositivos Garmin conocidos, último dispositivo usado y dispositivo
+  principal de entrenamiento cuando estén disponibles
+- mediciones de peso/composición corporal
 - candidatos de segmentos si aparecen en payloads o ficheros
 
 Garmin preserva ficheros originales y contenedores. El parseo de FIT no vive en
@@ -309,32 +328,49 @@ Define contratos internos estables:
 - `SourceRecord`
 - `NormalizedAthlete`
 - `NormalizedActivity`
+- `NormalizedEquipment`
+- `NormalizedMeasurement`
 - `NormalizedStream`
 - `ConsolidatedActivity`
+- `ConsolidatedEquipment`
 - `ActivitySourceLink`
 
-Estos modelos no deben depender de Strava.
+Estos modelos no deben depender de Strava ni de Garmin Connect.
 
 ### `normalization`
 
-Convierte raw de Strava a modelos comunes:
+Convierte raw de cada fuente a modelos comunes:
 
 - atleta
 - actividad
 - streams
 - zonas
 - equipo
+- mediciones
 - rutas
 
 La normalización nunca debe borrar la trazabilidad hacia el fichero raw original.
 
-La salida normalizada Strava v1 se escribe como JSONL en:
+La salida normalizada por fuente se escribe como JSONL en:
 
-- `10_fuentes/strava/normalizado/athletes.jsonl`
-- `10_fuentes/strava/normalizado/activities.jsonl`
-- `10_fuentes/strava/normalizado/streams.jsonl`
+- `normalizado/athletes.jsonl`
+- `normalizado/equipment.jsonl`
+- `normalizado/activities.jsonl`
+- `normalizado/streams.jsonl`
+- `normalizado/streams_index.jsonl`
+- `normalizado/measurements.jsonl`
+- `normalizado/state.json`
 
-Los modelos usan identificadores estables `strava:<tipo>:<id>`, unidades SI y campos opcionales para deportes sin distancia clara o para datos complementarios de futuras fuentes.
+Los modelos usan identificadores estables `<fuente>:<tipo>:<id>`, unidades SI
+y campos opcionales para deportes sin distancia clara o para datos
+complementarios de futuras fuentes.
+
+`equipment.jsonl` es el contrato común para bicicletas, zapatillas,
+dispositivos, sensores o material equivalente. Las fuentes pueden aportar
+información complementaria sobre la misma pieza: Strava puede aportar cambios o
+uso histórico, Garmin Connect puede aportar uso del dispositivo o equipación por
+actividad, y una fuente manual futura puede aportar peso, ruedas, cubiertas o
+configuración real.
 
 ### `consolidation`
 
@@ -346,6 +382,8 @@ Responsabilidad:
 - mantener Strava como fuente primaria inicial por compatibilidad
 - permitir varios enlaces fuente por actividad consolidada
 - detectar duplicados candidatos entre Strava y Garmin Connect
+- consolidar atleta/equipación entre fuentes
+- consolidar mediciones biométricas y métricas puntuales
 - conservar trazabilidad completa antes de elegir fuente por métrica
 
 La salida consolidada inicial se escribe en:
@@ -353,6 +391,12 @@ La salida consolidada inicial se escribe en:
 - `20_consolidado/activities.jsonl`
 - `20_consolidado/activity_sources.jsonl`
 - `20_consolidado/streams_index.jsonl`
+- `20_consolidado/athletes.jsonl`
+- `20_consolidado/athlete_sources.jsonl`
+- `20_consolidado/equipment.jsonl`
+- `20_consolidado/equipment_sources.jsonl`
+- `20_consolidado/measurements.jsonl`
+- `20_consolidado/measurement_sources.jsonl`
 - `20_consolidado/duplicate_candidates.jsonl`
 - `20_consolidado/state.json`
 
@@ -439,6 +483,7 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   │   │   └── manifest.jsonl
 │   │   ├── normalizado/
 │   │   │   ├── athletes.jsonl
+│   │   │   ├── equipment.jsonl
 │   │   │   ├── activities.jsonl
 │   │   │   ├── streams.jsonl
 │   │   │   ├── streams_index.jsonl
@@ -451,7 +496,9 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   │   │   ├── activities/
 │   │   │   ├── activity_files/
 │   │   │   ├── biometrics/
+│   │   │   ├── devices/
 │   │   │   ├── fit_decoded/          # diagnóstico explícito, no flujo normal
+│   │   │   ├── gear/
 │   │   │   ├── splits/
 │   │   │   ├── typed_splits/
 │   │   │   ├── laps/
@@ -460,6 +507,7 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   │   │   └── manifest.jsonl
 │   │   ├── normalizado/
 │   │   │   ├── athletes.jsonl
+│   │   │   ├── equipment.jsonl
 │   │   │   ├── activities.jsonl
 │   │   │   ├── streams.jsonl
 │   │   │   ├── streams_index.jsonl
@@ -484,6 +532,10 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   ├── activities.jsonl
 │   ├── activity_sources.jsonl
 │   ├── streams_index.jsonl
+│   ├── athletes.jsonl
+│   ├── athlete_sources.jsonl
+│   ├── equipment.jsonl
+│   ├── equipment_sources.jsonl
 │   ├── measurements.jsonl
 │   ├── measurement_sources.jsonl
 │   ├── measurements_state.json
@@ -500,6 +552,10 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 Contrato mínimo por fuente normalizada:
 
 - `normalizado/activities.jsonl`: actividades en el esquema común.
+- `normalizado/athletes.jsonl`: perfil/atleta normalizado cuando la fuente lo
+  aporta.
+- `normalizado/equipment.jsonl`: equipación/dispositivos normalizados cuando
+  la fuente los aporta.
 - `normalizado/streams.jsonl`: streams normalizados cuando existan.
 - `normalizado/streams_index.jsonl`: índice ligero para localizar streams sin
   leer todo el fichero de streams.
@@ -509,9 +565,8 @@ Contrato mínimo por fuente normalizada:
 
 Cada fuente puede añadir ficheros específicos si aportan valor real. Garmin
 Connect añade `laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
-`segment_candidates.jsonl`; Strava mantiene `athletes.jsonl` y conserva
-laps/segmentos/equipación dentro del registro de actividad porque esa es la
-forma más útil con su raw actual.
+`segment_candidates.jsonl`; Strava y Garmin Connect escriben `athletes.jsonl`
+y `equipment.jsonl` como contrato común.
 
 Contrato de mediciones:
 

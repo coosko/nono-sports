@@ -138,6 +138,13 @@ def test_parser_accepts_garmin_fetch_measurements_options() -> None:
     assert args.full_measurement_scan is True
 
 
+def test_parser_accepts_garmin_fetch_user_data_command() -> None:
+    args = build_parser().parse_args(["garmin", "fetch-user-data"])
+
+    assert args.command == "garmin"
+    assert args.garmin_command == "fetch-user-data"
+
+
 def test_parser_accepts_garmin_decode_fit_options() -> None:
     args = build_parser().parse_args(
         [
@@ -198,6 +205,7 @@ def test_parser_accepts_garmin_sync_options() -> None:
             "--include-tcx",
             "--include-gpx",
             "--skip-measurements",
+            "--skip-user-data",
             "--start-date",
             "2023-01-01",
             "--end-date",
@@ -224,6 +232,7 @@ def test_parser_accepts_garmin_sync_options() -> None:
     assert args.include_tcx is True
     assert args.include_gpx is True
     assert args.skip_measurements is True
+    assert args.skip_user_data is True
     assert args.start_date == "2023-01-01"
     assert args.end_date == "2026-07-12"
     assert args.lock_file == "garmin.lock"

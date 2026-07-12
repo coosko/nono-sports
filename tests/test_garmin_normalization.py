@@ -14,6 +14,10 @@ def test_normalize_garmin_dataset_writes_common_outputs(tmp_path: Path) -> None:
     _write_json(raw_root / "splits" / "234.json", {"activityId": 234, "lapDTOs": []})
     _write_json(raw_root / "typed_splits" / "234.json", {"activityId": 234})
     _write_json(raw_root / "weather" / "234.json", {"condition": "sunny"})
+    _write_json(
+        raw_root / "gear" / "activity_234.json",
+        {"gear": [{"gearUuid": "bike-1", "gearName": "Reacto"}]},
+    )
     _write_manifest(raw_root / "manifest.jsonl")
 
     result = normalize_garmin_dataset(tmp_path)
@@ -46,6 +50,8 @@ def test_normalize_garmin_dataset_writes_common_outputs(tmp_path: Path) -> None:
     assert activity["duration"]["elapsed_time_s"] == 4208
     assert activity["stream_uid"] == "garmin_connect:stream:234"
     assert activity["completeness"]["has_decoded_fit"] is True
+    assert activity["completeness"]["has_activity_gear"] is True
+    assert activity["gear"]["activity_gear"]["gear"][0]["gearName"] == "Reacto"
 
     streams = _read_jsonl(
         tmp_path / "10_fuentes" / "garmin_connect" / "normalizado" / "streams.jsonl"

@@ -89,16 +89,22 @@ def test_normalize_strava_dataset_writes_jsonl_outputs(tmp_path: Path) -> None:
     result = normalize_strava_dataset(tmp_path)
 
     assert result.athletes == 1
+    assert result.equipment == 1
     assert result.activities == 1
     assert result.streams == 1
     assert result.streams_index == 1
     assert {item.relative_path for item in result.written} == {
         "athletes.jsonl",
+        "equipment.jsonl",
         "activities.jsonl",
         "streams.jsonl",
         "streams_index.jsonl",
         "state.json",
     }
+    equipment = _read_jsonl(tmp_path, "equipment.jsonl")
+    assert equipment[0]["equipment_uid"] == "strava:equipment:g1"
+    assert equipment[0]["equipment_type"] == "bike"
+    assert equipment[0]["brand"] == "Nono"
     activities = _read_jsonl(tmp_path, "activities.jsonl")
     assert activities[0]["activity_uid"] == "strava:activity:100"
     assert activities[0]["sport"]["family"] == "cycling"

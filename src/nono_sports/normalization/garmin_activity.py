@@ -35,10 +35,12 @@ def normalize_garmin_activity(
     splits_reference: SourceReference | None = None,
     typed_splits_reference: SourceReference | None = None,
     weather_reference: SourceReference | None = None,
+    activity_gear_reference: SourceReference | None = None,
     fit_messages: dict[str, list[dict[str, Any]]] | None = None,
     splits_payload: Any | None = None,
     typed_splits_payload: Any | None = None,
     weather_payload: Any | None = None,
+    activity_gear_payload: Any | None = None,
 ) -> NormalizedActivity:
     activity_id = _required_activity_id(activity)
     summary = _dict(activity.get("summaryDTO"))
@@ -56,6 +58,7 @@ def normalize_garmin_activity(
             splits_reference,
             typed_splits_reference,
             weather_reference,
+            activity_gear_reference,
         )
         if reference is not None
     ]
@@ -94,7 +97,7 @@ def normalize_garmin_activity(
         energy={"calories_kcal": _number(summary.get("calories"))},
         metrics=_metrics(summary),
         location=_location(activity, summary),
-        gear=_gear(metadata),
+        gear=_gear(metadata, activity_gear_payload),
         flags=_flags(activity, metadata),
         completeness={
             "has_detail": details_reference is not None,
@@ -103,6 +106,7 @@ def normalize_garmin_activity(
             "has_splits": splits_reference is not None,
             "has_typed_splits": typed_splits_reference is not None,
             "has_weather": weather_reference is not None,
+            "has_activity_gear": activity_gear_reference is not None,
             "has_fit": fit_reference is not None,
             "has_decoded_fit": decoded_fit_reference is not None,
             "has_gpx": gpx_reference is not None,
@@ -137,6 +141,7 @@ def normalize_garmin_activity(
             "manufacturer": metadata.get("manufacturer"),
             "source_origin": _source_origin(metadata),
             "weather": weather_payload if isinstance(weather_payload, dict) else {},
+            "activity_gear_summary": _summarize_payload(activity_gear_payload),
             "splits_summary": _summarize_payload(splits_payload),
             "typed_splits_summary": _summarize_payload(typed_splits_payload),
         },
@@ -199,7 +204,10 @@ def _location(activity: dict[str, Any], summary: dict[str, Any]) -> dict[str, An
     }
 
 
-def _gear(metadata: dict[str, Any]) -> dict[str, Any]:
+def _gear(
+    metadata: dict[str, Any],
+    activity_gear_payload: Any | None,
+) -> dict[str, Any]:
     device = _dict(metadata.get("deviceMetaDataDTO"))
     sensors = (
         metadata.get("sensors")
@@ -212,6 +220,11 @@ def _gear(metadata: dict[str, Any]) -> dict[str, Any]:
         "device_type_pk": device.get("deviceTypePk"),
         "device_version_pk": device.get("deviceVersionPk"),
         "sensors": sensors,
+        "activity_gear": (
+            activity_gear_payload
+            if isinstance(activity_gear_payload, dict | list)
+            else None
+        ),
     }
 
 

@@ -11,10 +11,12 @@ from typing import Any
 from nono_sports.core.paths import strava_path
 from nono_sports.domain.activity import NormalizedActivity
 from nono_sports.domain.athlete import NormalizedAthlete
+from nono_sports.domain.equipment import NormalizedEquipment
 from nono_sports.domain.source import SourceReference
 from nono_sports.domain.stream import NormalizedStream
 from nono_sports.normalization.strava_activity import normalize_strava_activity
 from nono_sports.normalization.strava_athlete import normalize_strava_athlete
+from nono_sports.normalization.strava_equipment import normalize_strava_equipment
 from nono_sports.normalization.strava_stream import normalize_strava_stream
 from nono_sports.storage.source_normalized_store import (
     SourceNormalizedStore,
@@ -27,6 +29,7 @@ SOURCE = "strava"
 @dataclass(frozen=True)
 class StravaNormalizationResult:
     athletes: int
+    equipment: int
     activities: int
     streams: int
     streams_index: int
@@ -46,6 +49,7 @@ def normalize_strava_dataset(
     store = SourceNormalizedStore(normalized_root)
 
     athletes = _normalize_athletes(raw_root, manifest_index)
+    equipment = _normalize_equipment(raw_root, manifest_index)
     activities, streams = _normalize_activities(raw_root, manifest_index)
     streams_index = [_stream_index(stream) for stream in streams]
     state = {
@@ -57,6 +61,7 @@ def normalize_strava_dataset(
         },
         "outputs": {
             "athletes": "athletes.jsonl",
+            "equipment": "equipment.jsonl",
             "activities": "activities.jsonl",
             "streams": "streams.jsonl",
             "streams_index": "streams_index.jsonl",
@@ -64,6 +69,7 @@ def normalize_strava_dataset(
         },
         "counts": {
             "athletes": len(athletes),
+            "equipment": len(equipment),
             "activities": len(activities),
             "streams": len(streams),
             "streams_index": len(streams_index),
@@ -72,6 +78,7 @@ def normalize_strava_dataset(
 
     written = [
         store.write_jsonl("athletes.jsonl", athletes),
+        store.write_jsonl("equipment.jsonl", equipment),
         store.write_jsonl("activities.jsonl", activities),
         store.write_jsonl("streams.jsonl", streams),
         store.write_jsonl("streams_index.jsonl", streams_index),
@@ -79,6 +86,7 @@ def normalize_strava_dataset(
     ]
     return StravaNormalizationResult(
         athletes=len(athletes),
+        equipment=len(equipment),
         activities=len(activities),
         streams=len(streams),
         streams_index=len(streams_index),
@@ -108,12 +116,83 @@ def _normalize_athletes(
     return [normalize_strava_athlete(payload, source_reference=reference)]
 
 
+def _normalize_equipment(
+    raw_root: Path,
+    manifest_index: dict[str, dict[str, Any]],
+) -> list[NormalizedEquipment]:
+    profile_path = raw_root / "athlete" / "profile.json"
+    records: dict[str, NormalizedEquipment] = {}
+    fallback_types: dict[str, str] = {}
+    if profile_path.exists():
+        profile = _read_json(profile_path)
+        if isinstance(profile, dict):
+            for key, fallback_type in (("bikes", "bike"), ("shoes", "shoe")):
+                for item in profile.get(key, []):
+                    if not isinstance(item, dict) or item.get("id") is None:
+                        continue
+                    equipment_id = str(item["id"])
+                    fallback_types[equipment_id] = fallback_type
+                    detail_path = (
+                        raw_root
+                        / "gear"
+                        / f"{_safe_filename(equipment_id)}.json"
+                    )
+                    has_detail = detail_path.exists()
+                    reference_path = detail_path if has_detail else profile_path
+                    payload = _read_json(reference_path) if has_detail else item
+                    if not isinstance(payload, dict):
+                        continue
+                    payload = dict(payload)
+                    payload.setdefault("type", fallback_type)
+                    reference = _source_reference(
+                        raw_root,
+                        reference_path,
+                        manifest_index,
+                        entity_type="gear",
+                        source_id=equipment_id,
+                    )
+                    record = normalize_strava_equipment(
+                        payload,
+                        source_reference=reference,
+                        fallback_type=fallback_type,
+                    )
+                    records[record.equipment_uid] = record
+    for gear_path in sorted((raw_root / "gear").glob("*.json")):
+        payload = _read_json(gear_path)
+        if not isinstance(payload, dict) or payload.get("id") is None:
+            continue
+        equipment_id = str(payload["id"])
+        payload = dict(payload)
+        payload.setdefault("type", fallback_types.get(equipment_id))
+        reference = _source_reference(
+            raw_root,
+            gear_path,
+            manifest_index,
+            entity_type="gear",
+            source_id=equipment_id,
+        )
+        record = normalize_strava_equipment(
+            payload,
+            source_reference=reference,
+        )
+        records[record.equipment_uid] = record
+    return [records[uid] for uid in sorted(records)]
+
+
 def _normalize_activities(
     raw_root: Path,
     manifest_index: dict[str, dict[str, Any]],
 ) -> tuple[list[NormalizedActivity], list[NormalizedStream]]:
     activities: list[NormalizedActivity] = []
     streams: list[NormalizedStream] = []
+    available_segment_files = {
+        path.name
+        for path in (raw_root / "segments").glob("*.json")
+    }
+    segment_payload_cache: dict[
+        str,
+        tuple[dict[str, Any], SourceReference] | None,
+    ] = {}
     for activity_path in sorted((raw_root / "activities").glob("*.json")):
         if activity_path.name == "activities.json":
             continue
@@ -143,7 +222,13 @@ def _normalize_activities(
             source_id=activity_id,
         )
         gear_reference, gear_payload = _gear_payload(raw_root, manifest_index, payload)
-        segment_payloads = _segment_payloads(raw_root, manifest_index, payload)
+        segment_payloads = _segment_payloads(
+            raw_root,
+            manifest_index,
+            payload,
+            available_segment_files=available_segment_files,
+            segment_payload_cache=segment_payload_cache,
+        )
         activity_for_normalization = dict(payload)
         if isinstance(laps_payload, list):
             activity_for_normalization["laps"] = laps_payload
@@ -213,18 +298,37 @@ def _segment_payloads(
     raw_root: Path,
     manifest_index: dict[str, dict[str, Any]],
     activity: dict[str, Any],
+    *,
+    available_segment_files: set[str],
+    segment_payload_cache: dict[
+        str,
+        tuple[dict[str, Any], SourceReference] | None,
+    ],
 ) -> list[tuple[dict[str, Any], SourceReference]]:
     payloads = []
     for segment_id in _extract_segment_ids(activity):
+        filename = f"{_safe_filename(segment_id)}.json"
+        if filename not in available_segment_files:
+            continue
+        cached = segment_payload_cache.get(segment_id)
+        if cached is not None:
+            payloads.append(cached)
+            continue
+        if segment_id in segment_payload_cache:
+            continue
         reference, payload = _optional_payload(
             raw_root,
             manifest_index,
-            relative_path=Path("segments") / f"{_safe_filename(segment_id)}.json",
+            relative_path=Path("segments") / filename,
             entity_type="segment",
             source_id=segment_id,
         )
         if reference is not None and isinstance(payload, dict):
-            payloads.append((payload, reference))
+            cached_payload = (payload, reference)
+            segment_payload_cache[segment_id] = cached_payload
+            payloads.append(cached_payload)
+        else:
+            segment_payload_cache[segment_id] = None
     return payloads
 
 

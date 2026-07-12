@@ -232,6 +232,13 @@ def _normalize_activities(
             entity_type="weather",
             source_id=activity_id,
         )
+        activity_gear_reference, activity_gear_payload = _optional_payload(
+            raw_root,
+            manifest_index,
+            relative_path=Path("gear") / f"activity_{activity_id}.json",
+            entity_type="activity_gear",
+            source_id=activity_id,
+        )
         activity_record = normalize_garmin_activity(
             activity,
             source_reference=references["activity"],
@@ -243,10 +250,12 @@ def _normalize_activities(
             splits_reference=splits_reference,
             typed_splits_reference=typed_splits_reference,
             weather_reference=weather_reference,
+            activity_gear_reference=activity_gear_reference,
             fit_messages=fit_message_payload,
             splits_payload=splits_payload,
             typed_splits_payload=typed_splits_payload,
             weather_payload=weather_payload,
+            activity_gear_payload=activity_gear_payload,
         )
         activities.append(activity_record)
         if fit_messages_reference is not None:
@@ -489,6 +498,7 @@ def _activity_input_fingerprint(
         "splits": Path("splits") / f"{activity_id}.json",
         "typed_splits": Path("typed_splits") / f"{activity_id}.json",
         "weather": Path("weather") / f"{activity_id}.json",
+        "activity_gear": Path("gear") / f"activity_{activity_id}.json",
     }
     fingerprint: dict[str, Any] = {}
     for key, relative_path in paths.items():
