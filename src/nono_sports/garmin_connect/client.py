@@ -31,7 +31,7 @@ class GarminConnectClient:
 
     def __init__(self, api: Any, garmin_module: Any | None = None) -> None:
         self._api = api
-        self._garmin_module = garmin_module or load_garminconnect_module()
+        self._garmin_module = garmin_module
 
     @classmethod
     def from_tokenstore(
@@ -154,7 +154,8 @@ class GarminConnectClient:
         return self._api.download_activity(str(activity_id), download_format)
 
     def _download_format(self, file_format: GarminActivityFileFormat) -> Any:
-        formats = self._garmin_module.Garmin.ActivityDownloadFormat
+        module = self._garmin_module or load_garminconnect_module()
+        formats = module.Garmin.ActivityDownloadFormat
         mapping = {
             GarminActivityFileFormat.FIT: formats.ORIGINAL,
             GarminActivityFileFormat.TCX: formats.TCX,

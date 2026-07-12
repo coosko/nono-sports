@@ -26,6 +26,8 @@ Todas las versiones y entregables se documentan aquí.
 - La escritura de JSONL normalizados y consolidados pasa a ser incremental en
   disco: ya no construye ni lee ficheros grandes completos en memoria para
   comparar cambios.
+- El cliente Garmin Connect ya no importa la dependencia opcional
+  `garminconnect` cuando se le inyecta una API falsa/adaptada en tests.
 
 ### Verified
 
