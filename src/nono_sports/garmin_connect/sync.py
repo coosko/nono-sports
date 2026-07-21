@@ -61,6 +61,17 @@ class GarminRawSyncResult:
     stopped_reason: str | None = None
 
 
+@dataclass(frozen=True)
+class GarminActivityGearBackfillResult:
+    candidate_activities: int
+    processed_activities: int
+    repaired_activities: int
+    skipped_activities: int
+    written: tuple[RawWriteResult, ...]
+    recoverable_errors: tuple[GarminRecoverableError, ...]
+    state_path: str
+
+
 def sync_garmin_activities_raw(
     client: GarminConnectClient,
     raw_store: GarminRawStore,
@@ -214,6 +225,109 @@ def sync_garmin_activities_raw(
         warnings=tuple(warnings),
         state_path=str(state_store.path),
         stopped_reason=run["stopped_reason"],
+    )
+
+
+def backfill_garmin_activity_gear_raw(
+    client: GarminConnectClient | None,
+    raw_store: GarminRawStore,
+    state_store: GarminStateStore,
+    *,
+    activity_ids: list[str] | None = None,
+    max_activities: int | None = None,
+    force: bool = False,
+    local_only: bool = False,
+    clock: Callable[[], datetime] | None = None,
+) -> GarminActivityGearBackfillResult:
+    now = clock or (lambda: datetime.now(UTC))
+    state = state_store.load()
+    candidates = activity_ids or _local_activity_ids(raw_store, state)
+    written: list[RawWriteResult] = []
+    recoverable_errors: list[GarminRecoverableError] = []
+    processed = 0
+    repaired = 0
+    skipped = 0
+    run = {
+        "completed_at": None,
+        "force": force,
+        "kind": "activity_gear_backfill",
+        "local_only": local_only,
+        "max_activities": max_activities,
+        "processed_activities": None,
+        "repaired_activities": None,
+        "skipped_activities": None,
+        "started_at": now().astimezone(UTC).isoformat(),
+        "written_files": None,
+    }
+    state.setdefault("runs", []).append(run)
+    state_store.save(state)
+
+    for activity_id in candidates:
+        if max_activities is not None and processed >= max_activities:
+            break
+        state_entry = state.setdefault("activities", {}).setdefault(activity_id, {})
+        safe_activity_id = _safe_identifier(activity_id)
+        expected_path = (
+            raw_store.raw_root / "gear" / f"activity_{safe_activity_id}.json"
+        )
+        if not force and expected_path.exists():
+            relative_path = expected_path.relative_to(raw_store.raw_root).as_posix()
+            if state_entry.get("activity_gear") == relative_path:
+                skipped += 1
+            else:
+                state_entry["activity_gear"] = relative_path
+                state_entry.pop("activity_gear_error", None)
+                repaired += 1
+                state_store.save(state)
+            continue
+        if local_only:
+            skipped += 1
+            continue
+        if (
+            not force
+            and state_entry.get("activity_gear")
+            and not expected_path.exists()
+        ):
+            state_entry.pop("activity_gear", None)
+            state_entry.pop("activity_gear_error", None)
+        if not force and state_entry.get("activity_gear_error"):
+            skipped += 1
+            continue
+        if client is None:
+            skipped += 1
+            continue
+        if force:
+            state_entry.pop("activity_gear_error", None)
+        processed += 1
+        state_entry["activity_gear_checked_at"] = now().astimezone(UTC).isoformat()
+        _download_optional_json_part(
+            lambda activity_key=activity_id: client.get_activity_gear(activity_key),
+            raw_store,
+            state_entry,
+            written,
+            recoverable_errors,
+            part="activity_gear",
+            endpoint="get_activity_gear",
+            raw_path=f"gear/activity_{safe_activity_id}.json",
+            activity_id=activity_id,
+        )
+        state_store.save(state)
+
+    run["completed_at"] = now().astimezone(UTC).isoformat()
+    run["processed_activities"] = processed
+    run["repaired_activities"] = repaired
+    run["skipped_activities"] = skipped
+    run["written_files"] = len(written)
+    run["recoverable_errors"] = len(recoverable_errors)
+    state_store.save(state)
+    return GarminActivityGearBackfillResult(
+        candidate_activities=len(candidates),
+        processed_activities=processed,
+        repaired_activities=repaired,
+        skipped_activities=skipped,
+        written=tuple(written),
+        recoverable_errors=tuple(recoverable_errors),
+        state_path=str(state_store.path),
     )
 
 
@@ -656,6 +770,29 @@ def _has_fallback_track(state_entry: dict[str, Any]) -> bool:
 def _activity_id(activity: dict[str, Any]) -> str | None:
     value = activity.get("activityId")
     return str(value) if value is not None else None
+
+
+def _local_activity_ids(
+    raw_store: GarminRawStore,
+    state: dict[str, Any],
+) -> list[str]:
+    ids = {
+        str(activity_id)
+        for activity_id in state.get("activities", {})
+        if activity_id is not None
+    }
+    activities_root = raw_store.raw_root / "activities"
+    for path in activities_root.glob("*.json"):
+        if path.name.endswith(".details.json"):
+            continue
+        ids.add(path.stem)
+    return sorted(ids, key=_activity_sort_key, reverse=True)
+
+
+def _activity_sort_key(activity_id: str) -> tuple[int, str]:
+    if activity_id.isdigit():
+        return (int(activity_id), activity_id)
+    return (-1, activity_id)
 
 
 def _effective_after(

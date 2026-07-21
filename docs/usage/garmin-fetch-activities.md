@@ -234,6 +234,42 @@ Para limpiar intermedios:
 La limpieza elimina `raw/fit_decoded/*.fitdecode.json`. No elimina raw original
 ni normalizados.
 
+## Rehidratar equipación por actividad
+
+El `sync` descarga `activity_gear` para actividades nuevas. Si hay actividades
+antiguas que ya estaban descargadas antes de incorporar ese dato, no hace falta
+hacer un full scan ni volver a descargar FIT. Usa:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-activity-gear --local-only
+```
+
+Ese comando solo repara el estado si ya existe
+`raw/gear/activity_<id>.json`. No llama a Garmin Connect.
+
+Para descargar `activity_gear` pendiente en lotes pequeños:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-activity-gear --max-activities 50
+```
+
+Para una actividad concreta:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-activity-gear \
+  --activity-id <garmin_activity_id>
+```
+
+Después reconstruye offline:
+
+```bash
+./.venv/bin/python -m nono_sports garmin sync --skip-fetch
+```
+
+Este proceso solo descarga `raw/gear/activity_<id>.json`, actualiza
+`logs/activity_sync_state.json` y permite que el consolidado de equipación sume
+distancias y horas de uso desde actividades sin duplicar Strava/Garmin.
+
 El backend inicial es `fitdecode==0.11.0`.
 
 El JSON derivado conserva dos niveles:

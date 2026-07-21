@@ -74,6 +74,11 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
   `name`, `brand`, `model`, `distance_m`, `weight_kg`, `attributes` y
   `source_reference`, para permitir fusionar datos complementarios de Strava,
   Garmin Connect, fuentes manuales u otras fuentes futuras.
+- RDAT14: La equipación consolidada debe calcular métricas efectivas de uso,
+  como `distance_m` y horas, a partir de actividades consolidadas y enlaces de
+  fuente, evitando doble conteo cuando una actividad existe en varias
+  plataformas. La trazabilidad de la estrategia y de las distancias fuente debe
+  conservarse en `attributes.usage`.
 
 ## Requisitos no funcionales
 

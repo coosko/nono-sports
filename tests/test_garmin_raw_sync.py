@@ -6,7 +6,10 @@ from datetime import UTC, datetime
 from nono_sports.garmin_connect.client import GarminConnectClient
 from nono_sports.garmin_connect.raw_store import GarminRawStore
 from nono_sports.garmin_connect.state_store import GarminStateStore
-from nono_sports.garmin_connect.sync import sync_garmin_activities_raw
+from nono_sports.garmin_connect.sync import (
+    backfill_garmin_activity_gear_raw,
+    sync_garmin_activities_raw,
+)
 
 
 class FakeGarminApi:
@@ -201,6 +204,86 @@ def test_sync_garmin_activities_raw_skips_completed_activity(tmp_path) -> None:
 
     assert result.processed_activities == 0
     assert result.skipped_activities == 1
+
+
+def test_backfill_garmin_activity_gear_downloads_only_missing_gear(tmp_path) -> None:
+    api = FakeGarminApi()
+    client = GarminConnectClient(api, garmin_module=FakeGarminModule)
+    raw_store = GarminRawStore(tmp_path)
+    state_store = GarminStateStore(tmp_path)
+    raw_store.write_json(
+        "activities/123.json",
+        {"activityId": 123},
+        endpoint="get_activity",
+        params={"activity_id": "123"},
+    )
+    state = state_store.load()
+    state["activities"]["123"] = {
+        "activity": "activities/123.json",
+        "details": "activities/123.details.json",
+        "fit": "activity_files/123.fit",
+    }
+    state_store.save(state)
+
+    result = backfill_garmin_activity_gear_raw(
+        client,
+        raw_store,
+        state_store,
+        max_activities=1,
+    )
+
+    assert result.candidate_activities == 1
+    assert result.processed_activities == 1
+    assert result.repaired_activities == 0
+    assert result.skipped_activities == 0
+    assert len(result.written) == 1
+    raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
+    assert (raw_root / "gear/activity_123.json").is_file()
+    assert state_store.load()["activities"]["123"]["activity_gear"] == (
+        "gear/activity_123.json"
+    )
+
+
+def test_backfill_garmin_activity_gear_repairs_state_when_raw_exists(tmp_path) -> None:
+    api = FakeGarminApi()
+    client = GarminConnectClient(api, garmin_module=FakeGarminModule)
+    raw_store = GarminRawStore(tmp_path)
+    state_store = GarminStateStore(tmp_path)
+    raw_store.write_json(
+        "activities/123.json",
+        {"activityId": 123},
+        endpoint="get_activity",
+        params={"activity_id": "123"},
+    )
+    raw_store.write_json(
+        "gear/activity_123.json",
+        {"activityId": 123, "gear": [{"gearUuid": "bike-1"}]},
+        endpoint="get_activity_gear",
+        params={"activity_id": "123"},
+    )
+    state = state_store.load()
+    state["activities"]["123"] = {
+        "activity": "activities/123.json",
+        "details": "activities/123.details.json",
+        "fit": "activity_files/123.fit",
+    }
+    state_store.save(state)
+
+    result = backfill_garmin_activity_gear_raw(
+        client,
+        raw_store,
+        state_store,
+        max_activities=1,
+        local_only=True,
+    )
+
+    assert result.processed_activities == 0
+    assert result.repaired_activities == 1
+    assert result.skipped_activities == 0
+    assert result.written == ()
+    assert state_store.load()["activities"]["123"]["activity_gear"] == (
+        "gear/activity_123.json"
+    )
 
 
 def test_sync_garmin_activities_raw_paginates_until_pending_activity(tmp_path) -> None:

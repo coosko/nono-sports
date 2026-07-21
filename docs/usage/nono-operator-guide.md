@@ -249,6 +249,29 @@ Para perfil de atleta y equipación, consulta:
 tipo y nombre. Usa `equipment_sources.jsonl` para ver qué información procede
 de Strava, Garmin Connect o una fuente manual futura.
 
+En `equipment.jsonl`, `distance_m` es la distancia efectiva consolidada cuando
+hay actividades con enlace de equipación. Para auditoría, revisa
+`attributes.usage`: ahí están la estrategia, parciales por fuente, horas de uso,
+distancia base declarada por la fuente y actividades que no se pudieron asignar
+por falta de enlace de equipación.
+
+Si una bici o dispositivo parece tener menos uso del esperado y hay actividades
+Garmin antiguas sin `activity_gear`, se puede rehidratar solo ese dato:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-activity-gear --local-only
+./.venv/bin/python -m nono_sports garmin fetch-activity-gear --max-activities 50
+./.venv/bin/python -m nono_sports garmin sync --skip-fetch
+```
+
+Para una actividad concreta:
+
+```bash
+./.venv/bin/python -m nono_sports garmin fetch-activity-gear \
+  --activity-id <garmin_activity_id>
+./.venv/bin/python -m nono_sports garmin sync --skip-fetch
+```
+
 Para peso, frecuencia cardiaca en reposo, composición corporal u otras
 mediciones puntuales, consulta:
 

@@ -372,6 +372,17 @@ uso histórico, Garmin Connect puede aportar uso del dispositivo o equipación p
 actividad, y una fuente manual futura puede aportar peso, ruedas, cubiertas o
 configuración real.
 
+En `20_consolidado/equipment.jsonl`, `distance_m` representa la mejor distancia
+consolidada disponible. Cuando existen actividades consolidadas con enlaces de
+equipación, se calcula sumando cada actividad una sola vez y usando la primera
+fuente prioritaria que declara ese equipo. Si una fuente prioritaria no declara
+equipo y otra fuente de la misma actividad sí lo hace, se usa esa otra fuente.
+La distancia declarada por las fuentes de equipación no se pierde: queda en
+`attributes.usage.base_distance`, junto con `partial_distance_m`, tiempos de
+uso, conteo de actividades y actividades no asignables por falta de enlace de
+equipo. Los identificadores de equipo fuente evitan mezclar bicicletas,
+zapatillas, dispositivos o sensores por similitud de nombre.
+
 ### `consolidation`
 
 La estrategia activa es `multi_source_initial`.

@@ -16,11 +16,20 @@ Todas las versiones y entregables se documentan aquí.
   `equipment.jsonl` y `equipment_sources.jsonl`.
 - Añadido comando `garmin fetch-user-data` e integración por defecto en
   `garmin sync`, con `--skip-user-data` para casos excepcionales.
+- Añadido comando `garmin fetch-activity-gear` para rehidratar de forma segura
+  la equipación por actividad Garmin ya descargada, sin descargar FIT ni forzar
+  un full scan. Incluye `--local-only` para reparar el estado desde raw local
+  sin llamar a Garmin Connect.
 
 ### Changed
 
 - `garmin sync` incorpora datos de usuario/equipación al flujo diario junto a
   actividades y mediciones.
+- `20_consolidado/equipment.jsonl.distance_m` pasa a representar la distancia
+  efectiva consolidada cuando hay actividades asignables, evitando duplicar
+  Strava/Garmin. La distancia declarada por fuente queda documentada en
+  `attributes.usage.base_distance` y los parciales en
+  `attributes.usage.partial_distance_m`.
 - La documentación de Nono y Garmin Connect refleja `athletes.jsonl` y
   `equipment.jsonl` como contratos comunes normalizados y consolidados.
 - La escritura de JSONL normalizados y consolidados pasa a ser incremental en

@@ -19,6 +19,7 @@ from nono_sports.storage.consolidated_store import (
 SCHEMA_VERSION_ATHLETE = "nono.consolidated_athlete.v1"
 SCHEMA_VERSION_ATHLETE_SOURCE = "nono.athlete_source_link.v1"
 SCHEMA_VERSION_EQUIPMENT_SOURCE = "nono.equipment_source_link.v1"
+EQUIPMENT_USAGE_STRATEGY = "activity_source_links_deduplicated_v1"
 
 SOURCE_PRIORITY = {
     "manual": 1,
@@ -48,8 +49,10 @@ def build_consolidated_user_data(
     consolidated_athletes = _consolidated_athletes(athletes)
     athlete_sources = _athlete_source_links(consolidated_athletes)
     equipment_groups = _group_equipment(equipment)
+    activity_usage_context = _load_activity_usage_context(data_root)
     consolidated_equipment = [
-        _consolidated_equipment(group) for group in equipment_groups
+        _consolidated_equipment(group, activity_usage_context)
+        for group in equipment_groups
     ]
     consolidated_equipment.sort(
         key=lambda item: (
@@ -71,6 +74,7 @@ def build_consolidated_user_data(
             source: {
                 "athletes": str(paths["athletes"]),
                 "equipment": str(paths["equipment"]),
+                "activities": str(paths["activities"]),
             }
             for source, paths in _normalized_paths(data_root).items()
         },
@@ -88,6 +92,10 @@ def build_consolidated_user_data(
             "equipment_sources": len(equipment_sources),
             "input_athletes": len(athletes),
             "input_equipment": len(equipment),
+            "input_consolidated_activities": len(
+                activity_usage_context["consolidated_activities"]
+            ),
+            "input_source_activities": len(activity_usage_context["source_activities"]),
         },
     }
     store = ConsolidatedStore(data_root)
@@ -164,7 +172,10 @@ def _group_equipment(equipment: list[dict[str, Any]]) -> list[list[dict[str, Any
     return list(groups.values())
 
 
-def _consolidated_equipment(group: list[dict[str, Any]]) -> ConsolidatedEquipment:
+def _consolidated_equipment(
+    group: list[dict[str, Any]],
+    activity_usage_context: dict[str, Any],
+) -> ConsolidatedEquipment:
     ordered = sorted(group, key=_source_priority)
     primary = ordered[0]
     primary_uid = str(primary.get("equipment_uid") or "unknown")
@@ -180,6 +191,13 @@ def _consolidated_equipment(group: list[dict[str, Any]]) -> ConsolidatedEquipmen
         }
         for item in ordered
     ]
+    base_distance = _base_distance(ordered)
+    usage = _effective_equipment_usage(ordered, activity_usage_context)
+    distance_m = (
+        usage["distance_m"]
+        if usage["activity_count"] > 0 and usage["distance_m"] is not None
+        else base_distance.get("distance_m")
+    )
     return ConsolidatedEquipment(
         schema_version="nono.consolidated_equipment.v1",
         consolidated_equipment_uid=consolidated_uid,
@@ -191,7 +209,7 @@ def _consolidated_equipment(group: list[dict[str, Any]]) -> ConsolidatedEquipmen
         model=_first_text("model", ordered),
         description=_first_text("description", ordered),
         status=_first_text("status", ordered),
-        distance_m=_first_number("distance_m", ordered),
+        distance_m=distance_m,
         weight_kg=_first_number("weight_kg", ordered),
         source_count=len(ordered),
         source_equipment_uids=[
@@ -200,7 +218,10 @@ def _consolidated_equipment(group: list[dict[str, Any]]) -> ConsolidatedEquipmen
             if item.get("equipment_uid") is not None
         ],
         provenance={"source_links": source_links},
-        attributes={"source_attributes": _source_attributes(ordered)},
+        attributes={
+            "source_attributes": _source_attributes(ordered),
+            "usage": usage | {"base_distance": base_distance},
+        },
     )
 
 
@@ -237,6 +258,286 @@ def _source_attributes(records: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _base_distance(records: list[dict[str, Any]]) -> dict[str, Any]:
+    for record in records:
+        value = record.get("distance_m")
+        if isinstance(value, int | float):
+            return {
+                "source": record.get("source"),
+                "equipment_uid": record.get("equipment_uid"),
+                "distance_m": float(value),
+            }
+    return {}
+
+
+def _load_activity_usage_context(data_root: Path) -> dict[str, Any]:
+    consolidated_activities = _read_jsonl(
+        data_root / "20_consolidado" / "activities.jsonl"
+    )
+    source_activities = {
+        str(activity.get("activity_uid")): activity
+        for activity in _load_records(_normalized_path(data_root, "activities.jsonl"))
+        if activity.get("activity_uid") is not None
+    }
+    return {
+        "consolidated_activities": consolidated_activities,
+        "source_activities": source_activities,
+    }
+
+
+def _effective_equipment_usage(
+    equipment_group: list[dict[str, Any]],
+    activity_usage_context: dict[str, Any],
+) -> dict[str, Any]:
+    source_equipment_uids = {
+        str(item.get("equipment_uid"))
+        for item in equipment_group
+        if item.get("equipment_uid") is not None
+    }
+    missing_keys = {
+        key
+        for uid in source_equipment_uids
+        for key in _equipment_missing_keys(uid)
+    }
+    source_activities = activity_usage_context["source_activities"]
+    partials: dict[str, dict[str, Any]] = {}
+    totals = {
+        "distance_m": 0.0,
+        "moving_time_s": 0.0,
+        "elapsed_time_s": 0.0,
+    }
+    has_distance = False
+    has_moving_time = False
+    has_elapsed_time = False
+    activity_count = 0
+    unassignable_activity_count = 0
+    unassignable_examples: list[dict[str, Any]] = []
+
+    for consolidated_activity in activity_usage_context["consolidated_activities"]:
+        source_links = _ordered_source_links(consolidated_activity)
+        matched = False
+        missing_for_equipment = False
+        for source_link in source_links:
+            activity_uid = source_link.get("activity_uid")
+            if activity_uid is None:
+                continue
+            source_activity = source_activities.get(str(activity_uid))
+            if source_activity is None:
+                continue
+            activity_equipment = _activity_equipment_usage(source_activity)
+            if activity_equipment["equipment_uids"] & source_equipment_uids:
+                _add_activity_usage(
+                    partials,
+                    totals,
+                    source_activity,
+                    source_link,
+                    activity_equipment["equipment_uids"] & source_equipment_uids,
+                )
+                has_distance = has_distance or _number_from_mapping(
+                    source_activity.get("distance"),
+                    "distance_m",
+                ) is not None
+                has_moving_time = has_moving_time or _number_from_mapping(
+                    source_activity.get("duration"),
+                    "moving_time_s",
+                ) is not None
+                has_elapsed_time = has_elapsed_time or _number_from_mapping(
+                    source_activity.get("duration"),
+                    "elapsed_time_s",
+                ) is not None
+                activity_count += 1
+                matched = True
+                break
+            if activity_equipment["missing_keys"] & missing_keys:
+                missing_for_equipment = True
+        if not matched and missing_for_equipment:
+            unassignable_activity_count += 1
+            if len(unassignable_examples) < 10:
+                unassignable_examples.append(
+                    {
+                        "consolidated_activity_uid": consolidated_activity.get(
+                            "consolidated_activity_uid"
+                        ),
+                        "source_activity_uids": consolidated_activity.get(
+                            "source_activity_uids",
+                            [],
+                        ),
+                    }
+                )
+
+    partial_distance_m = [
+        {
+            "source": source,
+            "distance_m": partial.get("distance_m"),
+            "moving_time_s": partial.get("moving_time_s"),
+            "elapsed_time_s": partial.get("elapsed_time_s"),
+            "activity_count": partial["activity_count"],
+        }
+        for source, partial in sorted(partials.items())
+    ]
+    return {
+        "strategy": EQUIPMENT_USAGE_STRATEGY,
+        "distance_strategy": (
+            "sum_source_activity_distance_once_per_consolidated_activity"
+        ),
+        "distance_m": totals["distance_m"] if has_distance else None,
+        "moving_time_s": totals["moving_time_s"] if has_moving_time else None,
+        "moving_time_h": _hours(totals["moving_time_s"]) if has_moving_time else None,
+        "elapsed_time_s": totals["elapsed_time_s"] if has_elapsed_time else None,
+        "elapsed_time_h": (
+            _hours(totals["elapsed_time_s"]) if has_elapsed_time else None
+        ),
+        "activity_count": activity_count,
+        "partial_distance_m": partial_distance_m,
+        "unassignable_activity_count": unassignable_activity_count,
+        "unassignable_activity_examples": unassignable_examples,
+    }
+
+
+def _ordered_source_links(
+    consolidated_activity: dict[str, Any],
+) -> list[dict[str, Any]]:
+    source_links = consolidated_activity.get("provenance", {}).get("source_links", [])
+    if not isinstance(source_links, list):
+        return []
+    return sorted(
+        [link for link in source_links if isinstance(link, dict)],
+        key=lambda link: int(link.get("source_priority") or 99),
+    )
+
+
+def _activity_equipment_usage(activity: dict[str, Any]) -> dict[str, set[str]]:
+    source = str(activity.get("source") or "")
+    gear = _dict(activity.get("gear"))
+    equipment_uids: set[str] = set()
+    missing_keys: set[str] = set()
+    if source == "strava":
+        source_gear_id = _text(
+            gear.get("source_gear_id") or gear.get("gear_id") or gear.get("id")
+        )
+        if source_gear_id:
+            equipment_uids.add(f"strava:equipment:{source_gear_id}")
+        else:
+            missing_keys.add("strava:equipment")
+    elif source == "garmin_connect":
+        gear_ids = _garmin_activity_gear_ids(gear.get("activity_gear"))
+        equipment_uids.update(
+            f"garmin_connect:equipment:{gear_id}" for gear_id in gear_ids
+        )
+        if not gear_ids:
+            missing_keys.add("garmin_connect:equipment")
+        device_id = _text(gear.get("device_id"))
+        if device_id:
+            equipment_uids.add(f"garmin_connect:equipment:device:{device_id}")
+        else:
+            missing_keys.add("garmin_connect:equipment:device")
+    return {"equipment_uids": equipment_uids, "missing_keys": missing_keys}
+
+
+def _garmin_activity_gear_ids(payload: Any) -> set[str]:
+    ids: set[str] = set()
+    for item in _iter_payload_dicts(payload):
+        for key in ("gearUuid", "uuid", "gearPk"):
+            value = _text(item.get(key))
+            if value:
+                ids.add(value)
+        if any(key in item for key in ("gearName", "gearTypeName", "displayName")):
+            value = _text(item.get("id"))
+            if value:
+                ids.add(value)
+    return ids
+
+
+def _iter_payload_dicts(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, dict):
+        items = [payload]
+        for value in payload.values():
+            items.extend(_iter_payload_dicts(value))
+        return items
+    if isinstance(payload, list):
+        items: list[dict[str, Any]] = []
+        for value in payload:
+            items.extend(_iter_payload_dicts(value))
+        return items
+    return []
+
+
+def _equipment_missing_keys(equipment_uid: str) -> set[str]:
+    if equipment_uid.startswith("garmin_connect:equipment:device:"):
+        return {"garmin_connect:equipment:device"}
+    if equipment_uid.startswith("garmin_connect:equipment:"):
+        return {"garmin_connect:equipment"}
+    if equipment_uid.startswith("strava:equipment:"):
+        return {"strava:equipment"}
+    return set()
+
+
+def _add_activity_usage(
+    partials: dict[str, dict[str, Any]],
+    totals: dict[str, float],
+    source_activity: dict[str, Any],
+    source_link: dict[str, Any],
+    matched_equipment_uids: set[str],
+) -> None:
+    source = str(
+        source_activity.get("source") or source_link.get("source") or "unknown"
+    )
+    partial = partials.setdefault(
+        source,
+        {
+            "distance_m": 0.0,
+            "moving_time_s": 0.0,
+            "elapsed_time_s": 0.0,
+            "activity_count": 0,
+            "matched_equipment_uids": set(),
+        },
+    )
+    distance_m = _number_from_mapping(source_activity.get("distance"), "distance_m")
+    moving_time_s = _number_from_mapping(
+        source_activity.get("duration"),
+        "moving_time_s",
+    )
+    elapsed_time_s = _number_from_mapping(
+        source_activity.get("duration"),
+        "elapsed_time_s",
+    )
+    if distance_m is not None:
+        totals["distance_m"] += distance_m
+        partial["distance_m"] += distance_m
+    if moving_time_s is not None:
+        totals["moving_time_s"] += moving_time_s
+        partial["moving_time_s"] += moving_time_s
+    if elapsed_time_s is not None:
+        totals["elapsed_time_s"] += elapsed_time_s
+        partial["elapsed_time_s"] += elapsed_time_s
+    partial["activity_count"] += 1
+    partial["matched_equipment_uids"].update(matched_equipment_uids)
+
+
+def _number_from_mapping(payload: Any, key: str) -> float | None:
+    if isinstance(payload, dict):
+        value = payload.get(key)
+        if isinstance(value, int | float):
+            return float(value)
+    return None
+
+
+def _hours(seconds: float) -> float:
+    return round(seconds / 3600, 4)
+
+
+def _dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _text(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, int | float):
+        return str(value)
+    return None
+
+
 def _source_priority(record: dict[str, Any]) -> tuple[int, str]:
     source = str(record.get("source") or "")
     uid = str(
@@ -267,6 +568,7 @@ def _normalized_paths(data_root: Path) -> dict[str, dict[str, Path]]:
         "strava": {
             "athletes": strava_path(data_root, "normalizado", "athletes.jsonl"),
             "equipment": strava_path(data_root, "normalizado", "equipment.jsonl"),
+            "activities": strava_path(data_root, "normalizado", "activities.jsonl"),
         },
         "garmin_connect": {
             "athletes": garmin_connect_path(
@@ -279,10 +581,16 @@ def _normalized_paths(data_root: Path) -> dict[str, dict[str, Path]]:
                 "normalizado",
                 "equipment.jsonl",
             ),
+            "activities": garmin_connect_path(
+                data_root,
+                "normalizado",
+                "activities.jsonl",
+            ),
         },
         "manual": {
             "athletes": manual_path(data_root, "normalizado", "athletes.jsonl"),
             "equipment": manual_path(data_root, "normalizado", "equipment.jsonl"),
+            "activities": manual_path(data_root, "normalizado", "activities.jsonl"),
         },
     }
 

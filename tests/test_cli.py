@@ -145,6 +145,30 @@ def test_parser_accepts_garmin_fetch_user_data_command() -> None:
     assert args.garmin_command == "fetch-user-data"
 
 
+def test_parser_accepts_garmin_fetch_activity_gear_options() -> None:
+    args = build_parser().parse_args(
+        [
+            "garmin",
+            "fetch-activity-gear",
+            "--activity-id",
+            "123",
+            "--activity-id",
+            "456",
+            "--max-activities",
+            "2",
+            "--force",
+            "--local-only",
+        ]
+    )
+
+    assert args.command == "garmin"
+    assert args.garmin_command == "fetch-activity-gear"
+    assert args.activity_id == ["123", "456"]
+    assert args.max_activities == 2
+    assert args.force is True
+    assert args.local_only is True
+
+
 def test_parser_accepts_garmin_decode_fit_options() -> None:
     args = build_parser().parse_args(
         [

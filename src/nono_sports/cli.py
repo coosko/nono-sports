@@ -57,7 +57,9 @@ from nono_sports.garmin_connect.measurements import (
 from nono_sports.garmin_connect.raw_store import GarminRawStore
 from nono_sports.garmin_connect.state_store import GarminStateStore
 from nono_sports.garmin_connect.sync import (
+    GarminActivityGearBackfillResult,
     GarminRawSyncResult,
+    backfill_garmin_activity_gear_raw,
     sync_garmin_activities_raw,
 )
 from nono_sports.garmin_connect.user_data import (
@@ -166,6 +168,18 @@ def build_parser() -> argparse.ArgumentParser:
     garmin_fetch_parser.add_argument("--skip-fit", action="store_true")
     garmin_fetch_parser.add_argument("--include-tcx", action="store_true")
     garmin_fetch_parser.add_argument("--include-gpx", action="store_true")
+    garmin_gear_parser = garmin_subparsers.add_parser("fetch-activity-gear")
+    garmin_gear_parser.add_argument("--activity-id", action="append", default=None)
+    garmin_gear_parser.add_argument("--max-activities", type=int, default=None)
+    garmin_gear_parser.add_argument("--force", action="store_true")
+    garmin_gear_parser.add_argument(
+        "--local-only",
+        action="store_true",
+        help=(
+            "Repair activity_gear state entries from local raw files without "
+            "calling Garmin Connect."
+        ),
+    )
     garmin_measurements_parser = garmin_subparsers.add_parser("fetch-measurements")
     _add_measurement_fetch_options(garmin_measurements_parser)
     garmin_subparsers.add_parser("fetch-user-data")
@@ -284,6 +298,13 @@ def main(argv: list[str] | None = None) -> int:
         ensure_garmin_connect_directories(project_config.data_root)
         result, raw_store = _run_garmin_fetch_activities(args, project_config)
         _print_garmin_fetch_activities_result(result, raw_store)
+        return 0
+
+    if args.command == "garmin" and args.garmin_command == "fetch-activity-gear":
+        project_config = load_config()
+        ensure_garmin_connect_directories(project_config.data_root)
+        result = _run_garmin_fetch_activity_gear(args, project_config)
+        _print_garmin_fetch_activity_gear_result(result)
         return 0
 
     if args.command == "garmin" and args.garmin_command == "fetch-measurements":
@@ -925,6 +946,22 @@ def _run_garmin_fetch_activities(
     return result, raw_store
 
 
+def _run_garmin_fetch_activity_gear(
+    args: argparse.Namespace,
+    project_config: ProjectConfig,
+) -> GarminActivityGearBackfillResult:
+    client = None if args.local_only else login_from_tokenstore()
+    return backfill_garmin_activity_gear_raw(
+        client,
+        GarminRawStore(project_config.data_root),
+        GarminStateStore(project_config.data_root),
+        activity_ids=args.activity_id,
+        max_activities=args.max_activities,
+        force=args.force,
+        local_only=args.local_only,
+    )
+
+
 def _print_fetch_activities_result(
     result: ActivitySyncResult,
     raw_store: RawStore,
@@ -964,6 +1001,21 @@ def _print_garmin_fetch_activities_result(
         f"{len(result.warnings)} warnings."
     )
     print(f"Raw root: {raw_store.raw_root}")
+    print(f"State: {result.state_path}")
+
+
+def _print_garmin_fetch_activity_gear_result(
+    result: GarminActivityGearBackfillResult,
+) -> None:
+    print(
+        "Downloaded Garmin Connect activity gear raw files: "
+        f"{result.candidate_activities} candidates, "
+        f"{result.processed_activities} processed, "
+        f"{result.repaired_activities} repaired, "
+        f"{result.skipped_activities} skipped, "
+        f"{len(result.written)} written, "
+        f"{len(result.recoverable_errors)} recoverable errors."
+    )
     print(f"State: {result.state_path}")
 
 

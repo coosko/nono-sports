@@ -85,6 +85,15 @@ proyecto, con datos complementarios procedentes de las fuentes disponibles.
 `equipment.jsonl` contiene bicicletas, zapatillas, dispositivos y otro material
 consolidado por tipo y nombre normalizado.
 
+En equipación, `distance_m` es la distancia efectiva consolidada cuando puede
+calcularse desde actividades. El cálculo recorre las actividades consolidadas y
+suma cada actividad una sola vez: si Strava y Garmin Connect tienen la misma
+actividad y ambos declaran el mismo equipo, se usa la fuente con prioridad en
+esa actividad; si solo una fuente declara equipo, se usa esa fuente. La
+trazabilidad queda en `attributes.usage`, incluyendo estrategia,
+`base_distance`, `partial_distance_m`, tiempos de uso y actividades no
+asignables por falta de enlace de equipación.
+
 `athlete_sources.jsonl` y `equipment_sources.jsonl` conservan la trazabilidad de
 cada registro consolidado hacia sus fuentes.
 
@@ -103,7 +112,7 @@ cada registro consolidado hacia sus fuentes.
 - `duplicate_candidates.jsonl`: informe auditable de agrupaciones ya aplicadas,
   con estrategia, confianza y señales
 - `equipment.jsonl`: agrupación inicial por `equipment_type` y nombre
-  normalizado, manteniendo enlaces de fuente
+  normalizado, manteniendo enlaces de fuente y métricas efectivas de uso
 
 La selección avanzada por tipo de métrica todavía no está aprobada. Por ejemplo,
 Garmin puede ser mejor para sensores/FIT y Strava para segmentos sociales, pero
