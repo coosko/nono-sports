@@ -134,7 +134,8 @@ Para ejecutar solo la parte offline sobre raw ya descargado:
 
 Con `--skip-fetch` no se llama a Garmin Connect. Solo se reconstruyen
 normalizados y consolidados desde raw ya existente, incluyendo
-`athletes.jsonl`, `equipment.jsonl` y `measurements.jsonl`.
+`athletes.jsonl`, `equipment.jsonl`, `measurements.jsonl` y actividades GPX
+manuales si existen.
 
 ## Opciones
 

@@ -50,6 +50,7 @@ GARMIN_CONNECT_DIRECTORIES = [
 ]
 
 MANUAL_DIRECTORIES = [
+    "10_fuentes/manual/raw/activities",
     "10_fuentes/manual/biometria",
     "10_fuentes/manual/normalizado",
     "10_fuentes/manual/logs",

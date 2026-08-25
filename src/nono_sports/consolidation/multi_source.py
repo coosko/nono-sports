@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from nono_sports.core.paths import garmin_connect_path, strava_path
+from nono_sports.core.paths import garmin_connect_path, manual_path, strava_path
 from nono_sports.domain.activity import ActivitySourceLink, ConsolidatedActivity
 from nono_sports.storage.consolidated_store import (
     ConsolidatedStore,
@@ -22,6 +22,7 @@ SCHEMA_VERSION_DUPLICATE_CANDIDATE = "nono.duplicate_candidate.v1"
 SOURCE_PRIORITY = {
     "strava": 1,
     "garmin_connect": 2,
+    "manual": 3,
 }
 
 
@@ -121,6 +122,7 @@ def _normalized_activity_paths(data_root: Path) -> dict[str, Path]:
             "normalizado",
             "activities.jsonl",
         ),
+        "manual": manual_path(data_root, "normalizado", "activities.jsonl"),
     }
 
 

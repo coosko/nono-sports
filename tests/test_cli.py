@@ -280,6 +280,30 @@ def test_parser_accepts_manual_normalize_command() -> None:
     assert args.manual_command == "normalize"
 
 
+def test_parser_accepts_manual_import_gpx_command() -> None:
+    args = build_parser().parse_args(
+        [
+            "manual",
+            "import-gpx",
+            "--path",
+            "ruta.gpx",
+            "--sport",
+            "hiking",
+            "--source-platform",
+            "komoot",
+            "--title",
+            "Ruta manual",
+        ]
+    )
+
+    assert args.command == "manual"
+    assert args.manual_command == "import-gpx"
+    assert args.path == "ruta.gpx"
+    assert args.sport == "hiking"
+    assert args.source_platform == "komoot"
+    assert args.title == "Ruta manual"
+
+
 def test_clean_garmin_intermediate_files_supports_dry_run_and_delete(
     tmp_path: Path,
 ) -> None:

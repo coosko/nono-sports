@@ -20,7 +20,9 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 
 - RF8: El sistema debe poder importar datos desde Garmin Connect siguiendo la decisión aprobada en `docs/requirements/garmin-connect.md`.
 - RF9: El sistema debe poder importar datos desde Komoot.
-- RF10: El sistema debe poder importar ficheros manuales como FIT, GPX, TCX o CSV.
+- RF10: El sistema debe poder importar ficheros manuales. GPX queda operativo
+  como primera variante de actividad manual; FIT, TCX y otros formatos quedan
+  previstos para ampliación.
 - RF11: El sistema debe detectar actividades equivalentes entre varias fuentes.
 - RF12: El sistema debe elegir una fuente primaria por tipo de dato cuando existan duplicados.
 - RF13: El sistema debe producir una vista consolidada única por actividad real.
@@ -79,6 +81,10 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
   fuente, evitando doble conteo cuando una actividad existe en varias
   plataformas. La trazabilidad de la estrategia y de las distancias fuente debe
   conservarse en `attributes.usage`.
+- RDAT15: Las actividades GPX importadas manualmente deben conservar el fichero
+  original en `10_fuentes/manual/raw/activities/`, registrar manifiesto raw,
+  normalizarse al contrato común de actividad/stream y deduplicarse frente a
+  Strava/Garmin cuando representen la misma salida.
 
 ## Requisitos no funcionales
 

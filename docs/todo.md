@@ -51,9 +51,8 @@ y el estado real del proyecto en `docs/current-state.md`.
 - [ ] Ampliar el modelo manual de equipación y componentes: peso real en orden
   de marcha, ruedas, cubiertas, desarrollos, sensores, cambios de componentes y
   relación componente-equipo.
-- [ ] Implementar importador manual de actividades FIT, GPX, TCX u otros
-  formatos, deduplicándolo frente a Strava/Garmin si representa la misma
-  actividad.
+- [ ] Ampliar el importador manual de actividades, ya operativo para GPX, a
+  FIT, TCX u otros formatos cuando aporten datos que no estén en Garmin/Strava.
 - [ ] Investigar datos Garmin adicionales de salud, recuperación, sueño,
   entrenamiento o carga si aportan valor deportivo y pueden sincronizarse de
   forma autónoma.
@@ -82,6 +81,8 @@ y el estado real del proyecto en `docs/current-state.md`.
 - [x] Implementado cálculo de uso efectivo de equipación sin doble conteo entre
   actividades Strava/Garmin.
 - [x] Implementado fallback Garmin GPX/TCX para actividades importadas sin FIT.
+- [x] Implementado importador manual GPX con raw, normalizado, streams y
+  deduplicación multi-fuente.
 - [x] Implementada normalización/consolidación de bajo consumo de memoria:
   `streams.jsonl` ya no se carga completo en normalización Garmin/Strava,
   consolidación de equipación ni validación offline.

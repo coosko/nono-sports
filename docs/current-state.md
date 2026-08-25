@@ -50,6 +50,9 @@ Existe actualmente:
 - mediciones biométricas implementadas con descarga Garmin Connect de
   peso/composición, normalización del CSV manual de biometría y consolidación
   en `20_consolidado/measurements.jsonl`
+- importación manual GPX implementada con copia raw, manifiesto, normalización
+  a `activities.jsonl`, `streams.jsonl`, `streams_index.jsonl` y reconstrucción
+  del consolidado
 - datos de usuario/equipación implementados: Garmin Connect descarga
   perfil/settings, equipación declarada, estadísticas de equipación,
   dispositivos y equipación por actividad cuando está disponible; Strava
@@ -96,7 +99,8 @@ Existe actualmente:
 No existe todavía:
 
 - validación real de autonomía Garmin Connect en Nono
-- importadores para Komoot o actividades manuales desde FIT/GPX/TCX/CSV
+- importadores manuales desde FIT o TCX
+- conectores normalizados para Komoot, Wikiloc u otras plataformas de rutas
 - ingesta normalizada de rutas Wikiloc dentro de `10_fuentes` o
   `20_consolidado`
 - selección avanzada de fuente primaria por métrica en consolidación multi-fuente
@@ -112,7 +116,8 @@ OAuth, cliente HTTP base para Strava, descarga raw de perfil/contexto, descarga
 raw de actividades con control preventivo de límites de lectura, normalización
 local de raw Strava, Garmin Connect operativo con actividades, mediciones,
 perfil, equipación y dispositivos, normalización de biometría manual,
-consolidación multi-fuente de actividades, mediciones, atleta y equipación,
+importación manual de actividades GPX, consolidación multi-fuente de
+actividades, mediciones, atleta y equipación,
 validación offline de conteos/coherencia, carga de configuración
 desde entorno/XDG/`.env` local, comando operativo `strava sync`, comando
 operativo `garmin sync` y reprogramación adaptativa para backfill Strava.

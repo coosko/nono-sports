@@ -23,8 +23,8 @@ python3 -m pip install -r requirements-dev.txt
 
 Actualmente el paquete permite preparar directorios, autenticar Strava,
 sincronizar Strava y Garmin Connect, normalizar raw por fuente a JSONL,
-construir `20_consolidado` multi-fuente y validar la coherencia del dataset
-local.
+importar actividades GPX manuales, construir `20_consolidado` multi-fuente y
+validar la coherencia del dataset local.
 
 ## Estructura de datos
 
@@ -34,6 +34,7 @@ Si quieres preparar la estructura de datos futura:
 export NONO_SPORT_DATA_ROOT='/mnt/h/Mi unidad/01_ambitos/02_personal/40_deporte'
 ./.venv/bin/python -m nono_sports strava prepare-dirs
 ./.venv/bin/python -m nono_sports garmin prepare-dirs
+./.venv/bin/python -m nono_sports manual prepare-dirs
 ```
 
 ## Verificación básica
@@ -67,6 +68,8 @@ La descarga raw de actividades se describe en `docs/usage/strava-fetch-activitie
 La normalización Strava se describe en `docs/usage/strava-normalize.md`.
 
 La sincronización Garmin Connect se describe en `docs/usage/garmin-fetch-activities.md`.
+
+La importación manual de GPX se describe en `docs/usage/manual-activity-imports.md`.
 
 La consolidación inicial se describe en `docs/usage/build-consolidated.md`.
 

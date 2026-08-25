@@ -37,6 +37,8 @@ SCAFFOLD_MODULES = [
     "nono_sports.normalization.garmin_activity",
     "nono_sports.normalization.garmin_dataset",
     "nono_sports.normalization.garmin_stream",
+    "nono_sports.normalization.manual_activities",
+    "nono_sports.normalization.manual_measurements",
     "nono_sports.consolidation.single_source",
     "nono_sports.consolidation.multi_source",
     "nono_sports.validation.checks",

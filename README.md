@@ -1,13 +1,16 @@
 # nono-sports
 
-Proyecto Python para construir la base de datos deportiva de Nono a partir de Strava, Garmin Connect y futuras fuentes como Komoot o importaciones manuales.
+Proyecto Python para construir la base de datos deportiva de Nono a partir de
+Strava, Garmin Connect, importaciones manuales y futuras fuentes como Komoot.
 
 El proyecto tiene Strava v1 y Garmin Connect v1 operativos. El código activo permite autenticación OAuth Strava, tokenstore Garmin Connect, descarga raw, normalización por fuente, consolidación multi-fuente en `20_consolidado` y validación offline del dataset local.
 
 ## Estado actual
 
 - paquete Python en `src/nono_sports/`
-- comandos para diagnosticar entorno, preparar directorios, autenticar Strava, sincronizar Strava y Garmin Connect, normalizar raw por fuente, construir `20_consolidado` y validar datos
+- comandos para diagnosticar entorno, preparar directorios, autenticar Strava,
+  sincronizar Strava y Garmin Connect, importar GPX manuales, normalizar raw por
+  fuente, construir `20_consolidado` y validar datos
 - documentación canónica de requisitos y arquitectura
 - Garmin Connect integrado con descarga raw, FIT/GPX/TCX, perfil/equipación,
   mediciones, normalización incremental, consolidación multi-fuente y limpieza
@@ -31,6 +34,7 @@ Documento de referencia del estado real:
 - `docs/usage/doctor.md`: diagnóstico local seguro del entorno
 - `docs/usage/garmin-connect-probe.md`: prueba aislada Garmin Connect
 - `docs/usage/garmin-fetch-activities.md`: sincronización, normalización y diagnóstico Garmin Connect
+- `docs/usage/manual-activity-imports.md`: importación manual de actividades GPX
 - `docs/usage/measurements.md`: mediciones biométricas Garmin/manual y consolidado
 - `docs/usage/automation.md`: automatización controlada en Nono
 - `docs/usage/nono-operator-guide.md`: guía operativa y prompt sugerido para Nono
@@ -160,11 +164,18 @@ H:\Mi unidad\01_ambitos\02_personal\40_deporte
 │   │       └── activity_sync_state.json
 │   ├── komoot/
 │   └── manual/
+│       ├── raw/
+│       │   ├── activities/
+│       │   └── manifest.jsonl
 │       ├── biometria/
 │       │   └── mediciones_carlos.csv
 │       ├── normalizado/
+│       │   ├── activities.jsonl
+│       │   ├── streams.jsonl
+│       │   ├── streams_index.jsonl
 │       │   ├── measurements.jsonl
-│       │   └── measurements_state.json
+│       │   ├── measurements_state.json
+│       │   └── state.json
 │       └── logs/
 ├── 20_consolidado/
 │   ├── activities.jsonl

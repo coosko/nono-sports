@@ -27,6 +27,7 @@ El comando no llama a APIs externas. Lee:
 10_fuentes/garmin_connect/normalizado/athletes.jsonl
 10_fuentes/garmin_connect/normalizado/equipment.jsonl
 10_fuentes/garmin_connect/normalizado/measurements.jsonl
+10_fuentes/manual/normalizado/activities.jsonl
 10_fuentes/manual/normalizado/measurements.jsonl
 ```
 
@@ -110,6 +111,8 @@ cada registro consolidado hacia sus fuentes.
   coinciden prácticamente y Strava conserva `garmin_ping` o `garmin_push`
 - ciclismo con inicio retrasado: admitir hasta 30 minutos si tiempo en
   movimiento y distancia siguen dentro de tolerancias conservadoras
+- importaciones manuales: incluir `manual` como fuente de menor prioridad y
+  agruparla con Strava/Garmin si representa la misma salida
 - `source_count`: `1` si no hay equivalencia, `>1` si se agrupan fuentes
 - `activity_sources.jsonl`: un enlace por fuente normalizada
 - `duplicate_candidates.jsonl`: informe auditable de agrupaciones ya aplicadas,

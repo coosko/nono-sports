@@ -9,8 +9,9 @@ atleta y de equipación desde Strava, Garmin Connect y fuentes manuales,
 preserve los datos originales y genere una capa normalizada y consolidada
 preparada para consulta y análisis.
 
-La arquitectura debe permitir añadir Garmin, Komoot, rutas externas o
-importaciones manuales FIT/GPX/TCX/CSV sin rehacer el núcleo.
+La arquitectura debe permitir añadir Garmin, Komoot, rutas externas o ampliar
+importaciones manuales FIT/GPX/TCX/CSV sin rehacer el núcleo. GPX manual ya es
+la primera variante operativa de esa familia.
 
 ## Fuentes oficiales consultadas
 
@@ -88,7 +89,8 @@ src/nono_sports/
 │   ├── sync.py
 │   └── doctor.py
 ├── formats/
-│   └── fit.py
+│   ├── fit.py
+│   └── track_xml.py
 ├── storage/
 │   ├── raw_store.py
 │   ├── consolidated_store.py
@@ -113,6 +115,7 @@ src/nono_sports/
 │   ├── garmin_measurements.py
 │   ├── garmin_user_data.py
 │   ├── garmin_stream.py
+│   ├── manual_activities.py
 │   ├── manual_measurements.py
 │   ├── measurement_utils.py
 │   └── equipment_utils.py
@@ -139,6 +142,9 @@ Expone comandos de usuario:
 - `nono-sports strava fetch-activities`
 - `nono-sports strava sync`
 - `nono-sports strava validate`
+- `nono-sports garmin sync`
+- `nono-sports manual import-gpx`
+- `nono-sports manual normalize`
 - `nono-sports build-consolidated`
 
 ### `core`
@@ -245,9 +251,10 @@ Garmin, sino en `formats`.
 Responsable de leer formatos deportivos reutilizables entre fuentes:
 
 - FIT actual
-- GPX futuro
-- TCX futuro
-- CSV/manual futuro
+- GPX/TCX actual para fallback Garmin mediante `track_xml.py`
+- GPX manual actual para actividades importadas a mano
+- TCX manual futuro
+- CSV/manual actual para mediciones biométricas
 
 Regla estándar:
 
@@ -351,6 +358,12 @@ Convierte raw de cada fuente a modelos comunes:
 
 La normalización nunca debe borrar la trazabilidad hacia el fichero raw original.
 
+`manual_activities.py` normaliza GPX importados manualmente al contrato común:
+actividad, stream, índice de stream y `state.json`. El origen externo del
+fichero, por ejemplo Komoot, se conserva como `source_platform` dentro de la
+fuente `manual`; no se trata como conector propio hasta que exista una
+integración aprobada.
+
 ### Regla de memoria
 
 `streams.jsonl` puede crecer hasta cientos de MB por fuente. Por tanto, los
@@ -411,6 +424,8 @@ Responsabilidad:
 - mantener Strava como fuente primaria inicial por compatibilidad
 - permitir varios enlaces fuente por actividad consolidada
 - detectar duplicados candidatos entre Strava y Garmin Connect
+- detectar duplicados candidatos de importaciones manuales frente a
+  Strava/Garmin cuando tiempo, distancia y deporte encajan
 - consolidar atleta/equipación entre fuentes
 - consolidar mediciones biométricas y métricas puntuales
 - conservar trazabilidad completa antes de elegir fuente por métrica
@@ -555,11 +570,18 @@ El comando operativo `nono-sports strava sync` encadena descarga incremental, no
 │   │   └── logs/
 │   │       └── activity_sync_state.json
 │   └── manual/
+│       ├── raw/
+│       │   ├── activities/
+│       │   └── manifest.jsonl
 │       ├── biometria/
 │       │   └── mediciones_carlos.csv
 │       ├── normalizado/
+│       │   ├── activities.jsonl
+│       │   ├── streams.jsonl
+│       │   ├── streams_index.jsonl
 │       │   ├── measurements.jsonl
-│       │   └── measurements_state.json
+│       │   ├── measurements_state.json
+│       │   └── state.json
 │       ├── logs/
 │       └── sensaciones/
 ├── 20_consolidado/
@@ -600,7 +622,10 @@ Contrato mínimo por fuente normalizada:
 Cada fuente puede añadir ficheros específicos si aportan valor real. Garmin
 Connect añade `laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
 `segment_candidates.jsonl`; Strava y Garmin Connect escriben `athletes.jsonl`
-y `equipment.jsonl` como contrato común.
+y `equipment.jsonl` como contrato común. La fuente manual no tiene
+`logs/activity_sync_state.json` porque no llama a una API externa; sus
+actividades GPX registran trazabilidad en `raw/manifest.jsonl` y su estado de
+normalización en `normalizado/state.json`.
 
 Contrato de mediciones:
 
@@ -653,6 +678,6 @@ el futuro, deberán incorporarse como una decisión explícita de arquitectura.
 
 - escritura o modificación de datos en Strava
 - webhooks productivos
-- implementación Komoot o importación deportiva manual FIT/GPX/TCX
+- implementación Komoot o importación deportiva manual FIT/TCX
 - deduplicación compleja entre fuentes
 - análisis deportivo avanzado

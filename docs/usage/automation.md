@@ -95,7 +95,7 @@ El comando ejecuta:
 - descarga raw de actividades pendientes
 - descarga incremental de mediciones Garmin Connect de peso/composición
 - normalización Garmin Connect
-- normalización de mediciones manuales si existe
+- normalización de actividades GPX manuales y mediciones manuales si existen
 - consolidación multi-fuente
 
 La normalización y la validación procesan los JSONL grandes en streaming. En
@@ -137,6 +137,12 @@ timestamp Unix de actividad:
 
 En el modo diario, `garmin sync` incluye mediciones salvo que se indique
 `--skip-measurements`.
+
+Las actividades GPX importadas manualmente no requieren una llamada diaria
+propia. Si existen en `10_fuentes/manual/raw/activities/`, `garmin sync` las
+normaliza de nuevo antes de reconstruir el consolidado. Para importar un GPX
+nuevo se usa el comando explícito documentado en
+`docs/usage/manual-activity-imports.md`.
 
 El flujo normal no conserva `raw/fit_decoded/*.fitdecode.json`. Si se genera un
 derivado de diagnóstico para una actividad concreta, límpialo después:

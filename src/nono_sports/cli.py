@@ -78,6 +78,11 @@ from nono_sports.normalization.garmin_user_data import (
     GarminUserDataNormalizationResult,
     normalize_garmin_user_data,
 )
+from nono_sports.normalization.manual_activities import (
+    ManualActivityNormalizationResult,
+    import_manual_gpx_activity,
+    normalize_manual_activities,
+)
 from nono_sports.normalization.manual_measurements import normalize_manual_measurements
 from nono_sports.normalization.strava_dataset import normalize_strava_dataset
 from nono_sports.storage.raw_store import RawStore
@@ -228,6 +233,11 @@ def build_parser() -> argparse.ArgumentParser:
     manual_subparsers = manual_parser.add_subparsers(dest="manual_command")
     manual_subparsers.add_parser("prepare-dirs")
     manual_subparsers.add_parser("normalize")
+    manual_import_gpx_parser = manual_subparsers.add_parser("import-gpx")
+    manual_import_gpx_parser.add_argument("--path", required=True)
+    manual_import_gpx_parser.add_argument("--sport", required=True)
+    manual_import_gpx_parser.add_argument("--source-platform", default="manual")
+    manual_import_gpx_parser.add_argument("--title", default=None)
 
     return parser
 
@@ -352,6 +362,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "manual" and args.manual_command == "normalize":
         project_config = load_config()
         ensure_manual_directories(project_config.data_root)
+        activity_result = normalize_manual_activities(project_config.data_root)
+        _print_manual_activity_normalization_result(activity_result)
         result = normalize_manual_measurements(project_config.data_root)
         _print_measurement_normalization_result(
             "manual",
@@ -359,6 +371,27 @@ def main(argv: list[str] | None = None) -> int:
             len(result.written),
             result.normalized_root,
         )
+        return 0
+
+    if args.command == "manual" and args.manual_command == "import-gpx":
+        project_config = load_config()
+        ensure_manual_directories(project_config.data_root)
+        result = import_manual_gpx_activity(
+            project_config.data_root,
+            Path(args.path),
+            sport=args.sport,
+            source_platform=args.source_platform,
+            title=args.title,
+        )
+        print(
+            "Imported manual GPX activity: "
+            f"{result.activity_id}, {result.written.bytes_written} bytes."
+        )
+        print(f"Raw file: {result.written.path}")
+        activity_result = normalize_manual_activities(project_config.data_root)
+        _print_manual_activity_normalization_result(activity_result)
+        _normalize_manual_measurements_if_available(project_config)
+        _run_consolidation(project_config)
         return 0
 
     if args.command == "garmin" and args.garmin_command == "decode-fit":
@@ -703,6 +736,27 @@ def _normalize_manual_measurements_if_available(
     )
 
 
+def _normalize_manual_activities_if_available(
+    project_config: ProjectConfig,
+) -> None:
+    ensure_manual_directories(project_config.data_root)
+    result = normalize_manual_activities(project_config.data_root)
+    _print_manual_activity_normalization_result(result)
+
+
+def _print_manual_activity_normalization_result(
+    result: ManualActivityNormalizationResult,
+) -> None:
+    print(
+        "Normalized manual activities: "
+        f"{result.activities} activities, "
+        f"{result.streams} streams, "
+        f"{result.streams_index} stream index records, "
+        f"{len(result.written)} files written."
+    )
+    print(f"Normalized root: {result.normalized_root}")
+
+
 def _run_consolidation(project_config: ProjectConfig) -> None:
     activities_result = build_multi_source_consolidated(project_config.data_root)
     print(
@@ -754,6 +808,7 @@ def _run_strava_sync(args: argparse.Namespace, project_config: ProjectConfig) ->
         f"{len(normalize_result.written)} files written."
     )
     _normalize_manual_measurements_if_available(project_config)
+    _normalize_manual_activities_if_available(project_config)
     _run_consolidation(project_config)
     summary = _run_validation(project_config)
     if args.schedule_next_if_pending:
@@ -802,6 +857,7 @@ def _run_garmin_sync(args: argparse.Namespace, project_config: ProjectConfig) ->
     user_data_result = normalize_garmin_user_data(project_config.data_root)
     _print_user_data_normalization_result("Garmin Connect", user_data_result)
     _normalize_manual_measurements_if_available(project_config)
+    _normalize_manual_activities_if_available(project_config)
 
     _run_consolidation(project_config)
     return 0

@@ -20,6 +20,9 @@ Todas las versiones y entregables se documentan aquí.
   la equipación por actividad Garmin ya descargada, sin descargar FIT ni forzar
   un full scan. Incluye `--local-only` para reparar el estado desde raw local
   sin llamar a Garmin Connect.
+- Añadido importador manual GPX con comando `manual import-gpx`, copia raw,
+  manifiesto, normalización de actividad/stream y reconstrucción del
+  consolidado.
 
 ### Changed
 
@@ -49,6 +52,8 @@ Todas las versiones y entregables se documentan aquí.
   changelog.
 - Reorganizado `docs/roadmap.md` como hoja de ruta de producto, separada del
   backlog accionable de `docs/todo.md`.
+- La consolidación deportiva incorpora `manual` como tercera fuente de
+  actividades, con prioridad inferior a Strava y Garmin Connect.
 - El cliente Garmin Connect ya no importa la dependencia opcional
   `garminconnect` cuando se le inyecta una API falsa/adaptada en tests.
 

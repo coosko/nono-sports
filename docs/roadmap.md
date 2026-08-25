@@ -101,7 +101,7 @@ Líneas de trabajo:
 
 ## Fase 5. Importadores y fuentes futuras
 
-Estado: pendiente.
+Estado: pendiente, con importación manual GPX básica ya entregada.
 
 Objetivo:
 
@@ -110,7 +110,7 @@ Objetivo:
 
 Líneas de trabajo:
 
-- importar actividades manuales desde FIT, GPX, TCX u otros formatos
+- ampliar actividades manuales desde GPX inicial a FIT, TCX u otros formatos
 - deduplicar actividades importadas frente a Strava/Garmin
 - evaluar Komoot/Wikiloc como fuentes normalizadas de rutas o planes, separadas
   de su uso actual como consulta auxiliar
