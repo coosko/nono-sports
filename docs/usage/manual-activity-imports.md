@@ -56,6 +56,9 @@ El comando no llama a APIs externas. Ejecuta:
 - normalización de mediciones manuales si existe el CSV
 - reconstrucción de `20_consolidado`
 
+También añade un resumen operativo local en
+`~/.local/state/nono-sports/logs/operation_runs.jsonl`.
+
 ## Deportes admitidos
 
 El argumento `--sport` se normaliza al contrato común. Valores útiles:
@@ -113,6 +116,7 @@ Si ya existen GPX en `10_fuentes/manual/raw/activities/`:
 ```
 
 `manual normalize` no llama a APIs externas y no modifica el raw original.
+También queda registrado en el resumen operativo local.
 
 ## Buenas prácticas
 

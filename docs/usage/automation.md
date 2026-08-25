@@ -103,6 +103,17 @@ particular, el flujo diario no debe cargar `normalizado/streams.jsonl` completo
 en memoria; Garmin reutiliza streams previos por offsets y Strava escribe los
 streams línea a línea cuando se reconstruye offline.
 
+Cada ejecución de pipeline escribe además un resumen operativo local en:
+
+```text
+~/.local/state/nono-sports/logs/operation_runs.jsonl
+```
+
+Este fichero no está en Drive. Sirve para auditar cómo se ejecutó el comando en
+ese host: fases, duración, conteos, estado final y errores si los hay. Los
+ficheros `10_fuentes/<fuente>/logs/*_sync_state.json` siguen siendo estados de
+sincronización del dataset y deben permanecer en Drive.
+
 Garmin Connect no expone, mediante `garminconnect==0.3.6`, un filtro fiable de
 "modificadas desde". El comando usa `last_successful_activity_sync_at` y un
 solape por defecto de 7 días para cortar el listado cuando llega a actividades
@@ -217,6 +228,12 @@ Ver últimas ejecuciones:
 
 ```bash
 journalctl --user -u nono-sports-garmin-sync.service -n 100 --no-pager
+```
+
+Ver el último resumen operativo estructurado:
+
+```bash
+tail -n 1 /home/nono/.local/state/nono-sports/logs/operation_runs.jsonl
 ```
 
 Seguir logs en vivo:

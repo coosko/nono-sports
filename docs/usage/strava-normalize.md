@@ -34,6 +34,10 @@ idempotente. La escritura de streams es línea a línea: no construye
 `streams.jsonl` completo en memoria y después genera `streams_index.jsonl`
 leyendo ese JSONL también en streaming.
 
+El comando añade un resumen operativo local en
+`~/.local/state/nono-sports/logs/operation_runs.jsonl`; ese log no forma parte
+del dataset y no se guarda en Drive.
+
 `athletes.jsonl`, `equipment.jsonl`, `streams_index.jsonl` y `state.json`
 forman parte del contrato mínimo común de normalizados por fuente.
 `streams_index.jsonl` no sustituye a `streams.jsonl`: permite localizar streams

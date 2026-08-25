@@ -10,6 +10,8 @@ from nono_sports.core.paths import (
     garmin_connect_state_dir,
     garmin_connect_tokenstore_path,
     normalize_filesystem_root,
+    operation_logs_dir,
+    operation_runs_log_path,
     strava_path,
     strava_token_path,
 )
@@ -82,4 +84,13 @@ def test_garmin_connect_state_paths_use_app_state_dir(monkeypatch, tmp_path) -> 
     assert garmin_connect_state_dir() == tmp_path / "nono-sports" / "garmin_connect"
     assert garmin_connect_tokenstore_path() == (
         tmp_path / "nono-sports" / "garmin_connect" / "tokenstore"
+    )
+
+
+def test_operation_log_paths_use_app_state_dir(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+
+    assert operation_logs_dir() == tmp_path / "nono-sports" / "logs"
+    assert operation_runs_log_path() == (
+        tmp_path / "nono-sports" / "logs" / "operation_runs.jsonl"
     )

@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from nono_sports.auth.strava_oauth import (
     build_authorization_url,
@@ -14,6 +17,7 @@ from nono_sports.auth.strava_oauth import (
 )
 from nono_sports.auth.token_store import StravaTokenStore
 from nono_sports.automation.adaptive import (
+    AdaptiveScheduleDecision,
     build_adaptive_schedule_decision,
     schedule_with_systemd,
 )
@@ -32,6 +36,10 @@ from nono_sports.core.doctor import (
     run_strava_doctor,
 )
 from nono_sports.core.file_lock import acquire_file_lock
+from nono_sports.core.operation_log import (
+    OperationalPhase,
+    OperationalRunRecorder,
+)
 from nono_sports.core.paths import (
     ensure_garmin_connect_directories,
     ensure_manual_directories,
@@ -244,7 +252,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    cli_argv = list(sys.argv[1:] if argv is None else argv)
+    args = parser.parse_args(cli_argv)
+    setattr(args, "_operation_argv", cli_argv)
 
     if args.command == "doctor":
         report = run_common_doctor()
@@ -342,57 +352,46 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "garmin" and args.garmin_command == "normalize":
         project_config = load_config()
         ensure_garmin_connect_directories(project_config.data_root)
-        result = normalize_garmin_dataset(
-            project_config.data_root,
-            force=args.force,
-            keep_intermediate_files=args.keep_intermediate_files,
+        return _run_with_operation_log(
+            command="garmin normalize",
+            source="garmin_connect",
+            args=args,
+            project_config=project_config,
+            callback=lambda recorder: _run_garmin_normalize_pipeline(
+                args,
+                project_config,
+                recorder,
+            ),
         )
-        _print_garmin_normalization_result(result)
-        measurement_result = normalize_garmin_measurements(project_config.data_root)
-        _print_measurement_normalization_result(
-            "Garmin Connect",
-            measurement_result.measurements,
-            len(measurement_result.written),
-            measurement_result.normalized_root,
-        )
-        user_data_result = normalize_garmin_user_data(project_config.data_root)
-        _print_user_data_normalization_result("Garmin Connect", user_data_result)
-        return 0
 
     if args.command == "manual" and args.manual_command == "normalize":
         project_config = load_config()
         ensure_manual_directories(project_config.data_root)
-        activity_result = normalize_manual_activities(project_config.data_root)
-        _print_manual_activity_normalization_result(activity_result)
-        result = normalize_manual_measurements(project_config.data_root)
-        _print_measurement_normalization_result(
-            "manual",
-            result.measurements,
-            len(result.written),
-            result.normalized_root,
+        return _run_with_operation_log(
+            command="manual normalize",
+            source="manual",
+            args=args,
+            project_config=project_config,
+            callback=lambda recorder: _run_manual_normalize_pipeline(
+                project_config,
+                recorder,
+            ),
         )
-        return 0
 
     if args.command == "manual" and args.manual_command == "import-gpx":
         project_config = load_config()
         ensure_manual_directories(project_config.data_root)
-        result = import_manual_gpx_activity(
-            project_config.data_root,
-            Path(args.path),
-            sport=args.sport,
-            source_platform=args.source_platform,
-            title=args.title,
+        return _run_with_operation_log(
+            command="manual import-gpx",
+            source="manual",
+            args=args,
+            project_config=project_config,
+            callback=lambda recorder: _run_manual_import_gpx_pipeline(
+                args,
+                project_config,
+                recorder,
+            ),
         )
-        print(
-            "Imported manual GPX activity: "
-            f"{result.activity_id}, {result.written.bytes_written} bytes."
-        )
-        print(f"Raw file: {result.written.path}")
-        activity_result = normalize_manual_activities(project_config.data_root)
-        _print_manual_activity_normalization_result(activity_result)
-        _normalize_manual_measurements_if_available(project_config)
-        _run_consolidation(project_config)
-        return 0
 
     if args.command == "garmin" and args.garmin_command == "decode-fit":
         if args.activity_id is None:
@@ -448,8 +447,16 @@ def main(argv: list[str] | None = None) -> int:
         ensure_strava_v1_directories(project_config.data_root)
         ensure_garmin_connect_directories(project_config.data_root)
         ensure_manual_directories(project_config.data_root)
-        _run_consolidation(project_config)
-        return 0
+        return _run_with_operation_log(
+            command="build-consolidated",
+            source="consolidated",
+            args=args,
+            project_config=project_config,
+            callback=lambda recorder: _run_build_consolidated_pipeline(
+                project_config,
+                recorder,
+            ),
+        )
 
     if args.command == "strava" and args.strava_command == "auth":
         strava_config = load_strava_client_config()
@@ -506,18 +513,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "strava" and args.strava_command == "normalize":
         project_config = load_config()
         ensure_strava_v1_directories(project_config.data_root)
-        result = normalize_strava_dataset(project_config.data_root)
-        print(
-            "Normalized Strava raw data: "
-            f"{result.athletes} athletes, "
-            f"{result.equipment} equipment records, "
-            f"{result.activities} activities, "
-            f"{result.streams} streams, "
-            f"{result.streams_index} stream index records, "
-            f"{len(result.written)} files written."
+        return _run_with_operation_log(
+            command="strava normalize",
+            source="strava",
+            args=args,
+            project_config=project_config,
+            callback=lambda recorder: _run_strava_normalize_pipeline(
+                project_config,
+                recorder,
+            ),
         )
-        print(f"Normalized root: {result.normalized_root}")
-        return 0
 
     if args.command == "strava" and args.strava_command == "validate":
         project_config = load_config()
@@ -725,23 +730,41 @@ def _print_user_data_normalization_result(
 
 def _normalize_manual_measurements_if_available(
     project_config: ProjectConfig,
-) -> None:
+    *,
+    recorder: OperationalRunRecorder | None = None,
+) -> Any:
     ensure_manual_directories(project_config.data_root)
-    result = normalize_manual_measurements(project_config.data_root)
+    with _optional_phase(recorder, "normalize.manual_measurements") as phase:
+        result = normalize_manual_measurements(project_config.data_root)
+        _set_phase(
+            phase,
+            counts=_measurement_normalization_counts(result),
+            outputs={"normalized_root": result.normalized_root},
+        )
     _print_measurement_normalization_result(
         "manual",
         result.measurements,
         len(result.written),
         result.normalized_root,
     )
+    return result
 
 
 def _normalize_manual_activities_if_available(
     project_config: ProjectConfig,
-) -> None:
+    *,
+    recorder: OperationalRunRecorder | None = None,
+) -> Any:
     ensure_manual_directories(project_config.data_root)
-    result = normalize_manual_activities(project_config.data_root)
+    with _optional_phase(recorder, "normalize.manual_activities") as phase:
+        result = normalize_manual_activities(project_config.data_root)
+        _set_phase(
+            phase,
+            counts=_manual_activity_normalization_counts(result),
+            outputs={"normalized_root": result.normalized_root},
+        )
     _print_manual_activity_normalization_result(result)
+    return result
 
 
 def _print_manual_activity_normalization_result(
@@ -757,8 +780,193 @@ def _print_manual_activity_normalization_result(
     print(f"Normalized root: {result.normalized_root}")
 
 
-def _run_consolidation(project_config: ProjectConfig) -> None:
-    activities_result = build_multi_source_consolidated(project_config.data_root)
+def _run_with_operation_log(
+    *,
+    command: str,
+    source: str,
+    args: argparse.Namespace,
+    project_config: ProjectConfig,
+    callback: Callable[[OperationalRunRecorder], int],
+) -> int:
+    recorder = OperationalRunRecorder(
+        command=command,
+        source=source,
+        argv=getattr(args, "_operation_argv", ()),
+        data_root=project_config.data_root,
+    )
+    try:
+        exit_code = callback(recorder)
+    except Exception as error:
+        recorder.finish(status="error", exit_code=1, error=error)
+        _print_operation_log_result(recorder)
+        raise
+
+    recorder.finish(
+        status="success" if exit_code == 0 else "failed",
+        exit_code=exit_code,
+    )
+    _print_operation_log_result(recorder)
+    return exit_code
+
+
+def _print_operation_log_result(recorder: OperationalRunRecorder) -> None:
+    path, error = recorder.append_best_effort()
+    if path is not None:
+        print(f"Operational log: {path}")
+        return
+    print(f"WARNING: could not write operational log: {error}", file=sys.stderr)
+
+
+@contextmanager
+def _optional_phase(
+    recorder: OperationalRunRecorder | None,
+    name: str,
+) -> Iterator[OperationalPhase | None]:
+    if recorder is None:
+        yield None
+        return
+    with recorder.phase(name) as phase:
+        yield phase
+
+
+def _set_phase(
+    phase: OperationalPhase | None,
+    *,
+    counts: dict[str, Any] | None = None,
+    outputs: dict[str, Any] | None = None,
+    details: dict[str, Any] | None = None,
+    message: str | None = None,
+) -> None:
+    if phase is not None:
+        phase.set(
+            counts=counts,
+            outputs=outputs,
+            details=details,
+            message=message,
+        )
+
+
+def _strava_fetch_counts(result: ActivitySyncResult) -> dict[str, Any]:
+    return {
+        "listed_activities": result.listed_activities,
+        "processed_activities": result.processed_activities,
+        "recoverable_errors": len(result.recoverable_errors),
+        "skipped_activities": result.skipped_activities,
+        "written_files": len(result.written),
+    }
+
+
+def _garmin_fetch_counts(result: GarminRawSyncResult) -> dict[str, Any]:
+    return {
+        "listed_activities": result.listed_activities,
+        "processed_activities": result.processed_activities,
+        "recoverable_errors": len(result.recoverable_errors),
+        "scanned_pages": result.scanned_pages,
+        "skipped_activities": result.skipped_activities,
+        "warnings": len(result.warnings),
+        "written_files": len(result.written),
+    }
+
+
+def _garmin_measurement_fetch_counts(
+    result: GarminMeasurementSyncResult,
+) -> dict[str, Any]:
+    return {
+        "end_date": result.end_date,
+        "start_date": result.start_date,
+        "written_files": len(result.written),
+    }
+
+
+def _garmin_user_data_fetch_counts(result: GarminUserDataSyncResult) -> dict[str, Any]:
+    return {"written_files": len(result.written)}
+
+
+def _strava_normalization_counts(result: Any) -> dict[str, Any]:
+    return {
+        "activities": result.activities,
+        "athletes": result.athletes,
+        "equipment": result.equipment,
+        "files_written": len(result.written),
+        "streams": result.streams,
+        "streams_index": result.streams_index,
+    }
+
+
+def _garmin_normalization_counts(result: GarminNormalizationResult) -> dict[str, Any]:
+    return {
+        "activities": result.activities,
+        "files_written": len(result.written),
+        "laps": result.laps,
+        "processed_activities": result.processed_activities,
+        "reused_activities": result.reused_activities,
+        "splits": result.splits,
+        "streams": result.streams,
+        "typed_splits": result.typed_splits,
+    }
+
+
+def _measurement_normalization_counts(result: Any) -> dict[str, Any]:
+    return {
+        "files_written": len(result.written),
+        "measurements": result.measurements,
+    }
+
+
+def _garmin_user_data_normalization_counts(
+    result: GarminUserDataNormalizationResult,
+) -> dict[str, Any]:
+    return {
+        "athletes": result.athletes,
+        "equipment": result.equipment,
+        "files_written": len(result.written),
+    }
+
+
+def _manual_activity_normalization_counts(
+    result: ManualActivityNormalizationResult,
+) -> dict[str, Any]:
+    return {
+        "activities": result.activities,
+        "files_written": len(result.written),
+        "streams": result.streams,
+        "streams_index": result.streams_index,
+    }
+
+
+def _rate_limit_details(snapshot: RateLimitSnapshot | None) -> dict[str, Any]:
+    if snapshot is None:
+        return {}
+    usage = snapshot.read_usage or snapshot.overall_usage
+    limit = snapshot.read_limit or snapshot.overall_limit
+    if usage is None or limit is None:
+        return {}
+    return {
+        "daily_limit": limit.daily,
+        "daily_usage": usage.daily,
+        "fifteen_minutes_limit": limit.fifteen_minutes,
+        "fifteen_minutes_usage": usage.fifteen_minutes,
+    }
+
+
+def _run_consolidation(
+    project_config: ProjectConfig,
+    *,
+    recorder: OperationalRunRecorder | None = None,
+) -> None:
+    with _optional_phase(recorder, "consolidate.activities") as phase:
+        activities_result = build_multi_source_consolidated(project_config.data_root)
+        _set_phase(
+            phase,
+            counts={
+                "activities": activities_result.activities,
+                "activity_sources": activities_result.activity_sources,
+                "streams_index": activities_result.streams_index,
+                "duplicate_candidates": activities_result.duplicate_candidates,
+                "files_written": len(activities_result.written),
+            },
+            outputs={"consolidated_root": activities_result.consolidated_root},
+        )
     print(
         "Built consolidated activity dataset: "
         f"{activities_result.activities} activities, "
@@ -767,14 +975,36 @@ def _run_consolidation(project_config: ProjectConfig) -> None:
         f"{activities_result.duplicate_candidates} duplicate candidates, "
         f"{len(activities_result.written)} files written."
     )
-    measurements_result = build_consolidated_measurements(project_config.data_root)
+    with _optional_phase(recorder, "consolidate.measurements") as phase:
+        measurements_result = build_consolidated_measurements(project_config.data_root)
+        _set_phase(
+            phase,
+            counts={
+                "measurements": measurements_result.measurements,
+                "measurement_sources": measurements_result.measurement_sources,
+                "files_written": len(measurements_result.written),
+            },
+            outputs={"consolidated_root": measurements_result.consolidated_root},
+        )
     print(
         "Built consolidated measurement dataset: "
         f"{measurements_result.measurements} measurements, "
         f"{measurements_result.measurement_sources} measurement source links, "
         f"{len(measurements_result.written)} files written."
     )
-    user_data_result = build_consolidated_user_data(project_config.data_root)
+    with _optional_phase(recorder, "consolidate.user_data") as phase:
+        user_data_result = build_consolidated_user_data(project_config.data_root)
+        _set_phase(
+            phase,
+            counts={
+                "athletes": user_data_result.athletes,
+                "athlete_sources": user_data_result.athlete_sources,
+                "equipment": user_data_result.equipment,
+                "equipment_sources": user_data_result.equipment_sources,
+                "files_written": len(user_data_result.written),
+            },
+            outputs={"consolidated_root": user_data_result.consolidated_root},
+        )
     print(
         "Built consolidated user dataset: "
         f"{user_data_result.athletes} athletes, "
@@ -787,48 +1017,123 @@ def _run_consolidation(project_config: ProjectConfig) -> None:
 
 
 def _run_strava_sync(args: argparse.Namespace, project_config: ProjectConfig) -> int:
+    return _run_with_operation_log(
+        command="strava sync",
+        source="strava",
+        args=args,
+        project_config=project_config,
+        callback=lambda recorder: _run_strava_sync_pipeline(
+            args,
+            project_config,
+            recorder,
+        ),
+    )
+
+
+def _run_strava_sync_pipeline(
+    args: argparse.Namespace,
+    project_config: ProjectConfig,
+    recorder: OperationalRunRecorder,
+) -> int:
     last_rate_limit = None
     if args.skip_fetch:
         print("Skipped Strava fetch. Running offline pipeline only.")
+        recorder.skip_phase("fetch.activities", "--skip-fetch")
     else:
-        result, raw_store, last_rate_limit = _run_strava_fetch_activities(
-            args,
-            project_config,
-        )
+        with recorder.phase("fetch.activities") as phase:
+            result, raw_store, last_rate_limit = _run_strava_fetch_activities(
+                args,
+                project_config,
+            )
+            phase.set(
+                counts=_strava_fetch_counts(result),
+                outputs={"raw_root": raw_store.raw_root, "state": result.state_path},
+                details={"rate_limit": _rate_limit_details(last_rate_limit)},
+            )
         _print_fetch_activities_result(result, raw_store, last_rate_limit)
 
-    normalize_result = normalize_strava_dataset(project_config.data_root)
-    print(
-        "Normalized Strava raw data: "
-        f"{normalize_result.athletes} athletes, "
-        f"{normalize_result.equipment} equipment records, "
-        f"{normalize_result.activities} activities, "
-        f"{normalize_result.streams} streams, "
-        f"{normalize_result.streams_index} stream index records, "
-        f"{len(normalize_result.written)} files written."
-    )
-    _normalize_manual_measurements_if_available(project_config)
-    _normalize_manual_activities_if_available(project_config)
-    _run_consolidation(project_config)
-    summary = _run_validation(project_config)
+    _run_strava_normalize_pipeline(project_config, recorder)
+    _normalize_manual_measurements_if_available(project_config, recorder=recorder)
+    _normalize_manual_activities_if_available(project_config, recorder=recorder)
+    _run_consolidation(project_config, recorder=recorder)
+    with recorder.phase("validate.strava") as phase:
+        summary = _run_validation(project_config)
+        severities = _count_findings_by_severity(summary)
+        phase.set(
+            counts={
+                "errors": severities["error"],
+                "info": severities["info"],
+                "warnings": severities["warning"],
+            },
+            details={"status": summary.status},
+        )
     if args.schedule_next_if_pending:
-        _schedule_next_sync_if_needed(args, summary, last_rate_limit)
+        with recorder.phase("schedule.adaptive") as phase:
+            decision = _schedule_next_sync_if_needed(args, summary, last_rate_limit)
+            phase.set(
+                counts={"scheduled": int(decision.should_schedule)},
+                details={"reason": decision.reason},
+            )
     return 1 if summary.status == "fail" else 0
 
 
 def _run_garmin_sync(args: argparse.Namespace, project_config: ProjectConfig) -> int:
+    return _run_with_operation_log(
+        command="garmin sync",
+        source="garmin_connect",
+        args=args,
+        project_config=project_config,
+        callback=lambda recorder: _run_garmin_sync_pipeline(
+            args,
+            project_config,
+            recorder,
+        ),
+    )
+
+
+def _run_garmin_sync_pipeline(
+    args: argparse.Namespace,
+    project_config: ProjectConfig,
+    recorder: OperationalRunRecorder,
+) -> int:
     raw_store = GarminRawStore(project_config.data_root)
     if args.skip_fetch:
         print("Skipped Garmin Connect fetch. Running offline pipeline only.")
+        recorder.skip_phase("fetch.activities", "--skip-fetch")
+        recorder.skip_phase("fetch.measurements", "--skip-fetch")
+        recorder.skip_phase("fetch.user_data", "--skip-fetch")
     else:
-        result, raw_store = _run_garmin_fetch_activities(args, project_config)
+        with recorder.phase("fetch.activities") as phase:
+            result, raw_store = _run_garmin_fetch_activities(args, project_config)
+            phase.set(
+                counts=_garmin_fetch_counts(result),
+                outputs={"raw_root": raw_store.raw_root, "state": result.state_path},
+                details={"stopped_reason": result.stopped_reason},
+            )
         _print_garmin_fetch_activities_result(result, raw_store)
         if not args.skip_measurements:
-            measurement_result = _run_garmin_fetch_measurements(args, project_config)
+            with recorder.phase("fetch.measurements") as phase:
+                measurement_result = _run_garmin_fetch_measurements(
+                    args,
+                    project_config,
+                )
+                phase.set(
+                    counts=_garmin_measurement_fetch_counts(measurement_result),
+                    outputs={"state": measurement_result.state_path},
+                )
             _print_garmin_fetch_measurements_result(measurement_result)
+        else:
+            recorder.skip_phase("fetch.measurements", "--skip-measurements")
         if not args.skip_user_data:
-            user_data_result = _run_garmin_fetch_user_data(project_config)
+            with recorder.phase("fetch.user_data") as phase:
+                user_data_result = _run_garmin_fetch_user_data(project_config)
+                phase.set(
+                    counts=_garmin_user_data_fetch_counts(user_data_result),
+                    outputs={"state": user_data_result.state_path},
+                )
             _print_garmin_fetch_user_data_result(user_data_result)
+        else:
+            recorder.skip_phase("fetch.user_data", "--skip-user-data")
 
     if args.keep_intermediate_files:
         print(
@@ -841,25 +1146,118 @@ def _run_garmin_sync(args: argparse.Namespace, project_config: ProjectConfig) ->
             "no fit_decoded files will be persisted."
         )
 
-    normalize_result = normalize_garmin_dataset(
-        project_config.data_root,
-        force=args.force,
-        keep_intermediate_files=args.keep_intermediate_files,
-    )
+    _run_garmin_normalize_pipeline(args, project_config, recorder)
+    _normalize_manual_measurements_if_available(project_config, recorder=recorder)
+    _normalize_manual_activities_if_available(project_config, recorder=recorder)
+
+    _run_consolidation(project_config, recorder=recorder)
+    return 0
+
+
+def _run_garmin_normalize_pipeline(
+    args: argparse.Namespace,
+    project_config: ProjectConfig,
+    recorder: OperationalRunRecorder,
+) -> int:
+    with recorder.phase("normalize.activities") as phase:
+        normalize_result = normalize_garmin_dataset(
+            project_config.data_root,
+            force=args.force,
+            keep_intermediate_files=args.keep_intermediate_files,
+        )
+        phase.set(
+            counts=_garmin_normalization_counts(normalize_result),
+            outputs={"normalized_root": normalize_result.normalized_root},
+        )
     _print_garmin_normalization_result(normalize_result)
-    measurement_result = normalize_garmin_measurements(project_config.data_root)
+    with recorder.phase("normalize.measurements") as phase:
+        measurement_result = normalize_garmin_measurements(project_config.data_root)
+        phase.set(
+            counts=_measurement_normalization_counts(measurement_result),
+            outputs={"normalized_root": measurement_result.normalized_root},
+        )
     _print_measurement_normalization_result(
         "Garmin Connect",
         measurement_result.measurements,
         len(measurement_result.written),
         measurement_result.normalized_root,
     )
-    user_data_result = normalize_garmin_user_data(project_config.data_root)
+    with recorder.phase("normalize.user_data") as phase:
+        user_data_result = normalize_garmin_user_data(project_config.data_root)
+        phase.set(
+            counts=_garmin_user_data_normalization_counts(user_data_result),
+            outputs={"normalized_root": user_data_result.normalized_root},
+        )
     _print_user_data_normalization_result("Garmin Connect", user_data_result)
-    _normalize_manual_measurements_if_available(project_config)
-    _normalize_manual_activities_if_available(project_config)
+    return 0
 
-    _run_consolidation(project_config)
+
+def _run_strava_normalize_pipeline(
+    project_config: ProjectConfig,
+    recorder: OperationalRunRecorder,
+) -> int:
+    with recorder.phase("normalize.activities") as phase:
+        result = normalize_strava_dataset(project_config.data_root)
+        phase.set(
+            counts=_strava_normalization_counts(result),
+            outputs={"normalized_root": result.normalized_root},
+        )
+    print(
+        "Normalized Strava raw data: "
+        f"{result.athletes} athletes, "
+        f"{result.equipment} equipment records, "
+        f"{result.activities} activities, "
+        f"{result.streams} streams, "
+        f"{result.streams_index} stream index records, "
+        f"{len(result.written)} files written."
+    )
+    print(f"Normalized root: {result.normalized_root}")
+    return 0
+
+
+def _run_manual_normalize_pipeline(
+    project_config: ProjectConfig,
+    recorder: OperationalRunRecorder,
+) -> int:
+    _normalize_manual_activities_if_available(project_config, recorder=recorder)
+    _normalize_manual_measurements_if_available(project_config, recorder=recorder)
+    return 0
+
+
+def _run_manual_import_gpx_pipeline(
+    args: argparse.Namespace,
+    project_config: ProjectConfig,
+    recorder: OperationalRunRecorder,
+) -> int:
+    with recorder.phase("import.gpx") as phase:
+        result = import_manual_gpx_activity(
+            project_config.data_root,
+            Path(args.path),
+            sport=args.sport,
+            source_platform=args.source_platform,
+            title=args.title,
+        )
+        phase.set(
+            counts={"bytes_written": result.written.bytes_written},
+            outputs={"raw_file": result.written.path},
+            details={"activity_id": result.activity_id},
+        )
+    print(
+        "Imported manual GPX activity: "
+        f"{result.activity_id}, {result.written.bytes_written} bytes."
+    )
+    print(f"Raw file: {result.written.path}")
+    _normalize_manual_activities_if_available(project_config, recorder=recorder)
+    _normalize_manual_measurements_if_available(project_config, recorder=recorder)
+    _run_consolidation(project_config, recorder=recorder)
+    return 0
+
+
+def _run_build_consolidated_pipeline(
+    project_config: ProjectConfig,
+    recorder: OperationalRunRecorder,
+) -> int:
+    _run_consolidation(project_config, recorder=recorder)
     return 0
 
 
@@ -867,7 +1265,7 @@ def _schedule_next_sync_if_needed(
     args: argparse.Namespace,
     summary: ValidationSummary,
     last_rate_limit: RateLimitSnapshot | None,
-) -> None:
+) -> AdaptiveScheduleDecision:
     decision = build_adaptive_schedule_decision(
         summary=summary,
         rate_limit=last_rate_limit,
@@ -877,7 +1275,7 @@ def _schedule_next_sync_if_needed(
     )
     print(f"Adaptive schedule: {decision.reason}")
     if not decision.should_schedule:
-        return
+        return decision
 
     schedule_with_systemd(
         command=tuple(_build_adaptive_sync_command(args)),
@@ -888,6 +1286,7 @@ def _schedule_next_sync_if_needed(
         "Adaptive schedule: next sync scheduled "
         f"in {args.schedule_delay_minutes} minutes as {args.schedule_unit}."
     )
+    return decision
 
 
 def _build_adaptive_sync_command(args: argparse.Namespace) -> list[str]:

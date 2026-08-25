@@ -565,6 +565,17 @@ Ver logs:
 journalctl --user -u nono-sports-garmin-sync.service -n 100 --no-pager
 ```
 
+Ver el último resumen operativo estructurado:
+
+```bash
+tail -n 1 /home/nono/.local/state/nono-sports/logs/operation_runs.jsonl
+```
+
+Ese JSONL es local del host, no está en Drive. Úsalo para comprobar fases,
+duración, conteos y errores de una ejecución. Los ficheros
+`10_fuentes/<fuente>/logs/*_sync_state.json` son estados/checkpoints del dataset
+y sirven para reanudar o auditar datos, no como log operativo principal.
+
 Seguir logs en vivo:
 
 ```bash
@@ -609,11 +620,13 @@ Si falla una consulta de datos:
 Si falla la sincronización:
 
 1. Revisa logs con `journalctl`.
-2. Comprueba si el error es de rate limit.
-3. Si es rate limit, espera a la siguiente ventana.
-4. Si es autenticación, no pegues tokens en respuestas; pide intervención de Carlos.
-5. Si falla Garmin por tokenstore, ejecuta `garmin doctor` y pide intervención si requiere login.
-6. Si vuelve a aparecer un OOM tras actualizar el código, recoge
+2. Revisa el último resumen estructurado en
+   `~/.local/state/nono-sports/logs/operation_runs.jsonl`.
+3. Comprueba si el error es de rate limit.
+4. Si es rate limit, espera a la siguiente ventana.
+5. Si es autenticación, no pegues tokens en respuestas; pide intervención de Carlos.
+6. Si falla Garmin por tokenstore, ejecuta `garmin doctor` y pide intervención si requiere login.
+7. Si vuelve a aparecer un OOM tras actualizar el código, recoge
    `journalctl --user -u nono-sports-garmin-sync.service -n 200 --no-pager`,
    estado de memoria/swap y confirma si había otros procesos pesados; no uses
    `--force` como respuesta automática.

@@ -354,7 +354,12 @@ Los ficheros `laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
 `segment_candidates.jsonl` son extensiones específicas de Garmin Connect. No
 implican que Strava o futuras fuentes tengan que crear ficheros vacíos: el
 contrato común está en `activities.jsonl`, `streams.jsonl`,
-`streams_index.jsonl`, `state.json` y `logs/activity_sync_state.json`.
+`streams_index.jsonl` y `state.json`. Las fuentes externas sincronizadas añaden
+además `logs/activity_sync_state.json` como checkpoint del dataset.
+
+`garmin normalize` y `garmin sync` añaden un resumen operativo local en
+`~/.local/state/nono-sports/logs/operation_runs.jsonl`. Ese fichero no está en
+Drive y sirve para auditar fases, duración, conteos y errores del host.
 
 ## Mediciones Garmin Connect
 

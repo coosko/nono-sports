@@ -50,8 +50,10 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 - RDAT1: Los datos `raw` deben conservarse sin transformación funcional.
 - RDAT2: Los datos `normalizado` deben seguir un esquema común entre fuentes.
   El contrato mínimo por fuente es `activities.jsonl`, `streams.jsonl`,
-  `streams_index.jsonl`, `state.json` y `logs/activity_sync_state.json`; cada
-  fuente puede añadir extensiones específicas si aportan información real.
+  `streams_index.jsonl` y `state.json` cuando la fuente aporta actividades. Las
+  fuentes externas con sincronización deben mantener además
+  `logs/activity_sync_state.json`; cada fuente puede añadir extensiones
+  específicas si aportan información real.
 - RDAT3: La capa consolidada debe conservar la relación entre actividad consolidada y actividades fuente.
 - RDAT4: El sistema debe priorizar trazabilidad sobre compactación prematura.
 - RDAT5: Los ficheros FIT originales deben conservarse siempre como raw antes de cualquier parseo.
@@ -102,6 +104,10 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
   grandes línea a línea siempre que sea posible y no deben cargar
   `streams.jsonl` completo en memoria salvo en herramientas diagnósticas
   explícitas.
+- RNF11: El resumen operativo de cada ejecución debe escribirse fuera de
+  `NONO_SPORT_DATA_ROOT`, siguiendo XDG en
+  `~/.local/state/nono-sports/logs/operation_runs.jsonl`. En Drive solo deben
+  quedar estados reproducibles del dataset, manifiestos y trazabilidad de datos.
 
 ## Fuera de alcance de la v1
 

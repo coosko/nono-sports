@@ -617,7 +617,8 @@ Contrato mínimo por fuente normalizada:
   leer todo el fichero de streams.
 - `normalizado/state.json`: estado, entradas, salidas y conteos de la última
   normalización.
-- `logs/activity_sync_state.json`: estado incremental de descarga/sincronización.
+- `logs/activity_sync_state.json`: estado incremental de descarga/sincronización
+  cuando la fuente llama a una API externa.
 
 Cada fuente puede añadir ficheros específicos si aportan valor real. Garmin
 Connect añade `laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
@@ -626,6 +627,20 @@ y `equipment.jsonl` como contrato común. La fuente manual no tiene
 `logs/activity_sync_state.json` porque no llama a una API externa; sus
 actividades GPX registran trazabilidad en `raw/manifest.jsonl` y su estado de
 normalización en `normalizado/state.json`.
+
+Resumen operativo local:
+
+```text
+~/.local/state/nono-sports/logs/operation_runs.jsonl
+```
+
+Este fichero no forma parte del dataset ni vive en Drive. Es un log JSONL
+append-only por ejecución local de comandos de pipeline (`garmin sync`,
+`garmin normalize`, `strava sync`, `strava normalize`, `manual normalize`,
+`manual import-gpx` y `build-consolidated`). Cada línea incluye
+`schema_version`, `run_id`, comando, fuente, argumentos redacted, estado final,
+código de salida, duración total y fases con duración, conteos, salidas y error
+si lo hay. No debe contener tokens, secrets ni payloads deportivos.
 
 Contrato de mediciones:
 
@@ -666,6 +681,8 @@ el futuro, deberán incorporarse como una decisión explícita de arquitectura.
 - La instalación en Nono debe usar variables de entorno y datos fuera del repositorio.
 - La configuración persistente en Nono debe vivir en `~/.config/nono-sports/env` con permisos restrictivos.
 - Los tokens OAuth deben tratarse como estado sensible local, no como datos deportivos.
+- El logging operativo local debe vivir bajo XDG state; Drive queda reservado
+  para datos deportivos, manifiestos y checkpoints reproducibles.
 - La v1 debe ejecutarse como usuario `nono`; un webhook futuro expuesto a Internet debe separar listener sin secretos y worker con permisos de sincronización.
 - La automatización debe usar presupuestos preventivos de rate limit y generar siempre informe de validación.
 - La puesta al día histórica debe usar reprogramación adaptativa, no un timer cada 15 minutos permanente.

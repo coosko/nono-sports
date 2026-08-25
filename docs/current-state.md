@@ -4,8 +4,10 @@ Fecha de referencia: 2026-08-25
 
 ## Situación actual
 
-El repositorio tiene Strava v1 operativo como fuente histórica y Garmin Connect
-v1 operativo como fuente diaria principal.
+El repositorio tiene Strava v1 operativo como fuente histórica local y Garmin
+Connect v1 operativo como fuente diaria principal. Mientras no haya acceso API
+operativo a Strava, no se planifican auditorías live ni sincronización periódica
+de Strava.
 
 Existe actualmente:
 
@@ -95,10 +97,17 @@ Existe actualmente:
   `streams.jsonl` se procesa línea a línea, Garmin reutiliza streams previos
   mediante offsets y el consolidado de equipación usa actividades fuente
   reducidas para calcular uso efectivo
+- validación real en Nono de `nono-sports-garmin-sync.service` tras la
+  optimización streaming: el 2026-08-25 arrancó por timer a las 19:50:04 UTC,
+  terminó a las 19:51:19 UTC con `status=0/SUCCESS`, pico de memoria 366.8M y
+  pico de swap 2.4M
+- resumen operativo local por ejecución en
+  `~/.local/state/nono-sports/logs/operation_runs.jsonl` para comandos de
+  pipeline, separado de los checkpoints reproducibles que viven en Drive bajo
+  `10_fuentes/<fuente>/logs/`
 
 No existe todavía:
 
-- validación real de autonomía Garmin Connect en Nono
 - importadores manuales desde FIT o TCX
 - conectores normalizados para Komoot, Wikiloc u otras plataformas de rutas
 - ingesta normalizada de rutas Wikiloc dentro de `10_fuentes` o
@@ -180,7 +189,8 @@ El código previo se conserva en `deprecated/initial-bootstrap/` solo como refer
 
 ## Próximo objetivo
 
-Actualizar Nono y validar una sincronización diaria real con la versión
-optimizada. Si vuelve a aparecer presión operativa, priorizar logging por fase,
-reducción de I/O o separación de fases antes de añadir salvaguardas preventivas
-de memoria.
+Reducir I/O cuando no hay raw nuevo o modificado. Si vuelve a aparecer presión
+operativa, revisar primero `journalctl` y
+`~/.local/state/nono-sports/logs/operation_runs.jsonl`, y luego priorizar
+diagnóstico de Drive/rclone o separación de fases antes de añadir salvaguardas
+preventivas de memoria.

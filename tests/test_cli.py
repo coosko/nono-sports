@@ -1,6 +1,8 @@
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
-from nono_sports.cli import _clean_garmin_intermediate_files, build_parser
+from nono_sports.cli import _clean_garmin_intermediate_files, build_parser, main
 
 
 def test_parser_accepts_build_consolidated_command() -> None:
@@ -451,3 +453,118 @@ def test_parser_accepts_strava_sync_options() -> None:
     assert args.max_read_requests_15min == 80
     assert args.max_read_requests_daily == 900
     assert args.rate_limit_reserve == 10
+
+
+def test_garmin_sync_writes_local_operational_run_log(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    data_root = tmp_path / "data"
+    state_root = tmp_path / "state"
+    monkeypatch.setenv("NONO_SPORT_DATA_ROOT", str(data_root))
+    monkeypatch.setenv("XDG_STATE_HOME", str(state_root))
+    monkeypatch.setattr(
+        "nono_sports.cli.normalize_garmin_dataset",
+        lambda *args, **kwargs: SimpleNamespace(
+            activities=1,
+            streams=1,
+            laps=0,
+            splits=1,
+            typed_splits=1,
+            processed_activities=0,
+            reused_activities=1,
+            written=(),
+            normalized_root=str(data_root / "10_fuentes/garmin_connect/normalizado"),
+        ),
+    )
+    monkeypatch.setattr(
+        "nono_sports.cli.normalize_garmin_measurements",
+        lambda *args, **kwargs: SimpleNamespace(
+            measurements=2,
+            written=(),
+            normalized_root=str(data_root / "10_fuentes/garmin_connect/normalizado"),
+        ),
+    )
+    monkeypatch.setattr(
+        "nono_sports.cli.normalize_garmin_user_data",
+        lambda *args, **kwargs: SimpleNamespace(
+            athletes=1,
+            equipment=1,
+            written=(),
+            normalized_root=str(data_root / "10_fuentes/garmin_connect/normalizado"),
+        ),
+    )
+    monkeypatch.setattr(
+        "nono_sports.cli.normalize_manual_measurements",
+        lambda *args, **kwargs: SimpleNamespace(
+            measurements=1,
+            written=(),
+            normalized_root=str(data_root / "10_fuentes/manual/normalizado"),
+        ),
+    )
+    monkeypatch.setattr(
+        "nono_sports.cli.normalize_manual_activities",
+        lambda *args, **kwargs: SimpleNamespace(
+            activities=0,
+            streams=0,
+            streams_index=0,
+            written=(),
+            normalized_root=str(data_root / "10_fuentes/manual/normalizado"),
+        ),
+    )
+    monkeypatch.setattr(
+        "nono_sports.cli.build_multi_source_consolidated",
+        lambda *args, **kwargs: SimpleNamespace(
+            activities=1,
+            activity_sources=1,
+            streams_index=1,
+            duplicate_candidates=0,
+            written=(),
+            consolidated_root=str(data_root / "20_consolidado"),
+        ),
+    )
+    monkeypatch.setattr(
+        "nono_sports.cli.build_consolidated_measurements",
+        lambda *args, **kwargs: SimpleNamespace(
+            measurements=3,
+            measurement_sources=3,
+            written=(),
+            consolidated_root=str(data_root / "20_consolidado"),
+        ),
+    )
+    monkeypatch.setattr(
+        "nono_sports.cli.build_consolidated_user_data",
+        lambda *args, **kwargs: SimpleNamespace(
+            athletes=1,
+            athlete_sources=1,
+            equipment=1,
+            equipment_sources=1,
+            written=(),
+            consolidated_root=str(data_root / "20_consolidado"),
+        ),
+    )
+
+    exit_code = main(["garmin", "sync", "--skip-fetch"])
+
+    output = capsys.readouterr().out
+    log_path = state_root / "nono-sports" / "logs" / "operation_runs.jsonl"
+    payload = _read_jsonl(log_path)[0]
+    assert exit_code == 0
+    assert f"Operational log: {log_path}" in output
+    assert payload["command"] == "garmin sync"
+    assert payload["source"] == "garmin_connect"
+    assert payload["status"] == "success"
+    phase_status = {phase["name"]: phase["status"] for phase in payload["phases"]}
+    assert phase_status["fetch.activities"] == "skipped"
+    assert phase_status["normalize.activities"] == "success"
+    assert phase_status["normalize.manual_measurements"] == "success"
+    assert phase_status["consolidate.user_data"] == "success"
+
+
+def _read_jsonl(path: Path) -> list[dict]:
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]

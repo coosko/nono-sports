@@ -23,6 +23,10 @@ Todas las versiones y entregables se documentan aquí.
 - Añadido importador manual GPX con comando `manual import-gpx`, copia raw,
   manifiesto, normalización de actividad/stream y reconstrucción del
   consolidado.
+- Añadido resumen operativo local por ejecución en
+  `~/.local/state/nono-sports/logs/operation_runs.jsonl` para comandos de
+  pipeline, con fases, duración, conteos, estado final y errores sin guardar
+  tokens ni payloads deportivos.
 
 ### Changed
 
@@ -55,22 +59,31 @@ Todas las versiones y entregables se documentan aquí.
 - La consolidación deportiva incorpora `manual` como tercera fuente de
   actividades, con prioridad inferior a Strava y Garmin Connect.
 - Retirado el preflight de memoria/swap del roadmap y del backlog activo: tras
-  la optimización streaming, la acción pendiente es validar la ejecución real
-  en Nono y mejorar logging/I/O si reaparece presión operativa.
+  la optimización streaming, la ejecución real en Nono queda validada y el
+  seguimiento pendiente se centra en I/O.
+- Separados explícitamente los logs operativos locales de los checkpoints del
+  dataset: `10_fuentes/<fuente>/logs/*_sync_state.json` permanece en Drive y
+  `operation_runs.jsonl` vive bajo XDG state local.
 - El cliente Garmin Connect ya no importa la dependencia opcional
   `garminconnect` cuando se le inyecta una API falsa/adaptada en tests.
 
 ### Verified
 
-- Verificación local: `./.venv/bin/python scripts/check.py` con 153 tests
+- Verificación local: `./.venv/bin/python scripts/check.py` con 160 tests
   pasados.
 - Añadidas pruebas específicas para impedir regresiones que vuelvan a leer
   `streams.jsonl` completo durante normalización Garmin/Strava, validación o
   comparación de escrituras JSONL.
+- Añadidas pruebas del resumen operativo local y del CLI `garmin sync
+  --skip-fetch` con fases registradas sin llamar a Garmin Connect.
 - Validación real offline sobre el dataset local: `strava normalize` terminó
   con 1.152 actividades, 1.145 streams y pico de 148.556 KB RSS;
   `garmin sync --skip-fetch` terminó con 925 actividades Garmin, 1.175
   actividades consolidadas y pico de 321.004 KB RSS, sin swaps.
+- Validación real en Nono: `nono-sports-garmin-sync.service` arrancó por timer
+  el 2026-08-25 a las 19:50:04 UTC y terminó a las 19:51:19 UTC con
+  `status=0/SUCCESS`, 1min 15.028s wall clock, 46.775s CPU, 366.8M de pico de
+  memoria y 2.4M de pico de swap.
 
 ## [0.3.0] - 2026-07-12
 

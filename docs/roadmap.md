@@ -46,17 +46,22 @@ Objetivo:
 - asegurar que el flujo diario Garmin funciona de forma autónoma en el host
   Nono, con pocos recursos de RAM y Drive montado por rclone
 - evitar OOM, bloqueos silenciosos y diagnósticos ambiguos
-- mantener Strava como fuente histórica o secundaria mientras su situación API
-  quede revisada
+- mantener Strava como fuente histórica o secundaria mientras no haya acceso API
+  operativo
 
 Líneas de trabajo:
 
-- validar la siguiente ejecución real de `nono-sports-garmin-sync.service` tras
-  la optimización streaming
-- añadir logging operativo por fase y duración
 - reducir I/O cuando no hay raw nuevo o modificado
 - estudiar separación de fases o escritura local atómica si Drive/rclone sigue
   siendo cuello de botella
+
+Validación operativa ya realizada:
+
+- el 2026-08-25, `nono-sports-garmin-sync.service` arrancó por timer a las
+  19:50:04 UTC y terminó a las 19:51:19 UTC con `status=0/SUCCESS`; duración
+  1min 15.028s, CPU 46.775s, pico de memoria 366.8M y pico de swap 2.4M
+- los comandos de pipeline ya escriben resumen operativo local por ejecución en
+  `~/.local/state/nono-sports/logs/operation_runs.jsonl`
 
 ## Fase 3. Gobierno de fuentes conectadas
 
@@ -69,9 +74,11 @@ Objetivo:
 
 Líneas de trabajo:
 
-- auditar Strava por los cambios del Developer Program efectivos desde
-  2026-09-01, especialmente clubs y segmentos
-- revisar tier real, capacidad y límites de la app Strava
+- mantener seguimiento documental de Strava; antes de reactivarla, revisar los
+  cambios del Developer Program efectivos desde 2026-09-01, especialmente clubs
+  y segmentos
+- revisar tier real, capacidad y límites de la app Strava solo si vuelve a
+  existir acceso operativo al API
 - migrar la base URL de Strava antes del 2027-06-01
 - mantener Garmin Connect encapsulado para poder sustituir el adaptador si la
   librería no oficial cambia

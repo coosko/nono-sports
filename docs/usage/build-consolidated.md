@@ -56,6 +56,9 @@ Y escribe:
 ```
 
 Cada ejecución reescribe la salida consolidada desde los normalizados disponibles.
+También añade un resumen operativo local en
+`~/.local/state/nono-sports/logs/operation_runs.jsonl`, separado del dataset de
+Drive.
 
 Después de consolidar, ejecuta la validación offline:
 

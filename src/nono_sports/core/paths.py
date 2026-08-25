@@ -6,6 +6,7 @@ from pathlib import Path
 
 XDG_STATE_HOME_ENV = "XDG_STATE_HOME"
 APP_STATE_DIR = "nono-sports"
+OPERATION_RUNS_LOG_FILENAME = "operation_runs.jsonl"
 
 STRAVA_V1_DIRECTORIES = [
     "10_fuentes/strava/raw/athlete",
@@ -98,6 +99,14 @@ def garmin_connect_state_dir() -> Path:
 
 def garmin_connect_tokenstore_path() -> Path:
     return garmin_connect_state_dir() / "tokenstore"
+
+
+def operation_logs_dir() -> Path:
+    return app_state_dir() / "logs"
+
+
+def operation_runs_log_path() -> Path:
+    return operation_logs_dir() / OPERATION_RUNS_LOG_FILENAME
 
 
 def ensure_garmin_connect_directories(data_root: Path) -> list[Path]:

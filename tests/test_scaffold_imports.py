@@ -6,6 +6,7 @@ SCAFFOLD_MODULES = [
     "nono_sports.core.file_lock",
     "nono_sports.core.paths",
     "nono_sports.core.logging",
+    "nono_sports.core.operation_log",
     "nono_sports.core.errors",
     "nono_sports.auth.strava_oauth",
     "nono_sports.auth.token_store",

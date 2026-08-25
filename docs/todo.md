@@ -6,21 +6,7 @@ y el estado real del proyecto en `docs/current-state.md`.
 
 ## Prioridad alta
 
-- [ ] Validar en Nono la siguiente ejecución real de
-  `nono-sports-garmin-sync.service` con la optimización streaming de agosto de
-  2026. Revisar `journalctl`, duración, pico de memoria si está disponible y
-  confirmar que no vuelve a morir por OOM.
-- [ ] Añadir logging operativo por fase para Garmin/Strava/manual:
-  fetch, normalización, consolidación, validación, duración, conteos y motivo
-  de parada. Debe ayudar a distinguir OOM, bloqueo de Drive/rclone y errores de
-  API.
-- [ ] Auditar Strava antes del 2026-09-01 por los cambios oficiales del
-  Developer Program: confirmar que `fetch-context` y `fetch-activities` no
-  dependen de endpoints retirados de clubs ni de `segments/explore`, y ajustar
-  documentación/código si procede.
-- [ ] Revisar en el API Settings Dashboard de Strava el tier real de la app,
-  capacidad de atleta y límites actuales. Documentar si Strava queda solo como
-  fuente histórica o si conviene reactivar sincronización operativa.
+No hay tareas de prioridad alta abiertas.
 
 ## Prioridad media
 
@@ -56,6 +42,10 @@ y el estado real del proyecto en `docs/current-state.md`.
 
 ## Prioridad baja o seguimiento
 
+- [ ] Mantener seguimiento documental de Strava mientras no haya acceso API
+  operativo. Si se decide reactivar Strava, revisar antes el Developer Program,
+  el API Settings Dashboard, endpoints de clubs/segmentos, límites vigentes y
+  ejecutar una prueba controlada antes de activar sincronización periódica.
 - [ ] Migrar `API_BASE_URL` de Strava a `https://api-v3.strava.com` antes del
   2027-06-01, manteniendo compatibilidad y tests.
 - [ ] Actualizar la toolchain de calidad: subir `ruff-pre-commit` desde
@@ -83,8 +73,16 @@ y el estado real del proyecto en `docs/current-state.md`.
 - [x] Implementada normalización/consolidación de bajo consumo de memoria:
   `streams.jsonl` ya no se carga completo en normalización Garmin/Strava,
   consolidación de equipación ni validación offline.
+- [x] Validada en Nono la ejecución real de
+  `nono-sports-garmin-sync.service` con la optimización streaming: el
+  2026-08-25 arrancó por timer a las 19:50:04 UTC y terminó correctamente a las
+  19:51:19 UTC, con 1min 15.028s de duración, pico de memoria de 366.8M y pico
+  de swap de 2.4M.
+- [x] Añadido resumen operativo local por ejecución en
+  `~/.local/state/nono-sports/logs/operation_runs.jsonl`, con fases, duración,
+  conteos, salidas y errores para comandos de pipeline, manteniendo en Drive
+  solo estados/checkpoints reproducibles del dataset.
 - [x] Retirado del backlog el preflight de memoria/swap tras resolver la causa
-  estructural del OOM con procesamiento streaming; se mantiene la validación
-  operativa real en Nono.
+  estructural del OOM con procesamiento streaming.
 - [x] Eliminado `docs/planning/` por duplicar `roadmap`, `todo`,
   `current-state` y `CHANGELOG`.

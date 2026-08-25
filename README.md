@@ -3,7 +3,7 @@
 Proyecto Python para construir la base de datos deportiva de Nono a partir de
 Strava, Garmin Connect, importaciones manuales y futuras fuentes como Komoot.
 
-El proyecto tiene Strava v1 y Garmin Connect v1 operativos. El código activo permite autenticación OAuth Strava, tokenstore Garmin Connect, descarga raw, normalización por fuente, consolidación multi-fuente en `20_consolidado` y validación offline del dataset local.
+El proyecto tiene Strava v1 y Garmin Connect v1 operativos. El código activo permite autenticación OAuth Strava, tokenstore Garmin Connect, descarga raw, normalización por fuente, consolidación multi-fuente en `20_consolidado`, validación offline del dataset local y resumen operativo local por ejecución.
 
 ## Estado actual
 
@@ -17,6 +17,10 @@ El proyecto tiene Strava v1 y Garmin Connect v1 operativos. El código activo pe
   de intermedios pesados
 - normalización, consolidación y validación preparadas para no cargar
   `streams.jsonl` completo en memoria en la operación diaria
+- resumen operativo local en
+  `~/.local/state/nono-sports/logs/operation_runs.jsonl` para comandos de
+  pipeline como `garmin sync`, `strava sync`, `manual import-gpx` y
+  `build-consolidated`
 - código bootstrap anterior archivado en `deprecated/initial-bootstrap/`
 
 Documento de referencia del estado real:
