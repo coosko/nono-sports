@@ -74,5 +74,5 @@ Este documento debe servir como semilla para:
 - `docs/requirements/requirements.md`
 - `docs/technical/architecture.md`
 - `docs/roadmap.md`
-- `docs/planning/features.md`
-- `docs/planning/workplan.md`
+- `docs/todo.md`
+- guías operativas en `docs/usage/`

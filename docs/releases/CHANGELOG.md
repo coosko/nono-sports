@@ -44,6 +44,9 @@ Todas las versiones y entregables se documentan aquí.
   `streams.jsonl` completo.
 - La consolidación de equipación calcula uso efectivo con registros de
   actividad reducidos, sin retener campos grandes innecesarios.
+- Simplificada la arquitectura documental: `docs/planning/` se elimina por
+  duplicar `docs/roadmap.md`, `docs/todo.md`, `docs/current-state.md` y el
+  changelog.
 - El cliente Garmin Connect ya no importa la dependencia opcional
   `garminconnect` cuando se le inyecta una API falsa/adaptada en tests.
 

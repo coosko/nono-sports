@@ -17,8 +17,6 @@ La documentación se organiza por niveles de autoridad.
 ## Documentos derivados
 
 - `docs/roadmap.md`: hitos y evolución prevista
-- `docs/planning/features.md`: backlog funcional derivado de requisitos y arquitectura
-- `docs/planning/workplan.md`: secuencia de trabajo derivada
 - `docs/todo.md`: tareas inmediatas
 - `docs/usage/quickstart.md`: puesta en marcha del estado actual
 - `docs/usage/doctor.md`: diagnóstico local seguro de entorno y fuentes
@@ -40,5 +38,9 @@ La documentación se organiza por niveles de autoridad.
 
 1. Actualizar primero `requirements.md` si cambia el alcance.
 2. Actualizar `architecture.md` si cambia el diseño técnico.
-3. Ajustar después `roadmap`, `features`, `workplan` y `todo`.
+3. Ajustar después `roadmap`, `todo`, guías de uso y changelog.
 4. Mantener `README.md` y `current-state.md` alineados con el estado real.
+
+`docs/planning/` se eliminó porque duplicaba información ya mantenida en
+`docs/roadmap.md`, `docs/todo.md`, `docs/current-state.md` y
+`docs/releases/CHANGELOG.md`.

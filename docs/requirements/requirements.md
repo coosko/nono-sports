@@ -111,4 +111,6 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 - RDOC1: `README.md` debe describir el proyecto y su estado real.
 - RDOC2: `docs/technical/architecture.md` debe ser la fuente de verdad técnica.
 - RDOC3: `docs/current-state.md` debe reflejar el estado actual del repositorio.
-- RDOC4: `docs/planning/` y `docs/todo.md` deben derivarse de este documento y de la arquitectura técnica.
+- RDOC4: `docs/roadmap.md`, `docs/todo.md`, las guías de uso y el changelog
+  deben derivarse de este documento y de la arquitectura técnica. No se debe
+  mantener un segundo backlog paralelo en `docs/planning/`.
