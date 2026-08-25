@@ -10,9 +10,6 @@ y el estado real del proyecto en `docs/current-state.md`.
   `nono-sports-garmin-sync.service` con la optimización streaming de agosto de
   2026. Revisar `journalctl`, duración, pico de memoria si está disponible y
   confirmar que no vuelve a morir por OOM.
-- [ ] Añadir preflight de memoria/swap antes del `garmin sync` diario: si el
-  host está bajo presión, debe fallar o reprogramarse con diagnóstico claro en
-  vez de competir por memoria y morir por OOM.
 - [ ] Añadir logging operativo por fase para Garmin/Strava/manual:
   fetch, normalización, consolidación, validación, duración, conteos y motivo
   de parada. Debe ayudar a distinguir OOM, bloqueo de Drive/rclone y errores de
@@ -86,5 +83,8 @@ y el estado real del proyecto en `docs/current-state.md`.
 - [x] Implementada normalización/consolidación de bajo consumo de memoria:
   `streams.jsonl` ya no se carga completo en normalización Garmin/Strava,
   consolidación de equipación ni validación offline.
+- [x] Retirado del backlog el preflight de memoria/swap tras resolver la causa
+  estructural del OOM con procesamiento streaming; se mantiene la validación
+  operativa real en Nono.
 - [x] Eliminado `docs/planning/` por duplicar `roadmap`, `todo`,
   `current-state` y `CHANGELOG`.

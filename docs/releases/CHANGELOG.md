@@ -54,6 +54,9 @@ Todas las versiones y entregables se documentan aquí.
   backlog accionable de `docs/todo.md`.
 - La consolidación deportiva incorpora `manual` como tercera fuente de
   actividades, con prioridad inferior a Strava y Garmin Connect.
+- Retirado el preflight de memoria/swap del roadmap y del backlog activo: tras
+  la optimización streaming, la acción pendiente es validar la ejecución real
+  en Nono y mejorar logging/I/O si reaparece presión operativa.
 - El cliente Garmin Connect ya no importa la dependencia opcional
   `garminconnect` cuando se le inyecta una API falsa/adaptada en tests.
 

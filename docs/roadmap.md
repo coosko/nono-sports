@@ -53,7 +53,6 @@ Líneas de trabajo:
 
 - validar la siguiente ejecución real de `nono-sports-garmin-sync.service` tras
   la optimización streaming
-- añadir preflight de memoria/swap antes del sync diario
 - añadir logging operativo por fase y duración
 - reducir I/O cuando no hay raw nuevo o modificado
 - estudiar separación de fases o escritura local atómica si Drive/rclone sigue

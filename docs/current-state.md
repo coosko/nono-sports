@@ -104,7 +104,6 @@ No existe todavía:
 - ingesta normalizada de rutas Wikiloc dentro de `10_fuentes` o
   `20_consolidado`
 - selección avanzada de fuente primaria por métrica en consolidación multi-fuente
-- preflight operativo de memoria/swap antes del timer diario
 - separación opcional de fases en procesos distintos para liberar memoria entre
   fetch, normalización, consolidación y validación
 
@@ -181,6 +180,7 @@ El código previo se conserva en `deprecated/initial-bootstrap/` solo como refer
 
 ## Próximo objetivo
 
-Actualizar Nono, ejecutar una sincronización diaria real con la versión
-optimizada y decidir si hace falta abordar la siguiente prioridad operativa:
-preflight de memoria o separación de fases.
+Actualizar Nono y validar una sincronización diaria real con la versión
+optimizada. Si vuelve a aparecer presión operativa, priorizar logging por fase,
+reducción de I/O o separación de fases antes de añadir salvaguardas preventivas
+de memoria.
