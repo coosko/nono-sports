@@ -47,6 +47,8 @@ Todas las versiones y entregables se documentan aquí.
 - Simplificada la arquitectura documental: `docs/planning/` se elimina por
   duplicar `docs/roadmap.md`, `docs/todo.md`, `docs/current-state.md` y el
   changelog.
+- Reorganizado `docs/roadmap.md` como hoja de ruta de producto, separada del
+  backlog accionable de `docs/todo.md`.
 - El cliente Garmin Connect ya no importa la dependencia opcional
   `garminconnect` cuando se le inyecta una API falsa/adaptada en tests.
 

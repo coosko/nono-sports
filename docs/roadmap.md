@@ -1,73 +1,135 @@
 # Roadmap
 
-Este roadmap deriva de `docs/requirements/requirements.md` y `docs/technical/architecture.md`.
+Este roadmap describe la evolución del producto. No es una lista de tareas
+ejecutables: el trabajo accionable vive en `docs/todo.md`, el estado real en
+`docs/current-state.md` y el histórico en `docs/releases/CHANGELOG.md`.
 
-## Fase 0. Definición
+## Fase 0. Base Strava y arquitectura común
 
-- cerrar arquitectura documental
-- definir alcance exacto de la v1
-- fijar contrato mínimo de datos normalizados
+Estado: completada.
 
-## Fase 1. Base técnica
+Objetivo alcanzado:
 
-- consolidar el scaffold del proyecto
-- definir módulos y responsabilidades
-- estabilizar configuración, calidad y estructura de datos
+- definir la arquitectura documental, funcional y técnica
+- crear el proyecto Python y su estructura modular
+- resolver configuración, rutas, `.env`, XDG y estructura de datos
+- implementar Strava v1 como primera fuente oficial
+- persistir `raw`, `normalizado`, `20_consolidado` y validación offline
+- instalar el proyecto en Nono y dejar una guía operativa inicial
 
-## Fase 2. Strava v1
+## Fase 1. Garmin Connect y multifuente
 
-- implementar ingesta desde Strava
-- almacenar `raw`
-- generar `normalizado`
+Estado: completada en su alcance v1.
 
-## Fase 3. Consolidación inicial
+Objetivo alcanzado:
 
-- definir el modelo de actividad consolidada
-- preparar `20_consolidado`
-- resolver la consolidación simple para una única fuente
-- validar conteos y coherencia del dataset local
-- estado: implementado para Strava y Garmin Connect con enlaces multi-fuente
-
-## Fase 4. Extensibilidad
-
-- estado: Garmin Connect operativo como fuente conectada
-- implementar `doctor` común y `garmin doctor`
-- validar Garmin Connect con `garminconnect==0.3.6`
-- preparar la entrada de Komoot y actividades manuales
-- definir reglas de deduplicación multifuente
-
-## Fase 5. Garmin Connect v1
-
-- probar autenticación inicial y autonomía por tokenstore
+- validar `garminconnect==0.3.6` con tokenstore reutilizable
 - implementar adaptador Garmin Connect de solo lectura
-- descargar raw de actividades, detalles, FIT, GPX/TCX, splits, typed splits, laps, weather y candidatos de segmentos
-- decidir estrategia de parseo FIT conservando máxima información
-- normalizar actividades Garmin Connect
-- descargar y normalizar mediciones de peso/composición Garmin Connect
-- descargar y normalizar perfil, dispositivos y equipación Garmin Connect
+- descargar actividades, detalles, FIT/GPX/TCX, splits, typed splits, weather y
+  equipación por actividad cuando Garmin lo expone
+- extraer y decodificar FIT desde un módulo independiente de la fuente
+- normalizar actividades, streams, laps y datos auxiliares Garmin
+- descargar y normalizar mediciones de peso/composición Garmin
 - normalizar biometría manual desde CSV
-- investigar segmentos Garmin sin cerrar todavía modelo consolidado
+- descargar y normalizar perfil, dispositivos y equipación Garmin
+- consolidar actividades, mediciones, atleta y equipación entre Strava,
+  Garmin Connect y manual
+- calcular uso efectivo de equipación sin doble contar actividades presentes en
+  varias fuentes
 
-## Fase 6. Consolidación multifuente
+## Fase 2. Robustez operativa en Nono
 
-- detectar actividades equivalentes entre Strava y Garmin Connect: implementado
-- permitir varias fuentes por actividad consolidada: implementado
-- consolidar mediciones biométricas multi-fuente: implementado
-- consolidar atleta/equipación multi-fuente: implementado
-- generar informe auditable de candidatos duplicados: implementado
-- elegir fuente primaria por tipo de métrica
-- preparar segmentos propios de Nono si Garmin/Strava no cubren el análisis necesario
+Estado: fase actual.
 
-## Fase 7. Explotación
+Objetivo:
 
-- habilitar salidas útiles para Nono
-- preparar análisis e informes posteriores
+- asegurar que el flujo diario Garmin funciona de forma autónoma en el host
+  Nono, con pocos recursos de RAM y Drive montado por rclone
+- evitar OOM, bloqueos silenciosos y diagnósticos ambiguos
+- mantener Strava como fuente histórica o secundaria mientras su situación API
+  quede revisada
 
-## Fase 8. Robustez operativa
+Líneas de trabajo:
 
-- evitar que normalización, consolidación o validación carguen
-  `streams.jsonl` completo en memoria: implementado
-- mantener el flujo diario apto para el host Nono de 2 GB RAM
-- añadir preflight de memoria/swap antes del timer diario
-- estudiar separación de fases en procesos distintos si siguen apareciendo
-  picos de memoria o bloqueos de Drive/rclone
+- validar la siguiente ejecución real de `nono-sports-garmin-sync.service` tras
+  la optimización streaming
+- añadir preflight de memoria/swap antes del sync diario
+- añadir logging operativo por fase y duración
+- reducir I/O cuando no hay raw nuevo o modificado
+- estudiar separación de fases o escritura local atómica si Drive/rclone sigue
+  siendo cuello de botella
+
+## Fase 3. Gobierno de fuentes conectadas
+
+Estado: siguiente bloque de control.
+
+Objetivo:
+
+- decidir el papel operativo de cada fuente y evitar dependencias frágiles
+- adaptar el proyecto a cambios externos antes de que rompan automatizaciones
+
+Líneas de trabajo:
+
+- auditar Strava por los cambios del Developer Program efectivos desde
+  2026-09-01, especialmente clubs y segmentos
+- revisar tier real, capacidad y límites de la app Strava
+- migrar la base URL de Strava antes del 2027-06-01
+- mantener Garmin Connect encapsulado para poder sustituir el adaptador si la
+  librería no oficial cambia
+- revisar periódicamente compatibilidad Python, Linux/WSL/Windows y rclone
+
+## Fase 4. Enriquecimiento del modelo deportivo
+
+Estado: pendiente de diseño e implementación incremental.
+
+Objetivo:
+
+- hacer que el consolidado no sea solo una unión de fuentes, sino una base
+  deportiva semánticamente útil para Nono
+
+Líneas de trabajo:
+
+- decidir fuente primaria por tipo de dato
+- mejorar clasificación de deportes y subtipos: senderismo, gimnasio, fuerza,
+  esgrima, indoor/outdoor y similares
+- investigar laps separados y candidatos de segmentos Garmin
+- decidir si Nono necesita segmentos propios o un modelo común de segmentos
+- ampliar equipación manual y componentes: peso real, ruedas, cubiertas,
+  desarrollos, sensores y cambios de material
+- investigar datos Garmin adicionales de salud, recuperación, sueño,
+  entrenamiento o carga
+
+## Fase 5. Importadores y fuentes futuras
+
+Estado: pendiente.
+
+Objetivo:
+
+- permitir que Nono integre datos deportivos que no vienen de Strava ni Garmin
+  Connect sin romper el contrato común
+
+Líneas de trabajo:
+
+- importar actividades manuales desde FIT, GPX, TCX u otros formatos
+- deduplicar actividades importadas frente a Strava/Garmin
+- evaluar Komoot/Wikiloc como fuentes normalizadas de rutas o planes, separadas
+  de su uso actual como consulta auxiliar
+- mantener el patrón común: raw original, normalización por fuente,
+  consolidación trazable
+
+## Fase 6. Explotación para Nono
+
+Estado: futuro.
+
+Objetivo:
+
+- convertir la base consolidada en soporte directo para análisis, mantenimiento
+  de material y decisiones de entrenamiento
+
+Líneas de trabajo:
+
+- informes y consultas deportivas de alto nivel
+- seguimiento de carga, forma, recuperación y tendencias
+- mantenimiento de bicicletas, zapatillas, sensores y componentes
+- apoyo a planificación de rutas y entrenamientos
+- preparación de vistas o salidas específicas para OpenClaw/Nono
