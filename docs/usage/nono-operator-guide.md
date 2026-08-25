@@ -210,25 +210,28 @@ Datos normalizados:
 /home/nono/drive/01_ambitos/02_personal/40_deporte/10_fuentes/manual/normalizado
 ```
 
-Cada fuente normalizada debe exponer, como mínimo:
+Las fuentes normalizadas exponen los ficheros que aportan datos para el
+contrato común. Actividades y estado son la base operativa; atleta,
+equipación, streams o estado incremental dependen de la fuente:
 
 ```text
-normalizado/athletes.jsonl
-normalizado/equipment.jsonl
 normalizado/activities.jsonl
 normalizado/streams.jsonl
 normalizado/streams_index.jsonl
 normalizado/state.json
 logs/activity_sync_state.json
+normalizado/athletes.jsonl
+normalizado/equipment.jsonl
 ```
 
-No todas las fuentes tienen que tener datos en todos los ficheros, pero los
-nombres comunes se mantienen para facilitar consulta y automatización. Garmin
-Connect puede tener además `laps.jsonl`, `splits.jsonl`,
-`typed_splits.jsonl` y `segment_candidates.jsonl`. La fuente manual no tiene
-estado de sincronización API, pero sí `raw/manifest.jsonl` y `state.json` de
-normalización. Para responder a consultas normales, prioriza siempre
-`20_consolidado`.
+Los ficheros que no existan se ignoran en consolidación. Garmin Connect y
+Strava pueden aportar atleta/equipación. Garmin Connect puede tener además
+`laps.jsonl`, `splits.jsonl`, `typed_splits.jsonl` y
+`segment_candidates.jsonl`. La fuente manual GPX no tiene estado de
+sincronización API ni atleta/equipación por fuente; conserva
+`raw/manifest.jsonl`, `activities.jsonl`, `streams.jsonl`,
+`streams_index.jsonl` y `state.json` de normalización. Para responder a
+consultas normales, prioriza siempre `20_consolidado`.
 
 Capa consolidada principal:
 
