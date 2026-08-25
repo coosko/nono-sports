@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import nono_sports.normalization.garmin_dataset as garmin_dataset_module
 from nono_sports.formats.fit import FitDecodeResult
 from nono_sports.normalization.garmin_dataset import normalize_garmin_dataset
 
@@ -190,6 +191,32 @@ def test_normalize_garmin_dataset_reuses_existing_output_without_fitdecode_json(
     assert second.reused_activities == 1
     decode.assert_called_once()
     assert not (raw_root / "fit_decoded" / "234.fitdecode.json").exists()
+
+
+def test_normalize_garmin_dataset_does_not_load_previous_streams_jsonl(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    raw_root = tmp_path / "10_fuentes" / "garmin_connect" / "raw"
+    _write_json(raw_root / "activities" / "234.json", _activity_payload())
+    _write_json(raw_root / "fit_decoded" / "234.fitdecode.json", _fitdecode_payload())
+    _write_manifest(raw_root / "manifest.jsonl")
+
+    normalize_garmin_dataset(tmp_path)
+    original_read_jsonl = garmin_dataset_module._read_jsonl
+
+    def guarded_read_jsonl(path: Path):
+        if path.name == "streams.jsonl":
+            raise AssertionError("streams.jsonl must be reused with the offset reader")
+        return original_read_jsonl(path)
+
+    monkeypatch.setattr(garmin_dataset_module, "_read_jsonl", guarded_read_jsonl)
+
+    result = normalize_garmin_dataset(tmp_path)
+
+    assert result.processed_activities == 0
+    assert result.reused_activities == 1
+    assert result.streams == 1
 
 
 def test_normalize_garmin_dataset_sanitizes_reused_missing_fitdecode_reference(

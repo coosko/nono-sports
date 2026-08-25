@@ -36,6 +36,9 @@ El comando devuelve código de salida `0` para `pass` y `warning`, y `1` para `f
 
 Con la descarga incremental actual es normal ver `warning` si faltan actividades por descargar debido a rate limit.
 
+La validación cuenta los JSONL línea a línea. No debe cargar
+`normalizado/streams.jsonl` completo en memoria.
+
 ## Flujo recomendado
 
 Cuando se reanude una descarga pendiente:

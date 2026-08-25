@@ -91,6 +91,11 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
 - RNF7: Las integraciones no oficiales deben estar encapsuladas como adaptadores sustituibles y no condicionar el núcleo.
 - RNF8: Tokens, secretos, locks y estado sensible deben vivir fuera del repositorio y fuera de `NONO_SPORT_DATA_ROOT`, siguiendo XDG siempre que sea posible.
 - RNF9: La automatización no debe reloguear en cada ejecución; debe reutilizar tokens y fallar con diagnóstico claro si requiere intervención humana.
+- RNF10: Los procesos diarios deben ser aptos para el host Nono, con recursos
+  limitados. Normalización, consolidación y validación deben procesar JSONL
+  grandes línea a línea siempre que sea posible y no deben cargar
+  `streams.jsonl` completo en memoria salvo en herramientas diagnósticas
+  explícitas.
 
 ## Fuera de alcance de la v1
 

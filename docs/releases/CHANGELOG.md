@@ -35,13 +35,29 @@ Todas las versiones y entregables se documentan aquí.
 - La escritura de JSONL normalizados y consolidados pasa a ser incremental en
   disco: ya no construye ni lee ficheros grandes completos en memoria para
   comparar cambios.
+- La normalización Garmin reutiliza streams previos mediante offsets en
+  `streams.jsonl`, por lo que no carga el fichero completo al no cambiar el
+  raw/FIT.
+- La normalización Strava genera `streams.jsonl` y `streams_index.jsonl` en
+  streaming desde raw local.
+- La validación offline cuenta JSONL línea a línea y ya no carga
+  `streams.jsonl` completo.
+- La consolidación de equipación calcula uso efectivo con registros de
+  actividad reducidos, sin retener campos grandes innecesarios.
 - El cliente Garmin Connect ya no importa la dependencia opcional
   `garminconnect` cuando se le inyecta una API falsa/adaptada en tests.
 
 ### Verified
 
-- Verificación local: `./.venv/bin/python scripts/check.py` con 143 tests
+- Verificación local: `./.venv/bin/python scripts/check.py` con 153 tests
   pasados.
+- Añadidas pruebas específicas para impedir regresiones que vuelvan a leer
+  `streams.jsonl` completo durante normalización Garmin/Strava, validación o
+  comparación de escrituras JSONL.
+- Validación real offline sobre el dataset local: `strava normalize` terminó
+  con 1.152 actividades, 1.145 streams y pico de 148.556 KB RSS;
+  `garmin sync --skip-fetch` terminó con 925 actividades Garmin, 1.175
+  actividades consolidadas y pico de 321.004 KB RSS, sin swaps.
 
 ## [0.3.0] - 2026-07-12
 

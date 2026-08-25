@@ -122,6 +122,10 @@ página:
 Ese ejemplo puede revisar hasta 1500 resúmenes y descargar como máximo una
 actividad pendiente.
 
+No uses `--max-activities` en la automatización diaria. El modo incremental ya
+corta por fecha al llegar a la ventana de solape; limitar artificialmente las
+actividades puede dejar pendientes si se acumulan varios días sin sincronizar.
+
 Para ejecutar solo la parte offline sobre raw ya descargado:
 
 ```bash
@@ -301,9 +305,11 @@ Una vez descargado el raw y decodificado el FIT, genera la capa común:
 ./.venv/bin/python -m nono_sports garmin normalize
 ```
 
-La normalización es incremental: guarda fingerprints por actividad en
-`normalizado/state.json` y reutiliza los registros ya normalizados si el raw/FIT
-no ha cambiado. En la salida:
+La normalización es incremental y de bajo consumo de memoria: guarda
+fingerprints por actividad en `normalizado/state.json` y reutiliza los registros
+ya normalizados si el raw/FIT no ha cambiado. Cuando reutiliza un stream previo,
+lo lee por offset desde `streams.jsonl`, actividad por actividad, en vez de
+cargar el fichero completo. En la salida:
 
 - `athletes.jsonl`: perfil/settings Garmin normalizados.
 - `equipment.jsonl`: equipación declarada y dispositivos Garmin.
@@ -408,6 +414,8 @@ Resultado validado:
   splits.
 - normalización incremental real: segunda ejecución offline con 12 actividades,
   `0 processed` y `12 reused`.
+- normalización/consolidación optimizadas para no cargar `streams.jsonl`
+  completo en memoria durante la operación diaria.
 - actividad importada Garmin `18858207006`: el ZIP `ORIGINAL` contenía
   `18858207006_ACTIVITY.gpx`, sin FIT; el sistema descargó GPX/TCX fallback y
   dejó la descarga raw con `0 recoverable errors`.
@@ -424,5 +432,6 @@ Garmin ya devolvió `429` durante pruebas de login. Por tanto:
 - reutilizar tokenstore
 - empezar con lotes pequeños
 - evitar backfills agresivos hasta entender límites reales
-- para backfill manual, usar `garmin sync --limit 20 --max-activities 1
-  --max-pages 100` y esperar entre ejecuciones
+- para backfill manual, usar límites acotados solo de forma explícita, por
+  ejemplo `garmin sync --limit 20 --max-activities 1 --max-pages 100`, y
+  esperar entre ejecuciones

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
 from typing import Any
@@ -25,33 +26,40 @@ class ConsolidatedStore:
     def write_jsonl(
         self,
         relative_path: str | Path,
-        records: list[Any],
+        records: Iterable[Any],
     ) -> ConsolidatedWriteResult:
         path = self._resolve_relative_path(relative_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         digest = hashlib.sha256()
         bytes_written = 0
+        records_written = 0
         temporary_path = _temporary_path(path)
-        with temporary_path.open("wb") as output:
-            for record in records:
-                line = (
-                    json.dumps(
-                        _to_jsonable(record),
-                        ensure_ascii=False,
-                        sort_keys=True,
-                    )
-                    + "\n"
-                ).encode("utf-8")
-                output.write(line)
-                digest.update(line)
-                bytes_written += len(line)
+        try:
+            with temporary_path.open("wb") as output:
+                for record in records:
+                    line = (
+                        json.dumps(
+                            _to_jsonable(record),
+                            ensure_ascii=False,
+                            sort_keys=True,
+                        )
+                        + "\n"
+                    ).encode("utf-8")
+                    output.write(line)
+                    digest.update(line)
+                    bytes_written += len(line)
+                    records_written += 1
+        except Exception:
+            if temporary_path.exists():
+                temporary_path.unlink()
+            raise
         hexdigest = digest.hexdigest()
         _replace_if_changed(path, temporary_path, hexdigest)
         return ConsolidatedWriteResult(
             path=path,
             relative_path=path.relative_to(self.consolidated_root).as_posix(),
             sha256=hexdigest,
-            records_written=len(records),
+            records_written=records_written,
             bytes_written=bytes_written,
         )
 

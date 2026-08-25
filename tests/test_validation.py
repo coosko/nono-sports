@@ -25,6 +25,26 @@ def test_validate_strava_data_passes_for_coherent_dataset(tmp_path: Path) -> Non
     assert summary.findings == ()
 
 
+def test_validate_strava_data_counts_jsonl_without_loading_full_file(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _write_minimal_dataset(tmp_path)
+    original_read_text = Path.read_text
+
+    def guarded_read_text(self: Path, *args, **kwargs):  # noqa: ANN002, ANN003
+        if self.name == "streams.jsonl":
+            raise AssertionError("streams.jsonl must be counted line by line")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", guarded_read_text)
+
+    summary = validate_strava_data(tmp_path)
+
+    assert summary.status == "pass"
+    assert summary.counts["normalized_streams"] == 1
+
+
 def test_validate_strava_data_warns_when_raw_download_is_incomplete(
     tmp_path: Path,
 ) -> None:

@@ -438,27 +438,27 @@ def _count_jsonl(path: Path, findings: list[ValidationFinding]) -> int:
         return 0
 
     count = 0
-    lines = path.read_text(encoding="utf-8").splitlines()
-    for line_number, line in enumerate(lines, 1):
-        if not line.strip():
-            continue
-        try:
-            json.loads(line)
-        except json.JSONDecodeError as error:
-            findings.append(
-                ValidationFinding(
-                    severity="error",
-                    code="file.invalid_jsonl",
-                    message="Un fichero JSONL contiene una línea inválida.",
-                    details={
-                        "path": str(path),
-                        "line": line_number,
-                        "error": str(error),
-                    },
+    with path.open("r", encoding="utf-8") as input_file:
+        for line_number, line in enumerate(input_file, 1):
+            if not line.strip():
+                continue
+            try:
+                json.loads(line)
+            except json.JSONDecodeError as error:
+                findings.append(
+                    ValidationFinding(
+                        severity="error",
+                        code="file.invalid_jsonl",
+                        message="Un fichero JSONL contiene una línea inválida.",
+                        details={
+                            "path": str(path),
+                            "line": line_number,
+                            "error": str(error),
+                        },
+                    )
                 )
-            )
-            continue
-        count += 1
+                continue
+            count += 1
     return count
 
 

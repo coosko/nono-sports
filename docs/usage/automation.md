@@ -98,6 +98,11 @@ El comando ejecuta:
 - normalización de mediciones manuales si existe
 - consolidación multi-fuente
 
+La normalización y la validación procesan los JSONL grandes en streaming. En
+particular, el flujo diario no debe cargar `normalizado/streams.jsonl` completo
+en memoria; Garmin reutiliza streams previos por offsets y Strava escribe los
+streams línea a línea cuando se reconstruye offline.
+
 Garmin Connect no expone, mediante `garminconnect==0.3.6`, un filtro fiable de
 "modificadas desde". El comando usa `last_successful_activity_sync_at` y un
 solape por defecto de 7 días para cortar el listado cuando llega a actividades
@@ -118,7 +123,8 @@ Opciones operativas:
 
 `--skip-fetch` solo reconstruye normalizado y consolidado desde raw local.
 `--full-scan` se reserva para backfills o auditorías. `--force` requiere
-confirmación explícita porque puede reprocesar mucho histórico.
+confirmación explícita porque puede reprocesar mucho histórico, aunque ya no
+debe crear derivados FIT masivos ni cargar todos los streams a la vez.
 
 Las mediciones usan opciones propias porque Garmin trabaja por fechas y no por
 timestamp Unix de actividad:

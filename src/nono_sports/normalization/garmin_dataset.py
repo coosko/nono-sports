@@ -49,11 +49,27 @@ class GarminNormalizationResult:
 @dataclass(frozen=True)
 class _PreviousGarminRecords:
     activities: dict[str, dict[str, Any]]
-    streams: dict[str, dict[str, Any]]
+    stream_offsets: dict[str, int]
+    stream_path: Path
 
     @classmethod
-    def empty(cls) -> "_PreviousGarminRecords":
-        return cls(activities={}, streams={})
+    def empty(cls, normalized_root: Path) -> "_PreviousGarminRecords":
+        return cls(
+            activities={},
+            stream_offsets={},
+            stream_path=normalized_root / "streams.jsonl",
+        )
+
+
+@dataclass(frozen=True)
+class _ActivityNormalizationOutput:
+    activities: int
+    streams: int
+    laps: int
+    processed_activities: int
+    reused_activities: int
+    activity_inputs: dict[str, dict[str, Any]]
+    written: tuple[SourceNormalizedWriteResult, ...]
 
 
 def normalize_garmin_dataset(
@@ -70,7 +86,8 @@ def normalize_garmin_dataset(
     previous_state = _read_json(normalized_root / "state.json")
     previous_inputs = _previous_activity_inputs(previous_state)
     previous_records = _read_previous_records(normalized_root)
-    activities, streams, processed, reused, activity_inputs = _normalize_activities(
+    store = SourceNormalizedStore(normalized_root)
+    activity_output = _normalize_activities(
         raw_root,
         manifest_index,
         previous_inputs=previous_inputs,
@@ -78,18 +95,21 @@ def normalize_garmin_dataset(
         force=force,
         keep_intermediate_files=keep_intermediate_files,
         raw_store=GarminRawStore(data_root) if keep_intermediate_files else None,
+        store=store,
     )
-    laps = [
-        lap
-        for activity in activities
-        for lap in _activity_laps(activity)
-    ]
-    splits = _normalize_json_payloads(
-        raw_root / "splits",
-        "*.json",
-        exclude_suffixes=(".summaries.json",),
+    splits_result = store.write_jsonl(
+        "splits.jsonl",
+        _iter_normalized_json_payloads(
+            raw_root / "splits",
+            "*.json",
+            exclude_suffixes=(".summaries.json",),
+        ),
     )
-    typed_splits = _normalize_json_payloads(raw_root / "typed_splits", "*.json")
+    typed_splits_result = store.write_jsonl(
+        "typed_splits.jsonl",
+        _iter_normalized_json_payloads(raw_root / "typed_splits", "*.json"),
+    )
+    segment_candidates_result = store.write_jsonl("segment_candidates.jsonl", [])
     state = {
         "schema_version": "nono.garmin_connect.normalization_state.v1",
         "generated_at": generated_at.astimezone(UTC).isoformat(),
@@ -98,7 +118,7 @@ def normalize_garmin_dataset(
         "inputs": {
             "raw_root": str(raw_root),
             "manifest": str(raw_root / "manifest.jsonl"),
-            "activities": activity_inputs,
+            "activities": activity_output.activity_inputs,
         },
         "outputs": {
             "activities": "activities.jsonl",
@@ -111,39 +131,32 @@ def normalize_garmin_dataset(
             "state": "state.json",
         },
         "counts": {
-            "activities": len(activities),
-            "streams": len(streams),
-            "laps": len(laps),
-            "splits": len(splits),
-            "typed_splits": len(typed_splits),
+            "activities": activity_output.activities,
+            "streams": activity_output.streams,
+            "laps": activity_output.laps,
+            "splits": splits_result.records_written,
+            "typed_splits": typed_splits_result.records_written,
             "segment_candidates": 0,
-            "processed_activities": processed,
-            "reused_activities": reused,
+            "processed_activities": activity_output.processed_activities,
+            "reused_activities": activity_output.reused_activities,
         },
     }
 
-    store = SourceNormalizedStore(normalized_root)
     written = [
-        store.write_jsonl("activities.jsonl", activities),
-        store.write_jsonl("streams.jsonl", streams),
-        store.write_jsonl(
-            "streams_index.jsonl",
-            [_stream_index(stream) for stream in streams],
-        ),
-        store.write_jsonl("laps.jsonl", laps),
-        store.write_jsonl("splits.jsonl", splits),
-        store.write_jsonl("typed_splits.jsonl", typed_splits),
-        store.write_jsonl("segment_candidates.jsonl", []),
+        *activity_output.written,
+        splits_result,
+        typed_splits_result,
+        segment_candidates_result,
         store.write_json("state.json", state),
     ]
     return GarminNormalizationResult(
-        activities=len(activities),
-        streams=len(streams),
-        laps=len(laps),
-        splits=len(splits),
-        typed_splits=len(typed_splits),
-        processed_activities=processed,
-        reused_activities=reused,
+        activities=activity_output.activities,
+        streams=activity_output.streams,
+        laps=activity_output.laps,
+        splits=splits_result.records_written,
+        typed_splits=typed_splits_result.records_written,
+        processed_activities=activity_output.processed_activities,
+        reused_activities=activity_output.reused_activities,
         written=tuple(written),
         normalized_root=str(normalized_root),
     )
@@ -158,120 +171,190 @@ def _normalize_activities(
     force: bool,
     keep_intermediate_files: bool,
     raw_store: GarminRawStore | None,
-) -> tuple[
-    list[Any],
-    list[Any],
-    int,
-    int,
-    dict[str, dict[str, Any]],
-]:
-    activities: list[Any] = []
-    streams: list[Any] = []
+    store: SourceNormalizedStore,
+) -> _ActivityNormalizationOutput:
+    activities = 0
+    streams = 0
+    laps = 0
     processed = 0
     reused = 0
     activity_inputs: dict[str, dict[str, Any]] = {}
-    for activity_path in sorted((raw_root / "activities").glob("*.json")):
-        if activity_path.name == "activities_index.json" or "." in activity_path.stem:
-            continue
-        activity = _read_json(activity_path)
-        if not isinstance(activity, dict) or activity.get("activityId") is None:
-            continue
-        activity_id = str(activity["activityId"])
-        fingerprint = _activity_input_fingerprint(raw_root, manifest_index, activity_id)
-        activity_inputs[activity_id] = fingerprint
-        if (
-            not force
-            and previous_inputs.get(activity_id) == fingerprint
-            and activity_id in previous_records.activities
-        ):
-            activities.append(
-                _sanitize_reused_activity_record(
+
+    with (
+        store.open_jsonl("activities.jsonl") as activities_writer,
+        store.open_jsonl("streams.jsonl") as streams_writer,
+        store.open_jsonl("streams_index.jsonl") as streams_index_writer,
+        store.open_jsonl("laps.jsonl") as laps_writer,
+        _PreviousStreamReader(previous_records) as previous_stream_reader,
+    ):
+        for activity_path in sorted((raw_root / "activities").glob("*.json")):
+            if (
+                activity_path.name == "activities_index.json"
+                or "." in activity_path.stem
+            ):
+                continue
+            activity = _read_json(activity_path)
+            if not isinstance(activity, dict) or activity.get("activityId") is None:
+                continue
+            activity_id = str(activity["activityId"])
+            fingerprint = _activity_input_fingerprint(
+                raw_root,
+                manifest_index,
+                activity_id,
+            )
+            activity_inputs[activity_id] = fingerprint
+            if (
+                not force
+                and previous_inputs.get(activity_id) == fingerprint
+                and activity_id in previous_records.activities
+            ):
+                activity_record = _sanitize_reused_activity_record(
                     previous_records.activities[activity_id],
                     raw_root,
                 )
-            )
-            if activity_id in previous_records.streams:
-                streams.append(
-                    _sanitize_reused_stream_record(
-                        previous_records.streams[activity_id],
-                        raw_root,
-                        manifest_index,
-                        activity_id,
-                    )
+                stream = previous_stream_reader.read(
+                    activity_id,
+                    raw_root,
+                    manifest_index,
                 )
-            reused += 1
-            continue
+                reused += 1
+            else:
+                references = _references(
+                    raw_root,
+                    manifest_index,
+                    activity_id,
+                    activity_path,
+                )
+                fit_messages_reference, fit_message_payload = _fit_messages(
+                    raw_root,
+                    manifest_index,
+                    activity_id,
+                    fit_reference=references.get("fit"),
+                    keep_intermediate_files=keep_intermediate_files,
+                    raw_store=raw_store,
+                )
+                splits_reference, splits_payload = _optional_payload(
+                    raw_root,
+                    manifest_index,
+                    relative_path=Path("splits") / f"{activity_id}.json",
+                    entity_type="splits",
+                    source_id=activity_id,
+                )
+                typed_splits_reference, typed_splits_payload = _optional_payload(
+                    raw_root,
+                    manifest_index,
+                    relative_path=Path("typed_splits") / f"{activity_id}.json",
+                    entity_type="typed_splits",
+                    source_id=activity_id,
+                )
+                weather_reference, weather_payload = _optional_payload(
+                    raw_root,
+                    manifest_index,
+                    relative_path=Path("weather") / f"{activity_id}.json",
+                    entity_type="weather",
+                    source_id=activity_id,
+                )
+                activity_gear_reference, activity_gear_payload = _optional_payload(
+                    raw_root,
+                    manifest_index,
+                    relative_path=Path("gear") / f"activity_{activity_id}.json",
+                    entity_type="activity_gear",
+                    source_id=activity_id,
+                )
+                activity_record = normalize_garmin_activity(
+                    activity,
+                    source_reference=references["activity"],
+                    details_reference=references.get("details"),
+                    fit_reference=references.get("fit"),
+                    decoded_fit_reference=fit_messages_reference,
+                    gpx_reference=references.get("gpx"),
+                    tcx_reference=references.get("tcx"),
+                    splits_reference=splits_reference,
+                    typed_splits_reference=typed_splits_reference,
+                    weather_reference=weather_reference,
+                    activity_gear_reference=activity_gear_reference,
+                    fit_messages=fit_message_payload,
+                    splits_payload=splits_payload,
+                    typed_splits_payload=typed_splits_payload,
+                    weather_payload=weather_payload,
+                    activity_gear_payload=activity_gear_payload,
+                )
+                if fit_messages_reference is not None:
+                    stream = normalize_garmin_stream(
+                        activity_id,
+                        fit_message_payload,
+                        source_reference=fit_messages_reference,
+                    )
+                else:
+                    stream = _fallback_track_stream(raw_root, references, activity_id)
+                processed += 1
 
-        references = _references(raw_root, manifest_index, activity_id, activity_path)
-        fit_messages_reference, fit_message_payload = _fit_messages(
+            activities_writer.write_record(activity_record)
+            activities += 1
+            for lap in _activity_laps(activity_record):
+                laps_writer.write_record(lap)
+                laps += 1
+            if stream is not None:
+                streams_writer.write_record(stream)
+                streams_index_writer.write_record(_stream_index(stream))
+                streams += 1
+
+        written = (
+            activities_writer.finish(),
+            streams_writer.finish(),
+            streams_index_writer.finish(),
+            laps_writer.finish(),
+        )
+
+    return _ActivityNormalizationOutput(
+        activities=activities,
+        streams=streams,
+        laps=laps,
+        processed_activities=processed,
+        reused_activities=reused,
+        activity_inputs=activity_inputs,
+        written=written,
+    )
+
+
+class _PreviousStreamReader:
+    def __init__(self, previous_records: _PreviousGarminRecords) -> None:
+        self._records = previous_records
+        self._file: Any | None = None
+
+    def __enter__(self) -> "_PreviousStreamReader":
+        if self._records.stream_path.exists():
+            self._file = self._records.stream_path.open("rb")
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        if self._file is not None:
+            self._file.close()
+
+    def read(
+        self,
+        activity_id: str,
+        raw_root: Path,
+        manifest_index: dict[str, dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if self._file is None:
+            return None
+        offset = self._records.stream_offsets.get(activity_id)
+        if offset is None:
+            return None
+        self._file.seek(offset)
+        line = self._file.readline()
+        if not line.strip():
+            return None
+        payload = json.loads(line)
+        if not isinstance(payload, dict):
+            return None
+        return _sanitize_reused_stream_record(
+            payload,
             raw_root,
             manifest_index,
             activity_id,
-            fit_reference=references.get("fit"),
-            keep_intermediate_files=keep_intermediate_files,
-            raw_store=raw_store,
         )
-        splits_reference, splits_payload = _optional_payload(
-            raw_root,
-            manifest_index,
-            relative_path=Path("splits") / f"{activity_id}.json",
-            entity_type="splits",
-            source_id=activity_id,
-        )
-        typed_splits_reference, typed_splits_payload = _optional_payload(
-            raw_root,
-            manifest_index,
-            relative_path=Path("typed_splits") / f"{activity_id}.json",
-            entity_type="typed_splits",
-            source_id=activity_id,
-        )
-        weather_reference, weather_payload = _optional_payload(
-            raw_root,
-            manifest_index,
-            relative_path=Path("weather") / f"{activity_id}.json",
-            entity_type="weather",
-            source_id=activity_id,
-        )
-        activity_gear_reference, activity_gear_payload = _optional_payload(
-            raw_root,
-            manifest_index,
-            relative_path=Path("gear") / f"activity_{activity_id}.json",
-            entity_type="activity_gear",
-            source_id=activity_id,
-        )
-        activity_record = normalize_garmin_activity(
-            activity,
-            source_reference=references["activity"],
-            details_reference=references.get("details"),
-            fit_reference=references.get("fit"),
-            decoded_fit_reference=fit_messages_reference,
-            gpx_reference=references.get("gpx"),
-            tcx_reference=references.get("tcx"),
-            splits_reference=splits_reference,
-            typed_splits_reference=typed_splits_reference,
-            weather_reference=weather_reference,
-            activity_gear_reference=activity_gear_reference,
-            fit_messages=fit_message_payload,
-            splits_payload=splits_payload,
-            typed_splits_payload=typed_splits_payload,
-            weather_payload=weather_payload,
-            activity_gear_payload=activity_gear_payload,
-        )
-        activities.append(activity_record)
-        if fit_messages_reference is not None:
-            stream = normalize_garmin_stream(
-                activity_id,
-                fit_message_payload,
-                source_reference=fit_messages_reference,
-            )
-            if stream is not None:
-                streams.append(stream)
-        else:
-            stream = _fallback_track_stream(raw_root, references, activity_id)
-            if stream is not None:
-                streams.append(stream)
-        processed += 1
-    return activities, streams, processed, reused, activity_inputs
 
 
 def _fit_messages(
@@ -389,18 +472,19 @@ def _sanitize_reused_stream_record(
     manifest_index: dict[str, dict[str, Any]],
     activity_id: str,
 ) -> dict[str, Any]:
-    sanitized = deepcopy(record)
-    source_reference = sanitized.get("source_reference")
-    if _is_missing_fit_decoded_reference(raw_root, source_reference):
-        fit_path = raw_root / "activity_files" / f"{activity_id}.fit"
-        if fit_path.is_file():
-            sanitized["source_reference"] = _source_reference(
-                raw_root,
-                fit_path,
-                manifest_index,
-                entity_type="fit",
-                source_id=activity_id,
-            )
+    source_reference = record.get("source_reference")
+    if not _is_missing_fit_decoded_reference(raw_root, source_reference):
+        return record
+    sanitized = dict(record)
+    fit_path = raw_root / "activity_files" / f"{activity_id}.fit"
+    if fit_path.is_file():
+        sanitized["source_reference"] = _source_reference(
+            raw_root,
+            fit_path,
+            manifest_index,
+            entity_type="fit",
+            source_id=activity_id,
+        )
     return sanitized
 
 
@@ -460,28 +544,24 @@ def _optional_payload(
     )
 
 
-def _normalize_json_payloads(
+def _iter_normalized_json_payloads(
     root: Path,
     pattern: str,
     *,
     exclude_suffixes: tuple[str, ...] = (),
-) -> list[dict[str, Any]]:
-    records = []
+) -> Any:
     if not root.exists():
-        return []
+        return
     for path in sorted(root.glob(pattern)):
         if any(path.name.endswith(suffix) for suffix in exclude_suffixes):
             continue
         payload = _read_json(path)
-        records.append(
-            {
-                "schema_version": "nono.garmin_connect.normalized_aux.v1",
-                "source": SOURCE,
-                "source_activity_id": path.stem.split(".")[0],
-                "payload": payload,
-            }
-        )
-    return records
+        yield {
+            "schema_version": "nono.garmin_connect.normalized_aux.v1",
+            "source": SOURCE,
+            "source_activity_id": path.stem.split(".")[0],
+            "payload": payload,
+        }
 
 
 def _activity_input_fingerprint(
@@ -522,31 +602,54 @@ def _previous_activity_inputs(state: Any) -> dict[str, dict[str, Any]]:
 
 def _read_previous_records(normalized_root: Path) -> _PreviousGarminRecords:
     if not normalized_root.exists():
-        return _PreviousGarminRecords.empty()
+        return _PreviousGarminRecords.empty(normalized_root)
+    stream_path = normalized_root / "streams.jsonl"
     return _PreviousGarminRecords(
         activities={
             str(record.get("source_activity_id")): record
             for record in _read_jsonl(normalized_root / "activities.jsonl")
             if record.get("source_activity_id") is not None
         },
-        streams={
-            str(record.get("source_activity_id")): record
-            for record in _read_jsonl(normalized_root / "streams.jsonl")
-            if record.get("source_activity_id") is not None
-        },
+        stream_offsets=_stream_offsets(stream_path),
+        stream_path=stream_path,
     )
+
+
+def _stream_offsets(path: Path) -> dict[str, int]:
+    if not path.exists():
+        return {}
+    offsets: dict[str, int] = {}
+    with path.open("rb") as input_file:
+        while True:
+            offset = input_file.tell()
+            line = input_file.readline()
+            if not line:
+                break
+            if not line.strip():
+                continue
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if (
+                isinstance(payload, dict)
+                and payload.get("source_activity_id") is not None
+            ):
+                offsets[str(payload["source_activity_id"])] = offset
+    return offsets
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     records = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        payload = json.loads(line)
-        if isinstance(payload, dict):
-            records.append(payload)
+    with path.open("r", encoding="utf-8") as input_file:
+        for line in input_file:
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if isinstance(payload, dict):
+                records.append(payload)
     return records
 
 

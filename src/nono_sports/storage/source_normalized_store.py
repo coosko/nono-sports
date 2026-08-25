@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
+from types import TracebackType
 from typing import Any
 
 
@@ -25,35 +27,19 @@ class SourceNormalizedStore:
     def write_jsonl(
         self,
         relative_path: str | Path,
-        records: list[Any],
+        records: Iterable[Any],
     ) -> SourceNormalizedWriteResult:
-        path = self._resolve_relative_path(relative_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        digest = hashlib.sha256()
-        bytes_written = 0
-        temporary_path = _temporary_path(path)
-        with temporary_path.open("wb") as output:
+        with self.open_jsonl(relative_path) as writer:
             for record in records:
-                line = (
-                    json.dumps(
-                        _to_jsonable(record),
-                        ensure_ascii=False,
-                        sort_keys=True,
-                    )
-                    + "\n"
-                ).encode("utf-8")
-                output.write(line)
-                digest.update(line)
-                bytes_written += len(line)
-        hexdigest = digest.hexdigest()
-        _replace_if_changed(path, temporary_path, hexdigest)
-        return SourceNormalizedWriteResult(
-            path=path,
-            relative_path=path.relative_to(self.normalized_root).as_posix(),
-            sha256=hexdigest,
-            records_written=len(records),
-            bytes_written=bytes_written,
-        )
+                writer.write_record(record)
+            return writer.finish()
+
+    def open_jsonl(
+        self,
+        relative_path: str | Path,
+    ) -> "SourceNormalizedJsonlWriter":
+        path = self._resolve_relative_path(relative_path)
+        return SourceNormalizedJsonlWriter(path, self.normalized_root)
 
     def write_json(
         self,
@@ -101,6 +87,73 @@ class SourceNormalizedStore:
         if not target.is_relative_to(root):
             raise ValueError("Normalized paths must stay inside the source root.")
         return target
+
+
+class SourceNormalizedJsonlWriter:
+    def __init__(self, path: Path, normalized_root: Path) -> None:
+        self._path = path
+        self._normalized_root = normalized_root
+        self._temporary_path = _temporary_path(path)
+        self._digest = hashlib.sha256()
+        self._bytes_written = 0
+        self._records_written = 0
+        self._output: Any | None = None
+        self._finished = False
+
+    def __enter__(self) -> "SourceNormalizedJsonlWriter":
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._output = self._temporary_path.open("wb")
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        if self._output is not None and not self._output.closed:
+            self._output.close()
+        if exc_type is not None and self._temporary_path.exists():
+            self._temporary_path.unlink()
+
+    def write_record(self, record: Any) -> None:
+        line = (
+            json.dumps(
+                _to_jsonable(record),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode("utf-8")
+        self.write_encoded_line(line)
+
+    def write_encoded_line(self, line: bytes | str) -> None:
+        if self._output is None:
+            raise RuntimeError("JSONL writer must be opened before writing.")
+        payload = line.encode("utf-8") if isinstance(line, str) else line
+        if not payload.endswith(b"\n"):
+            payload += b"\n"
+        self._output.write(payload)
+        self._digest.update(payload)
+        self._bytes_written += len(payload)
+        self._records_written += 1
+
+    def finish(self) -> SourceNormalizedWriteResult:
+        if self._finished:
+            raise RuntimeError("JSONL writer has already been finished.")
+        if self._output is None:
+            raise RuntimeError("JSONL writer must be opened before finishing.")
+        self._output.close()
+        digest = self._digest.hexdigest()
+        _replace_if_changed(self._path, self._temporary_path, digest)
+        self._finished = True
+        return SourceNormalizedWriteResult(
+            path=self._path,
+            relative_path=self._path.relative_to(self._normalized_root).as_posix(),
+            sha256=digest,
+            records_written=self._records_written,
+            bytes_written=self._bytes_written,
+        )
 
 
 def _to_jsonable(value: Any) -> Any:

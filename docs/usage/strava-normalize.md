@@ -29,7 +29,10 @@ Y escribe:
 10_fuentes/strava/normalizado/state.json
 ```
 
-Cada ejecución reescribe los JSONL desde los raw disponibles, por lo que es idempotente.
+Cada ejecución reescribe los JSONL desde los raw disponibles, por lo que es
+idempotente. La escritura de streams es línea a línea: no construye
+`streams.jsonl` completo en memoria y después genera `streams_index.jsonl`
+leyendo ese JSONL también en streaming.
 
 `athletes.jsonl`, `equipment.jsonl`, `streams_index.jsonl` y `state.json`
 forman parte del contrato mínimo común de normalizados por fuente.

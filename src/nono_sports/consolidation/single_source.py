@@ -45,14 +45,20 @@ def build_single_source_consolidated(
             activity.consolidated_activity_uid,
         )
     )
-    source_links = [
-        _activity_source_link(activity) for activity in consolidated_activities
-    ]
-    streams_index = [
-        _stream_index(activity)
-        for activity in consolidated_activities
-        if activity.stream_uid is not None
-    ]
+    store = ConsolidatedStore(data_root)
+    activities_result = store.write_jsonl("activities.jsonl", consolidated_activities)
+    source_links_result = store.write_jsonl(
+        "activity_sources.jsonl",
+        (_activity_source_link(activity) for activity in consolidated_activities),
+    )
+    streams_index_result = store.write_jsonl(
+        "streams_index.jsonl",
+        (
+            _stream_index(activity)
+            for activity in consolidated_activities
+            if activity.stream_uid is not None
+        ),
+    )
     state = {
         "schema_version": "nono.consolidation_state.v1",
         "generated_at": generated_at.astimezone(UTC).isoformat(),
@@ -69,22 +75,21 @@ def build_single_source_consolidated(
         },
         "counts": {
             "activities": len(consolidated_activities),
-            "activity_sources": len(source_links),
-            "streams_index": len(streams_index),
+            "activity_sources": source_links_result.records_written,
+            "streams_index": streams_index_result.records_written,
         },
     }
 
-    store = ConsolidatedStore(data_root)
     written = [
-        store.write_jsonl("activities.jsonl", consolidated_activities),
-        store.write_jsonl("activity_sources.jsonl", source_links),
-        store.write_jsonl("streams_index.jsonl", streams_index),
+        activities_result,
+        source_links_result,
+        streams_index_result,
         store.write_json("state.json", state),
     ]
     return SingleSourceConsolidationResult(
         activities=len(consolidated_activities),
-        activity_sources=len(source_links),
-        streams_index=len(streams_index),
+        activity_sources=source_links_result.records_written,
+        streams_index=streams_index_result.records_written,
         written=tuple(written),
         consolidated_root=str(store.consolidated_root),
     )
@@ -156,12 +161,13 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     records = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        payload = json.loads(line)
-        if isinstance(payload, dict):
-            records.append(payload)
+    with path.open("r", encoding="utf-8") as input_file:
+        for line in input_file:
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if isinstance(payload, dict):
+                records.append(payload)
     return records
 
 

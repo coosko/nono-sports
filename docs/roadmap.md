@@ -62,3 +62,12 @@ Este roadmap deriva de `docs/requirements/requirements.md` y `docs/technical/arc
 
 - habilitar salidas útiles para Nono
 - preparar análisis e informes posteriores
+
+## Fase 8. Robustez operativa
+
+- evitar que normalización, consolidación o validación carguen
+  `streams.jsonl` completo en memoria: implementado
+- mantener el flujo diario apto para el host Nono de 2 GB RAM
+- añadir preflight de memoria/swap antes del timer diario
+- estudiar separación de fases en procesos distintos si siguen apareciendo
+  picos de memoria o bloqueos de Drive/rclone

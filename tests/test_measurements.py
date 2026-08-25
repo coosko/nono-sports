@@ -14,6 +14,7 @@ from nono_sports.normalization.garmin_measurements import (
     normalize_garmin_measurements,
 )
 from nono_sports.normalization.manual_measurements import normalize_manual_measurements
+from nono_sports.storage.source_normalized_store import SourceNormalizedStore
 
 
 class FakeGarminMeasurementApi:
@@ -160,6 +161,46 @@ def test_normalize_manual_measurements_reads_existing_csv_shape(tmp_path: Path) 
     assert measurements[0]["metric"] == "weight"
     assert measurements[0]["value"] == 74.5
     assert measurements[0]["conditions"] == "manana"
+
+
+def test_normalize_manual_measurements_streams_csv_records(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    csv_path = (
+        tmp_path
+        / "10_fuentes"
+        / "manual"
+        / "biometria"
+        / "mediciones_carlos.csv"
+    )
+    csv_path.parent.mkdir(parents=True)
+    with csv_path.open("w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(
+            csv_file,
+            fieldnames=["measurement_date", "metric", "value", "unit"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "measurement_date": "2026-07-12",
+                "metric": "weight",
+                "value": "74.5",
+                "unit": "kg",
+            }
+        )
+    original_write_jsonl = SourceNormalizedStore.write_jsonl
+
+    def spy_write_jsonl(self, relative_path, records):  # noqa: ANN001
+        if str(relative_path) == "measurements.jsonl":
+            assert not isinstance(records, list)
+        return original_write_jsonl(self, relative_path, records)
+
+    monkeypatch.setattr(SourceNormalizedStore, "write_jsonl", spy_write_jsonl)
+
+    result = normalize_manual_measurements(tmp_path)
+
+    assert result.measurements == 1
 
 
 def test_build_consolidated_measurements_deduplicates_sources(tmp_path: Path) -> None:

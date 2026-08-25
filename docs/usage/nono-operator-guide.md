@@ -352,6 +352,9 @@ cd /home/nono/apps/nono-sport
 Este comando no llama a Garmin Connect. Lee raw Garmin ya descargado, normaliza,
 consolida y no conserva `raw/fit_decoded/*.fitdecode.json`.
 
+La reconstrucción offline está optimizada para memoria: los JSONL grandes se
+leen o escriben línea a línea y no debe cargarse `streams.jsonl` completo en RAM.
+
 ## Uso excepcional: descargar nueva actividad Strava
 
 La descarga real llama a Strava y consume cuota. No la ejecutes de forma repetida sin motivo.
@@ -428,6 +431,8 @@ Este comando:
 - normaliza el CSV manual de biometría si existe
 - reconstruye el consolidado multi-fuente
 - no genera `fit_decoded/*.fitdecode.json` en el flujo normal
+- no carga `normalizado/streams.jsonl` completo en memoria durante la
+  normalización, consolidación o validación
 
 No añadir `--max-activities` ni `--max-pages` en la automatización diaria: si
 una ejecución queda limitada artificialmente, una actividad reciente podria
@@ -586,6 +591,10 @@ Si falla la sincronización:
 3. Si es rate limit, espera a la siguiente ventana.
 4. Si es autenticación, no pegues tokens en respuestas; pide intervención de Carlos.
 5. Si falla Garmin por tokenstore, ejecuta `garmin doctor` y pide intervención si requiere login.
+6. Si vuelve a aparecer un OOM tras actualizar el código, recoge
+   `journalctl --user -u nono-sports-garmin-sync.service -n 200 --no-pager`,
+   estado de memoria/swap y confirma si había otros procesos pesados; no uses
+   `--force` como respuesta automática.
 
 Si faltan actividades:
 

@@ -17,3 +17,5 @@ Convención usada en este repositorio:
 - `Descripcion_inicial.md`: versión limpia del documento de entrada y descubrimiento
 - `Descripcion_inicial.md.20260524.back`: respaldo literal del texto original
 - `descripcion_integracion_garmin_connect.md`: análisis aprobado de Garmin Connect; la decisión formal derivada vive en `docs/requirements/garmin-connect.md`
+- `analisis_nono_error_memoria.md`: diagnóstico operativo de Nono sobre los
+  fallos OOM del timer Garmin en agosto de 2026

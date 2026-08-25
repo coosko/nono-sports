@@ -351,6 +351,24 @@ Convierte raw de cada fuente a modelos comunes:
 
 La normalización nunca debe borrar la trazabilidad hacia el fichero raw original.
 
+### Regla de memoria
+
+`streams.jsonl` puede crecer hasta cientos de MB por fuente. Por tanto, los
+normalizadores, consolidadores y validadores deben tratar JSONL grandes como
+flujos línea a línea, no como listas completas en memoria. En operación diaria:
+
+- Garmin Connect reutiliza streams normalizados previos mediante índice de
+  offsets cuando el raw/FIT no cambia.
+- Strava genera `streams.jsonl` y después `streams_index.jsonl` en streaming
+  desde los raw locales.
+- La validación cuenta JSONL línea a línea.
+- La consolidación no lee cuerpos de stream; usa `stream_uid`,
+  `streams_index.jsonl` y campos ligeros de actividad cuando solo necesita
+  métricas agregadas.
+
+Esta regla aplica también a futuras fuentes manuales, Komoot, GPX, TCX o FIT
+subidos a mano.
+
 La salida normalizada por fuente se escribe como JSONL en:
 
 - `normalizado/athletes.jsonl`
@@ -396,6 +414,11 @@ Responsabilidad:
 - consolidar atleta/equipación entre fuentes
 - consolidar mediciones biométricas y métricas puntuales
 - conservar trazabilidad completa antes de elegir fuente por métrica
+
+La consolidación puede reconstruir salidas completas por compatibilidad, pero
+no debe cargar `normalizado/streams.jsonl`. Cuando necesita calcular métricas
+agregadas de equipación, lee actividades fuente como registros mínimos con
+distancia, duración y enlace de equipo.
 
 La salida consolidada inicial se escribe en:
 
@@ -630,6 +653,6 @@ el futuro, deberán incorporarse como una decisión explícita de arquitectura.
 
 - escritura o modificación de datos en Strava
 - webhooks productivos
-- implementación Garmin, Komoot o ficheros manuales
+- implementación Komoot o importación deportiva manual FIT/GPX/TCX
 - deduplicación compleja entre fuentes
 - análisis deportivo avanzado

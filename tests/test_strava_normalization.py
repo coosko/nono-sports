@@ -5,6 +5,7 @@ from nono_sports.domain.source import SourceReference
 from nono_sports.normalization.strava_activity import normalize_strava_activity
 from nono_sports.normalization.strava_dataset import normalize_strava_dataset
 from nono_sports.storage.raw_store import RawStore
+from nono_sports.storage.source_normalized_store import SourceNormalizedStore
 
 
 def test_normalize_strava_dataset_writes_jsonl_outputs(tmp_path: Path) -> None:
@@ -133,6 +134,48 @@ def test_normalize_strava_dataset_writes_jsonl_outputs(tmp_path: Path) -> None:
     assert state["schema_version"] == "nono.strava.normalization_state.v1"
     assert state["outputs"]["streams_index"] == "streams_index.jsonl"
     assert state["counts"]["streams_index"] == 1
+
+
+def test_normalize_strava_dataset_streams_large_outputs_without_lists(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    raw_store = RawStore(tmp_path)
+    raw_store.write_json(
+        "activities/100.json",
+        {
+            "id": 100,
+            "athlete": {"id": 42},
+            "name": "Morning Ride",
+            "sport_type": "Ride",
+            "type": "Ride",
+            "moving_time": 1800,
+        },
+        endpoint="/activities/100",
+    )
+    raw_store.write_json(
+        "streams/100.json",
+        {"heartrate": {"data": [130, 140], "original_size": 2}},
+        endpoint="/activities/100/streams",
+    )
+    original_write_jsonl = SourceNormalizedStore.write_jsonl
+
+    def spy_write_jsonl(self, relative_path, records):  # noqa: ANN001
+        if str(relative_path) in {
+            "activities.jsonl",
+            "streams.jsonl",
+            "streams_index.jsonl",
+        }:
+            assert not isinstance(records, list)
+        return original_write_jsonl(self, relative_path, records)
+
+    monkeypatch.setattr(SourceNormalizedStore, "write_jsonl", spy_write_jsonl)
+
+    result = normalize_strava_dataset(tmp_path)
+
+    assert result.activities == 1
+    assert result.streams == 1
+    assert result.streams_index == 1
 
 
 def test_normalize_strava_activity_supports_non_distance_sports() -> None:

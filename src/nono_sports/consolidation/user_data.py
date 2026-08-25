@@ -271,17 +271,40 @@ def _base_distance(records: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _load_activity_usage_context(data_root: Path) -> dict[str, Any]:
-    consolidated_activities = _read_jsonl(
-        data_root / "20_consolidado" / "activities.jsonl"
-    )
-    source_activities = {
-        str(activity.get("activity_uid")): activity
-        for activity in _load_records(_normalized_path(data_root, "activities.jsonl"))
-        if activity.get("activity_uid") is not None
-    }
+    consolidated_activities = [
+        _slim_consolidated_activity(activity)
+        for activity in _iter_jsonl(data_root / "20_consolidado" / "activities.jsonl")
+    ]
+    source_activities: dict[str, dict[str, Any]] = {}
+    for path in _normalized_path(data_root, "activities.jsonl").values():
+        for activity in _iter_jsonl(path):
+            activity_uid = activity.get("activity_uid")
+            if activity_uid is not None:
+                source_activities[str(activity_uid)] = _slim_source_activity(activity)
     return {
         "consolidated_activities": consolidated_activities,
         "source_activities": source_activities,
+    }
+
+
+def _slim_consolidated_activity(activity: dict[str, Any]) -> dict[str, Any]:
+    source_links = activity.get("provenance", {}).get("source_links", [])
+    return {
+        "consolidated_activity_uid": activity.get("consolidated_activity_uid"),
+        "source_activity_uids": activity.get("source_activity_uids", []),
+        "provenance": {
+            "source_links": source_links if isinstance(source_links, list) else []
+        },
+    }
+
+
+def _slim_source_activity(activity: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "activity_uid": activity.get("activity_uid"),
+        "source": activity.get("source"),
+        "distance": _dict(activity.get("distance")),
+        "duration": _dict(activity.get("duration")),
+        "gear": _dict(activity.get("gear")),
     }
 
 
@@ -596,16 +619,19 @@ def _normalized_paths(data_root: Path) -> dict[str, dict[str, Path]]:
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    return list(_iter_jsonl(path))
+
+
+def _iter_jsonl(path: Path):
     if not path.exists():
-        return []
-    records = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        payload = json.loads(line)
-        if isinstance(payload, dict):
-            records.append(payload)
-    return records
+        return
+    with path.open("r", encoding="utf-8") as input_file:
+        for line in input_file:
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if isinstance(payload, dict):
+                yield payload
 
 
 def _normalize_name(value: Any) -> str:

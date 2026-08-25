@@ -51,17 +51,20 @@ def build_multi_source_consolidated(
         )
     )
 
-    source_links = [
-        link
-        for activity in consolidated_activities
-        for link in _activity_source_links(activity)
-    ]
-    streams_index = [
-        _stream_index(activity, source_link)
-        for activity in consolidated_activities
-        for source_link in activity.provenance.get("source_links", [])
-        if source_link.get("stream_uid") is not None
-    ]
+    store = ConsolidatedStore(data_root)
+    activities_result = store.write_jsonl("activities.jsonl", consolidated_activities)
+    source_links_result = store.write_jsonl(
+        "activity_sources.jsonl",
+        _iter_activity_source_links(consolidated_activities),
+    )
+    streams_index_result = store.write_jsonl(
+        "streams_index.jsonl",
+        _iter_stream_index(consolidated_activities),
+    )
+    duplicate_candidates_result = store.write_jsonl(
+        "duplicate_candidates.jsonl",
+        duplicate_candidates,
+    )
     state = {
         "schema_version": "nono.consolidation_state.v1",
         "generated_at": generated_at.astimezone(UTC).isoformat(),
@@ -79,25 +82,24 @@ def build_multi_source_consolidated(
         },
         "counts": {
             "activities": len(consolidated_activities),
-            "activity_sources": len(source_links),
-            "streams_index": len(streams_index),
+            "activity_sources": source_links_result.records_written,
+            "streams_index": streams_index_result.records_written,
             "duplicate_candidates": len(duplicate_candidates),
             "input_activities": len(inputs),
         },
     }
 
-    store = ConsolidatedStore(data_root)
     written = [
-        store.write_jsonl("activities.jsonl", consolidated_activities),
-        store.write_jsonl("activity_sources.jsonl", source_links),
-        store.write_jsonl("streams_index.jsonl", streams_index),
-        store.write_jsonl("duplicate_candidates.jsonl", duplicate_candidates),
+        activities_result,
+        source_links_result,
+        streams_index_result,
+        duplicate_candidates_result,
         store.write_json("state.json", state),
     ]
     return MultiSourceConsolidationResult(
         activities=len(consolidated_activities),
-        activity_sources=len(source_links),
-        streams_index=len(streams_index),
+        activity_sources=source_links_result.records_written,
+        streams_index=streams_index_result.records_written,
         duplicate_candidates=len(duplicate_candidates),
         written=tuple(written),
         consolidated_root=str(store.consolidated_root),
@@ -335,6 +337,23 @@ def _activity_source_links(activity: ConsolidatedActivity) -> list[ActivitySourc
     return links
 
 
+def _iter_activity_source_links(
+    activities: list[ConsolidatedActivity],
+):
+    for activity in activities:
+        yield from _activity_source_links(activity)
+
+
+def _iter_stream_index(
+    activities: list[ConsolidatedActivity],
+):
+    for activity in activities:
+        source_links = activity.provenance.get("source_links", [])
+        for source_link in source_links if isinstance(source_links, list) else []:
+            if source_link.get("stream_uid") is not None:
+                yield _stream_index(activity, source_link)
+
+
 def _stream_index(
     activity: ConsolidatedActivity,
     source_link: dict[str, Any],
@@ -352,12 +371,13 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     records = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        payload = json.loads(line)
-        if isinstance(payload, dict):
-            records.append(payload)
+    with path.open("r", encoding="utf-8") as input_file:
+        for line in input_file:
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if isinstance(payload, dict):
+                records.append(payload)
     return records
 
 

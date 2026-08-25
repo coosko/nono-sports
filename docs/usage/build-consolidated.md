@@ -21,7 +21,6 @@ El comando no llama a APIs externas. Lee:
 
 ```text
 10_fuentes/strava/normalizado/activities.jsonl
-10_fuentes/strava/normalizado/streams.jsonl
 10_fuentes/strava/normalizado/athletes.jsonl
 10_fuentes/strava/normalizado/equipment.jsonl
 10_fuentes/garmin_connect/normalizado/activities.jsonl
@@ -32,6 +31,10 @@ El comando no llama a APIs externas. Lee:
 ```
 
 Los ficheros que no existan se ignoran.
+
+El consolidado no lee cuerpos completos de stream. Usa los `stream_uid` ya
+presentes en las actividades normalizadas y escribe `streams_index.jsonl` como
+índice ligero. Esto evita cargar `normalizado/streams.jsonl` completo en memoria.
 
 Y escribe:
 

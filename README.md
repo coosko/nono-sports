@@ -12,6 +12,8 @@ El proyecto tiene Strava v1 y Garmin Connect v1 operativos. El código activo pe
 - Garmin Connect integrado con descarga raw, FIT/GPX/TCX, perfil/equipación,
   mediciones, normalización incremental, consolidación multi-fuente y limpieza
   de intermedios pesados
+- normalización, consolidación y validación preparadas para no cargar
+  `streams.jsonl` completo en memoria en la operación diaria
 - código bootstrap anterior archivado en `deprecated/initial-bootstrap/`
 
 Documento de referencia del estado real:

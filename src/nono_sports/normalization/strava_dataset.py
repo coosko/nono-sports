@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 from nono_sports.core.paths import strava_path
-from nono_sports.domain.activity import NormalizedActivity
 from nono_sports.domain.athlete import NormalizedAthlete
 from nono_sports.domain.equipment import NormalizedEquipment
 from nono_sports.domain.source import SourceReference
@@ -50,8 +49,18 @@ def normalize_strava_dataset(
 
     athletes = _normalize_athletes(raw_root, manifest_index)
     equipment = _normalize_equipment(raw_root, manifest_index)
-    activities, streams = _normalize_activities(raw_root, manifest_index)
-    streams_index = [_stream_index(stream) for stream in streams]
+    activities_result = store.write_jsonl(
+        "activities.jsonl",
+        _iter_normalized_activities(raw_root, manifest_index),
+    )
+    streams_result = store.write_jsonl(
+        "streams.jsonl",
+        _iter_normalized_streams(raw_root, manifest_index),
+    )
+    streams_index_result = store.write_jsonl(
+        "streams_index.jsonl",
+        _iter_stream_index_from_jsonl(normalized_root / "streams.jsonl"),
+    )
     state = {
         "schema_version": "nono.strava.normalization_state.v1",
         "generated_at": generated_at.astimezone(UTC).isoformat(),
@@ -70,26 +79,26 @@ def normalize_strava_dataset(
         "counts": {
             "athletes": len(athletes),
             "equipment": len(equipment),
-            "activities": len(activities),
-            "streams": len(streams),
-            "streams_index": len(streams_index),
+            "activities": activities_result.records_written,
+            "streams": streams_result.records_written,
+            "streams_index": streams_index_result.records_written,
         },
     }
 
     written = [
         store.write_jsonl("athletes.jsonl", athletes),
         store.write_jsonl("equipment.jsonl", equipment),
-        store.write_jsonl("activities.jsonl", activities),
-        store.write_jsonl("streams.jsonl", streams),
-        store.write_jsonl("streams_index.jsonl", streams_index),
+        activities_result,
+        streams_result,
+        streams_index_result,
         store.write_json("state.json", state),
     ]
     return StravaNormalizationResult(
         athletes=len(athletes),
         equipment=len(equipment),
-        activities=len(activities),
-        streams=len(streams),
-        streams_index=len(streams_index),
+        activities=activities_result.records_written,
+        streams=streams_result.records_written,
+        streams_index=streams_index_result.records_written,
         written=tuple(written),
         normalized_root=str(normalized_root),
     )
@@ -179,12 +188,10 @@ def _normalize_equipment(
     return [records[uid] for uid in sorted(records)]
 
 
-def _normalize_activities(
+def _iter_normalized_activities(
     raw_root: Path,
     manifest_index: dict[str, dict[str, Any]],
-) -> tuple[list[NormalizedActivity], list[NormalizedStream]]:
-    activities: list[NormalizedActivity] = []
-    streams: list[NormalizedStream] = []
+):
     available_segment_files = {
         path.name
         for path in (raw_root / "segments").glob("*.json")
@@ -207,7 +214,7 @@ def _normalize_activities(
             entity_type="activity",
             source_id=activity_id,
         )
-        stream_reference, stream_payload = _optional_payload(
+        stream_reference = _optional_reference(
             raw_root,
             manifest_index,
             relative_path=Path("streams") / f"{activity_id}.json",
@@ -232,26 +239,70 @@ def _normalize_activities(
         activity_for_normalization = dict(payload)
         if isinstance(laps_payload, list):
             activity_for_normalization["laps"] = laps_payload
-        activities.append(
-            normalize_strava_activity(
-                activity_for_normalization,
-                source_reference=activity_reference,
-                stream_reference=stream_reference,
-                laps_reference=laps_reference,
-                gear_payload=gear_payload if isinstance(gear_payload, dict) else None,
-                gear_reference=gear_reference,
-                segment_payloads=segment_payloads,
-            )
+        yield normalize_strava_activity(
+            activity_for_normalization,
+            source_reference=activity_reference,
+            stream_reference=stream_reference,
+            laps_reference=laps_reference,
+            gear_payload=gear_payload if isinstance(gear_payload, dict) else None,
+            gear_reference=gear_reference,
+            segment_payloads=segment_payloads,
         )
-        if isinstance(stream_payload, dict) and stream_reference is not None:
-            streams.append(
-                normalize_strava_stream(
-                    activity_id,
-                    stream_payload,
-                    source_reference=stream_reference,
-                )
-            )
-    return activities, streams
+
+
+def _iter_normalized_streams(
+    raw_root: Path,
+    manifest_index: dict[str, dict[str, Any]],
+):
+    for stream_path in sorted((raw_root / "streams").glob("*.json")):
+        payload = _read_json(stream_path)
+        if not isinstance(payload, dict):
+            continue
+        activity_id = stream_path.stem
+        stream_reference = _source_reference(
+            raw_root,
+            stream_path,
+            manifest_index,
+            entity_type="stream",
+            source_id=activity_id,
+        )
+        yield normalize_strava_stream(
+            activity_id,
+            payload,
+            source_reference=stream_reference,
+        )
+
+
+def _iter_stream_index_from_jsonl(path: Path):
+    if not path.exists():
+        return
+    with path.open("r", encoding="utf-8") as input_file:
+        for line in input_file:
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if isinstance(payload, dict):
+                yield _stream_index(payload)
+
+
+def _optional_reference(
+    raw_root: Path,
+    manifest_index: dict[str, dict[str, Any]],
+    *,
+    relative_path: Path,
+    entity_type: str,
+    source_id: str,
+) -> SourceReference | None:
+    path = raw_root / relative_path
+    if not path.exists():
+        return None
+    return _source_reference(
+        raw_root,
+        path,
+        manifest_index,
+        entity_type=entity_type,
+        source_id=source_id,
+    )
 
 
 def _optional_payload(
@@ -348,7 +399,17 @@ def _extract_segment_ids(activity: dict[str, Any]) -> list[str]:
     return sorted(segment_ids)
 
 
-def _stream_index(stream: NormalizedStream) -> dict[str, Any]:
+def _stream_index(stream: NormalizedStream | dict[str, Any]) -> dict[str, Any]:
+    if isinstance(stream, dict):
+        return {
+            "schema_version": "nono.streams_index.v1",
+            "activity_uid": stream.get("activity_uid"),
+            "stream_uid": stream.get("stream_uid"),
+            "source": stream.get("source"),
+            "source_activity_id": stream.get("source_activity_id"),
+            "samples": stream.get("samples", {}),
+            "source_reference": stream.get("source_reference", {}),
+        }
     return {
         "schema_version": "nono.streams_index.v1",
         "activity_uid": stream.activity_uid,

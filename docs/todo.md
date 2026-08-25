@@ -67,6 +67,8 @@
   en `20_consolidado/athletes.jsonl` y `20_consolidado/equipment.jsonl`
 - [x] evitar lecturas/escrituras JSONL gigantes en memoria en stores
   normalizados y consolidados
+- [x] evitar cargar `streams.jsonl` completo en normalización Garmin/Strava,
+  consolidación de equipación y validación offline
 
 ## Pendiente de validación
 
@@ -82,6 +84,10 @@
 - [ ] mejorar escalabilidad avanzada: particionar streams/normalizados por
   actividad y estudiar escritura local atómica antes de sincronizar a Drive si
   el volumen crece mucho más.
+- [ ] validar en Nono que la sincronización diaria Garmin ya no muere por OOM
+  tras la optimización streaming de agosto de 2026.
+- [ ] valorar preflight de memoria/swap antes del timer diario si siguen
+  existiendo procesos concurrentes con mucha presión de memoria.
 - [ ] revisar tier/suscripción de la app Strava antes del 2026-06-30 por cambios del Developer Program
 - [ ] migrar `API_BASE_URL` de Strava a `https://www.api-v3.strava.com` antes del 2027-06-01
 - [ ] revisar si las deprecaciones de clubs/segments del 2026-09-01 afectan a endpoints usados por `fetch-context` y `fetch-activities`
@@ -125,9 +131,9 @@
   representan la misma actividad.
 - [ ] Optimizar `garmin sync` sin cambios nuevos: si no hay raw nuevo o
   modificado, evitar releer/reconstruir splits, typed splits, normalizados y
-  consolidados completos. Mantener comandos explícitos para reconstrucción
-  completa cuando haga falta.
+  consolidados completos para mejorar tiempo/I/O. La prioridad de memoria de
+  `streams.jsonl` ya está resuelta con procesamiento streaming.
 - [ ] Optimizar `strava sync --skip-fetch` sobre Drive: evitar lecturas
-  masivas de segmentos y actividades cuando no hay raw nuevo. Ya existe caché
-  de segmentos en memoria por ejecución, pero falta una estrategia incremental
-  equivalente a Garmin para reconstrucciones grandes.
+  masivas de segmentos y actividades cuando no hay raw nuevo para mejorar
+  tiempo/I/O. La escritura de streams ya es streaming, pero falta una
+  estrategia incremental equivalente a Garmin para reconstrucciones grandes.

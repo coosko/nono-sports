@@ -43,7 +43,11 @@ def normalize_manual_measurements(
     generated_at = generated_at or datetime.now(UTC)
     source_path = manual_path(data_root, DEFAULT_CSV.as_posix())
     normalized_root = manual_path(data_root, "normalizado")
-    measurements = _read_manual_csv(source_path)
+    store = SourceNormalizedStore(normalized_root)
+    measurements_result = store.write_jsonl(
+        "measurements.jsonl",
+        _iter_manual_csv(source_path),
+    )
     state = {
         "schema_version": "nono.manual.measurements_state.v1",
         "generated_at": generated_at.astimezone(UTC).isoformat(),
@@ -54,25 +58,23 @@ def normalize_manual_measurements(
             "measurements": "measurements.jsonl",
         },
         "counts": {
-            "measurements": len(measurements),
+            "measurements": measurements_result.records_written,
         },
     }
-    store = SourceNormalizedStore(normalized_root)
     written = [
-        store.write_jsonl("measurements.jsonl", measurements),
+        measurements_result,
         store.write_json("measurements_state.json", state),
     ]
     return ManualMeasurementNormalizationResult(
-        measurements=len(measurements),
+        measurements=measurements_result.records_written,
         written=tuple(written),
         normalized_root=str(normalized_root),
     )
 
 
-def _read_manual_csv(path: Path) -> list[NormalizedMeasurement]:
+def _iter_manual_csv(path: Path):
     if not path.exists():
-        return []
-    records: list[NormalizedMeasurement] = []
+        return
     with path.open("r", encoding="utf-8", newline="") as csv_file:
         reader = csv.DictReader(csv_file)
         for line_number, row in enumerate(reader, start=2):
@@ -91,31 +93,28 @@ def _read_manual_csv(path: Path) -> list[NormalizedMeasurement]:
                 f"{SOURCE}:measurement:"
                 f"{stable_measurement_id(source_id, metric, measurement_date, value)}"
             )
-            records.append(
-                NormalizedMeasurement(
-                    schema_version=SCHEMA_VERSION,
-                    measurement_uid=measurement_uid,
+            yield NormalizedMeasurement(
+                schema_version=SCHEMA_VERSION,
+                measurement_uid=measurement_uid,
+                source=SOURCE,
+                source_measurement_id=source_id,
+                metric=metric,
+                value=value,
+                unit=unit,
+                measured_at_utc=measured_at,
+                measurement_date=measurement_date,
+                conditions=_blank_to_none(row.get("conditions")),
+                notes=_blank_to_none(row.get("notes")),
+                source_reference=SourceReference(
                     source=SOURCE,
-                    source_measurement_id=source_id,
-                    metric=metric,
-                    value=value,
-                    unit=unit,
-                    measured_at_utc=measured_at,
-                    measurement_date=measurement_date,
-                    conditions=_blank_to_none(row.get("conditions")),
-                    notes=_blank_to_none(row.get("notes")),
-                    source_reference=SourceReference(
-                        source=SOURCE,
-                        entity_type="measurement",
-                        source_id=source_id,
-                        raw_path=DEFAULT_CSV.as_posix(),
-                    ),
-                    attributes={
-                        "declared_source": _blank_to_none(row.get("source")),
-                    },
-                )
+                    entity_type="measurement",
+                    source_id=source_id,
+                    raw_path=DEFAULT_CSV.as_posix(),
+                ),
+                attributes={
+                    "declared_source": _blank_to_none(row.get("source")),
+                },
             )
-    return records
 
 
 def _blank_to_none(value: str | None) -> str | None:

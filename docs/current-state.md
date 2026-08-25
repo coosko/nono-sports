@@ -1,11 +1,11 @@
 # Estado actual del proyecto
 
-Fecha de referencia: 2026-07-12
+Fecha de referencia: 2026-08-25
 
 ## Situación actual
 
-El repositorio tiene Strava v1 operativo y Garmin Connect v1 en fase de
-backfill controlado.
+El repositorio tiene Strava v1 operativo como fuente histórica y Garmin Connect
+v1 operativo como fuente diaria principal.
 
 Existe actualmente:
 
@@ -88,6 +88,10 @@ Existe actualmente:
 - decisión aprobada para Garmin Connect en `docs/requirements/garmin-connect.md`
 - análisis de entrada Garmin Connect conservado en `docs/requirements/resources/descripcion_integracion_garmin_connect.md`
 - integración básica de calidad con `ruff`, `pytest` y GitHub Actions
+- optimización de memoria en normalización, consolidación y validación:
+  `streams.jsonl` se procesa línea a línea, Garmin reutiliza streams previos
+  mediante offsets y el consolidado de equipación usa actividades fuente
+  reducidas para calcular uso efectivo
 
 No existe todavía:
 
@@ -96,6 +100,9 @@ No existe todavía:
 - ingesta normalizada de rutas Wikiloc dentro de `10_fuentes` o
   `20_consolidado`
 - selección avanzada de fuente primaria por métrica en consolidación multi-fuente
+- preflight operativo de memoria/swap antes del timer diario
+- separación opcional de fases en procesos distintos para liberar memoria entre
+  fetch, normalización, consolidación y validación
 
 ## Estado del código activo
 
@@ -150,9 +157,25 @@ Estado observado tras la auditoría Garmin del 2026-07-10:
 - Tras mejorar el matching Garmin-Strava y sincronizar Garmin, el consolidado
   contiene 1.158 actividades y 2.060 enlaces de fuente.
 
+Estado observado tras los fallos OOM de agosto de 2026:
+
+- El timer diario Garmin había ejecutado cerca del límite de memoria del host
+  Nono, con picos aproximados de 1.1-1.2 GB en una máquina de 1.8 GiB de RAM.
+- La causa estructural principal era cargar JSONL grandes, especialmente
+  `normalizado/streams.jsonl`, como objetos completos de Python.
+- Se implementó la prioridad 1: lectura/escritura streaming para JSONL grandes,
+  reutilización incremental de streams Garmin por offset y validación sin
+  `read_text().splitlines()` sobre `streams.jsonl`.
+- Validación real local offline tras el cambio:
+  `strava normalize` procesó 1.152 actividades y 1.145 streams con pico de
+  148.556 KB RSS; `garmin sync --skip-fetch` reconstruyó Garmin/manual y
+  consolidado con 925 actividades Garmin, 1.175 actividades consolidadas y pico
+  de 321.004 KB RSS, sin swaps.
+
 El código previo se conserva en `deprecated/initial-bootstrap/` solo como referencia histórica y no forma parte de la implementación vigente.
 
 ## Próximo objetivo
 
-Validar en Nono la sincronización diaria Garmin Connect con perfil/equipación y
-definir la siguiente fuente o el importador manual FIT/GPX/TCX.
+Actualizar Nono, ejecutar una sincronización diaria real con la versión
+optimizada y decidir si hace falta abordar la siguiente prioridad operativa:
+preflight de memoria o separación de fases.
