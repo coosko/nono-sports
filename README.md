@@ -17,6 +17,8 @@ El proyecto tiene Strava v1 y Garmin Connect v1 operativos. El código activo pe
   de intermedios pesados
 - normalización, consolidación y validación preparadas para no cargar
   `streams.jsonl` completo en memoria en la operación diaria
+- normalización y consolidación con huellas ligeras de entradas para saltar
+  fases completas cuando no hay raw ni normalizados modificados
 - resumen operativo local en
   `~/.local/state/nono-sports/logs/operation_runs.jsonl` para comandos de
   pipeline como `garmin sync`, `strava sync`, `manual import-gpx` y

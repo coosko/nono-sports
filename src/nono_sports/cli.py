@@ -707,12 +707,16 @@ def _print_measurement_normalization_result(
     measurements: int,
     files_written: int,
     normalized_root: str,
+    *,
+    skipped: bool = False,
 ) -> None:
     print(
         f"Normalized {source_label} measurements: "
         f"{measurements} measurements, {files_written} files written."
     )
     print(f"Normalized root: {normalized_root}")
+    if skipped:
+        print(f"Skipped {source_label} measurement normalization: inputs unchanged.")
 
 
 def _print_user_data_normalization_result(
@@ -726,6 +730,8 @@ def _print_user_data_normalization_result(
         f"{len(result.written)} files written."
     )
     print(f"Normalized root: {result.normalized_root}")
+    if getattr(result, "skipped", False):
+        print(f"Skipped {source_label} user data normalization: inputs unchanged.")
 
 
 def _normalize_manual_measurements_if_available(
@@ -746,6 +752,7 @@ def _normalize_manual_measurements_if_available(
         result.measurements,
         len(result.written),
         result.normalized_root,
+        skipped=bool(getattr(result, "skipped", False)),
     )
     return result
 
@@ -778,6 +785,8 @@ def _print_manual_activity_normalization_result(
         f"{len(result.written)} files written."
     )
     print(f"Normalized root: {result.normalized_root}")
+    if bool(getattr(result, "skipped", False)):
+        print("Skipped manual activity normalization: inputs unchanged.")
 
 
 def _run_with_operation_log(
@@ -888,6 +897,7 @@ def _strava_normalization_counts(result: Any) -> dict[str, Any]:
         "athletes": result.athletes,
         "equipment": result.equipment,
         "files_written": len(result.written),
+        "skipped": bool(getattr(result, "skipped", False)),
         "streams": result.streams,
         "streams_index": result.streams_index,
     }
@@ -900,6 +910,7 @@ def _garmin_normalization_counts(result: GarminNormalizationResult) -> dict[str,
         "laps": result.laps,
         "processed_activities": result.processed_activities,
         "reused_activities": result.reused_activities,
+        "skipped": bool(getattr(result, "skipped", False)),
         "splits": result.splits,
         "streams": result.streams,
         "typed_splits": result.typed_splits,
@@ -910,6 +921,7 @@ def _measurement_normalization_counts(result: Any) -> dict[str, Any]:
     return {
         "files_written": len(result.written),
         "measurements": result.measurements,
+        "skipped": bool(getattr(result, "skipped", False)),
     }
 
 
@@ -920,6 +932,7 @@ def _garmin_user_data_normalization_counts(
         "athletes": result.athletes,
         "equipment": result.equipment,
         "files_written": len(result.written),
+        "skipped": bool(getattr(result, "skipped", False)),
     }
 
 
@@ -929,6 +942,7 @@ def _manual_activity_normalization_counts(
     return {
         "activities": result.activities,
         "files_written": len(result.written),
+        "skipped": bool(getattr(result, "skipped", False)),
         "streams": result.streams,
         "streams_index": result.streams_index,
     }
@@ -964,6 +978,7 @@ def _run_consolidation(
                 "streams_index": activities_result.streams_index,
                 "duplicate_candidates": activities_result.duplicate_candidates,
                 "files_written": len(activities_result.written),
+                "skipped": bool(getattr(activities_result, "skipped", False)),
             },
             outputs={"consolidated_root": activities_result.consolidated_root},
         )
@@ -975,6 +990,8 @@ def _run_consolidation(
         f"{activities_result.duplicate_candidates} duplicate candidates, "
         f"{len(activities_result.written)} files written."
     )
+    if bool(getattr(activities_result, "skipped", False)):
+        print("Skipped activity consolidation: inputs unchanged.")
     with _optional_phase(recorder, "consolidate.measurements") as phase:
         measurements_result = build_consolidated_measurements(project_config.data_root)
         _set_phase(
@@ -983,6 +1000,7 @@ def _run_consolidation(
                 "measurements": measurements_result.measurements,
                 "measurement_sources": measurements_result.measurement_sources,
                 "files_written": len(measurements_result.written),
+                "skipped": bool(getattr(measurements_result, "skipped", False)),
             },
             outputs={"consolidated_root": measurements_result.consolidated_root},
         )
@@ -992,6 +1010,8 @@ def _run_consolidation(
         f"{measurements_result.measurement_sources} measurement source links, "
         f"{len(measurements_result.written)} files written."
     )
+    if bool(getattr(measurements_result, "skipped", False)):
+        print("Skipped measurement consolidation: inputs unchanged.")
     with _optional_phase(recorder, "consolidate.user_data") as phase:
         user_data_result = build_consolidated_user_data(project_config.data_root)
         _set_phase(
@@ -1002,6 +1022,7 @@ def _run_consolidation(
                 "equipment": user_data_result.equipment,
                 "equipment_sources": user_data_result.equipment_sources,
                 "files_written": len(user_data_result.written),
+                "skipped": bool(getattr(user_data_result, "skipped", False)),
             },
             outputs={"consolidated_root": user_data_result.consolidated_root},
         )
@@ -1013,6 +1034,8 @@ def _run_consolidation(
         f"{user_data_result.equipment_sources} equipment source links, "
         f"{len(user_data_result.written)} files written."
     )
+    if bool(getattr(user_data_result, "skipped", False)):
+        print("Skipped user data consolidation: inputs unchanged.")
     print(f"Consolidated root: {activities_result.consolidated_root}")
 
 
@@ -1181,6 +1204,7 @@ def _run_garmin_normalize_pipeline(
         measurement_result.measurements,
         len(measurement_result.written),
         measurement_result.normalized_root,
+        skipped=bool(getattr(measurement_result, "skipped", False)),
     )
     with recorder.phase("normalize.user_data") as phase:
         user_data_result = normalize_garmin_user_data(project_config.data_root)
@@ -1212,6 +1236,8 @@ def _run_strava_normalize_pipeline(
         f"{len(result.written)} files written."
     )
     print(f"Normalized root: {result.normalized_root}")
+    if bool(getattr(result, "skipped", False)):
+        print("Skipped Strava normalization: inputs unchanged.")
     return 0
 
 
@@ -1487,6 +1513,8 @@ def _print_garmin_normalization_result(result: GarminNormalizationResult) -> Non
         f"{len(result.written)} files written."
     )
     print(f"Normalized root: {result.normalized_root}")
+    if bool(getattr(result, "skipped", False)):
+        print("Skipped Garmin Connect activity normalization: inputs unchanged.")
 
 
 def _run_validation(project_config: ProjectConfig) -> ValidationSummary:

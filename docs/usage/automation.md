@@ -103,6 +103,14 @@ particular, el flujo diario no debe cargar `normalizado/streams.jsonl` completo
 en memoria; Garmin reutiliza streams previos por offsets y Strava escribe los
 streams línea a línea cuando se reconstruye offline.
 
+Además, las fases de normalización y consolidación registran una huella ligera
+de entradas en sus estados. Si no hay raw ni normalizados modificados y las
+salidas esperadas existen, la fase se salta completa y el resumen operativo
+queda con `skipped=true`. La primera ejecución tras una actualización que
+introduzca nuevas huellas puede recalcular una vez para sembrar el estado; las
+siguientes ejecuciones sin cambios deberían evitar la mayor parte del I/O sobre
+Drive.
+
 Cada ejecución de pipeline escribe además un resumen operativo local en:
 
 ```text

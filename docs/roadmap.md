@@ -51,7 +51,6 @@ Objetivo:
 
 Líneas de trabajo:
 
-- reducir I/O cuando no hay raw nuevo o modificado
 - estudiar separación de fases o escritura local atómica si Drive/rclone sigue
   siendo cuello de botella
 
@@ -62,6 +61,10 @@ Validación operativa ya realizada:
   1min 15.028s, CPU 46.775s, pico de memoria 366.8M y pico de swap 2.4M
 - los comandos de pipeline ya escriben resumen operativo local por ejecución en
   `~/.local/state/nono-sports/logs/operation_runs.jsonl`
+- las fases de normalización y consolidación ya registran huellas ligeras de
+  entradas y saltan trabajo completo cuando no hay raw ni normalizados
+  modificados, reduciendo I/O sobre Drive en `garmin sync` y
+  `strava sync --skip-fetch`
 
 ## Fase 3. Gobierno de fuentes conectadas
 

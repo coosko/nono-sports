@@ -15,11 +15,23 @@ from nono_sports.storage.consolidated_store import (
     ConsolidatedStore,
     ConsolidatedWriteResult,
 )
+from nono_sports.storage.incremental import (
+    build_file_fingerprint,
+    is_incremental_state_current,
+    state_counts,
+)
 
 SCHEMA_VERSION_ATHLETE = "nono.consolidated_athlete.v1"
 SCHEMA_VERSION_ATHLETE_SOURCE = "nono.athlete_source_link.v1"
 SCHEMA_VERSION_EQUIPMENT_SOURCE = "nono.equipment_source_link.v1"
 EQUIPMENT_USAGE_STRATEGY = "activity_source_links_deduplicated_v1"
+REQUIRED_OUTPUTS = (
+    "athletes.jsonl",
+    "athlete_sources.jsonl",
+    "equipment.jsonl",
+    "equipment_sources.jsonl",
+    "user_data_state.json",
+)
 
 SOURCE_PRIORITY = {
     "manual": 1,
@@ -36,6 +48,7 @@ class UserDataConsolidationResult:
     equipment_sources: int
     written: tuple[ConsolidatedWriteResult, ...]
     consolidated_root: str
+    skipped: bool = False
 
 
 def build_consolidated_user_data(
@@ -44,6 +57,25 @@ def build_consolidated_user_data(
     generated_at: datetime | None = None,
 ) -> UserDataConsolidationResult:
     generated_at = generated_at or datetime.now(UTC)
+    store = ConsolidatedStore(data_root)
+    input_fingerprint = _user_data_consolidation_fingerprint(data_root)
+    previous_state = _read_json(store.consolidated_root / "user_data_state.json")
+    if is_incremental_state_current(
+        previous_state,
+        input_fingerprint,
+        output_root=store.consolidated_root,
+        required_outputs=REQUIRED_OUTPUTS,
+    ):
+        counts = state_counts(previous_state)
+        return UserDataConsolidationResult(
+            athletes=int(counts.get("athletes") or 0),
+            athlete_sources=int(counts.get("athlete_sources") or 0),
+            equipment=int(counts.get("equipment") or 0),
+            equipment_sources=int(counts.get("equipment_sources") or 0),
+            written=(),
+            consolidated_root=str(store.consolidated_root),
+            skipped=True,
+        )
     athletes = _load_records(_normalized_path(data_root, "athletes.jsonl"))
     equipment = _load_records(_normalized_path(data_root, "equipment.jsonl"))
     consolidated_athletes = _consolidated_athletes(athletes)
@@ -77,7 +109,8 @@ def build_consolidated_user_data(
                 "activities": str(paths["activities"]),
             }
             for source, paths in _normalized_paths(data_root).items()
-        },
+        }
+        | {"input_fingerprint": input_fingerprint},
         "outputs": {
             "athletes": "athletes.jsonl",
             "athlete_sources": "athlete_sources.jsonl",
@@ -98,7 +131,6 @@ def build_consolidated_user_data(
             "input_source_activities": len(activity_usage_context["source_activities"]),
         },
     }
-    store = ConsolidatedStore(data_root)
     written = (
         store.write_jsonl("athletes.jsonl", consolidated_athletes),
         store.write_jsonl("athlete_sources.jsonl", athlete_sources),
@@ -113,6 +145,22 @@ def build_consolidated_user_data(
         equipment_sources=len(equipment_sources),
         written=written,
         consolidated_root=str(store.consolidated_root),
+    )
+
+
+def _user_data_consolidation_fingerprint(data_root: Path) -> dict[str, Any]:
+    normalized_paths = [
+        path
+        for paths in _normalized_paths(data_root).values()
+        for path in paths.values()
+    ]
+    paths = [
+        data_root / "20_consolidado" / "activities.jsonl",
+        *normalized_paths,
+    ]
+    return build_file_fingerprint(
+        data_root,
+        (path.relative_to(data_root).as_posix() for path in paths),
     )
 
 
@@ -620,6 +668,12 @@ def _normalized_paths(data_root: Path) -> dict[str, dict[str, Path]]:
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     return list(_iter_jsonl(path))
+
+
+def _read_json(path: Path) -> Any:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _iter_jsonl(path: Path):

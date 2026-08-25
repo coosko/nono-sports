@@ -14,10 +14,22 @@ from nono_sports.storage.consolidated_store import (
     ConsolidatedStore,
     ConsolidatedWriteResult,
 )
+from nono_sports.storage.incremental import (
+    build_file_fingerprint,
+    is_incremental_state_current,
+    state_counts,
+)
 
 SCHEMA_VERSION_ACTIVITY = "nono.consolidated_activity.v1"
 SCHEMA_VERSION_SOURCE_LINK = "nono.activity_source_link.v1"
 SCHEMA_VERSION_DUPLICATE_CANDIDATE = "nono.duplicate_candidate.v1"
+REQUIRED_OUTPUTS = (
+    "activities.jsonl",
+    "activity_sources.jsonl",
+    "streams_index.jsonl",
+    "duplicate_candidates.jsonl",
+    "state.json",
+)
 
 SOURCE_PRIORITY = {
     "strava": 1,
@@ -34,6 +46,7 @@ class MultiSourceConsolidationResult:
     duplicate_candidates: int
     written: tuple[ConsolidatedWriteResult, ...]
     consolidated_root: str
+    skipped: bool = False
 
 
 def build_multi_source_consolidated(
@@ -42,6 +55,25 @@ def build_multi_source_consolidated(
     generated_at: datetime | None = None,
 ) -> MultiSourceConsolidationResult:
     generated_at = generated_at or datetime.now(UTC)
+    store = ConsolidatedStore(data_root)
+    input_fingerprint = _activity_consolidation_fingerprint(data_root)
+    previous_state = _read_json(store.consolidated_root / "state.json")
+    if is_incremental_state_current(
+        previous_state,
+        input_fingerprint,
+        output_root=store.consolidated_root,
+        required_outputs=REQUIRED_OUTPUTS,
+    ):
+        counts = state_counts(previous_state)
+        return MultiSourceConsolidationResult(
+            activities=int(counts.get("activities") or 0),
+            activity_sources=int(counts.get("activity_sources") or 0),
+            streams_index=int(counts.get("streams_index") or 0),
+            duplicate_candidates=int(counts.get("duplicate_candidates") or 0),
+            written=(),
+            consolidated_root=str(store.consolidated_root),
+            skipped=True,
+        )
     inputs = _load_normalized_inputs(data_root)
     groups, duplicate_candidates = _group_activities(inputs)
     consolidated_activities = [_consolidated_activity(group) for group in groups]
@@ -52,7 +84,6 @@ def build_multi_source_consolidated(
         )
     )
 
-    store = ConsolidatedStore(data_root)
     activities_result = store.write_jsonl("activities.jsonl", consolidated_activities)
     source_links_result = store.write_jsonl(
         "activity_sources.jsonl",
@@ -74,7 +105,8 @@ def build_multi_source_consolidated(
         "inputs": {
             source: str(path)
             for source, path in _normalized_activity_paths(data_root).items()
-        },
+        }
+        | {"input_fingerprint": input_fingerprint},
         "outputs": {
             "activities": "activities.jsonl",
             "activity_sources": "activity_sources.jsonl",
@@ -104,6 +136,18 @@ def build_multi_source_consolidated(
         duplicate_candidates=len(duplicate_candidates),
         written=tuple(written),
         consolidated_root=str(store.consolidated_root),
+    )
+
+
+def _activity_consolidation_fingerprint(data_root: Path) -> dict[str, Any]:
+    paths = (
+        strava_path(data_root, "normalizado", "activities.jsonl"),
+        garmin_connect_path(data_root, "normalizado", "activities.jsonl"),
+        manual_path(data_root, "normalizado", "activities.jsonl"),
+    )
+    return build_file_fingerprint(
+        data_root,
+        (path.relative_to(data_root).as_posix() for path in paths),
     )
 
 
@@ -381,6 +425,12 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
             if isinstance(payload, dict):
                 records.append(payload)
     return records
+
+
+def _read_json(path: Path) -> Any:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _activity_sort_key(activity: dict[str, Any]) -> tuple[str, int, str]:

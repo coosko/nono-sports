@@ -1,6 +1,6 @@
 # Estado actual del proyecto
 
-Fecha de referencia: 2026-08-25
+Fecha de referencia: 2026-08-26
 
 ## Situación actual
 
@@ -105,6 +105,10 @@ Existe actualmente:
   `~/.local/state/nono-sports/logs/operation_runs.jsonl` para comandos de
   pipeline, separado de los checkpoints reproducibles que viven en Drive bajo
   `10_fuentes/<fuente>/logs/`
+- optimización incremental por huella de entradas en normalización y
+  consolidación: `garmin sync` y `strava sync --skip-fetch` reutilizan salidas
+  previas cuando no hay raw/normalizado nuevo o modificado y las salidas
+  esperadas existen
 
 No existe todavía:
 
@@ -189,8 +193,9 @@ El código previo se conserva en `deprecated/initial-bootstrap/` solo como refer
 
 ## Próximo objetivo
 
-Reducir I/O cuando no hay raw nuevo o modificado. Si vuelve a aparecer presión
-operativa, revisar primero `journalctl` y
+Vigilar el comportamiento real de I/O en Drive tras la optimización
+incremental. Si vuelve a aparecer presión operativa, revisar primero
+`journalctl` y
 `~/.local/state/nono-sports/logs/operation_runs.jsonl`, y luego priorizar
 diagnóstico de Drive/rclone o separación de fases antes de añadir salvaguardas
 preventivas de memoria.

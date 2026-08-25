@@ -94,6 +94,7 @@ src/nono_sports/
 ├── storage/
 │   ├── raw_store.py
 │   ├── consolidated_store.py
+│   ├── incremental.py
 │   ├── normalized_store.py
 │   ├── state_store.py
 │   └── manifest.py
@@ -324,6 +325,7 @@ Responsable de escritura y estado:
 
 - guardar cada respuesta raw como JSON
 - escribir normalizados en JSONL
+- calcular huellas ligeras de entradas para saltar fases sin cambios
 - mantener índices auxiliares
 - registrar `state.json`
 - guardar manifiestos con fecha, endpoint, parámetros, hash y fichero generado
@@ -381,6 +383,33 @@ flujos línea a línea, no como listas completas en memoria. En operación diari
 
 Esta regla aplica también a futuras fuentes manuales, Komoot, GPX, TCX o FIT
 subidos a mano.
+
+### Regla de incrementalidad
+
+Las fases caras deben poder demostrar que su salida no puede cambiar antes de
+leer o escribir JSONL grandes. Para ello, cada `state.json` de normalización o
+consolidación guarda `inputs.input_fingerprint`, calculado con
+`storage.incremental`.
+
+La huella usa:
+
+- lista ordenada de ficheros que la fase consume
+- tamaño del fichero
+- hash del manifiesto raw cuando existe para ese fichero
+- `mtime_ns` solo como fallback cuando no hay hash de manifiesto
+
+Si la huella coincide con la del estado anterior y todas las salidas esperadas
+existen, la fase devuelve sus conteos previos con `skipped=true` y no relee ni
+reescribe los JSONL de salida. La primera ejecución tras introducir esta regla
+puede recalcular una vez para sembrar la huella; a partir de ahí las
+ejecuciones sin cambios deben saltar.
+
+Esta regla aplica a:
+
+- normalización Strava
+- normalización Garmin Connect de actividades, mediciones y datos de usuario
+- normalización manual de actividades GPX y mediciones CSV
+- consolidación de actividades, mediciones y usuario/equipación
 
 La salida normalizada por fuente se escribe como JSONL en:
 

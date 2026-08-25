@@ -27,6 +27,8 @@ Todas las versiones y entregables se documentan aquí.
   `~/.local/state/nono-sports/logs/operation_runs.jsonl` para comandos de
   pipeline, con fases, duración, conteos, estado final y errores sin guardar
   tokens ni payloads deportivos.
+- Añadida huella común de entradas en `storage.incremental` para estados de
+  normalización y consolidación.
 
 ### Changed
 
@@ -66,11 +68,19 @@ Todas las versiones y entregables se documentan aquí.
   `operation_runs.jsonl` vive bajo XDG state local.
 - El cliente Garmin Connect ya no importa la dependencia opcional
   `garminconnect` cuando se le inyecta una API falsa/adaptada en tests.
+- `garmin sync` evita reconstruir normalizados y consolidados completos cuando
+  no hay raw ni normalizados modificados y las salidas esperadas existen.
+- `strava sync --skip-fetch` reutiliza la normalización y consolidación previas
+  cuando el raw local no cambia, reduciendo I/O sobre Drive.
+- Los resúmenes operativos de fases de normalización/consolidación incluyen
+  `skipped=true` cuando una fase se salta por huella de entradas sin cambios.
 
 ### Verified
 
-- Verificación local: `./.venv/bin/python scripts/check.py` con 160 tests
+- Verificación local: `./.venv/bin/python scripts/check.py` con 168 tests
   pasados.
+- Añadidas pruebas específicas de salto incremental por huella para
+  normalización Strava, Garmin Connect, manual, mediciones y consolidaciones.
 - Añadidas pruebas específicas para impedir regresiones que vuelvan a leer
   `streams.jsonl` completo durante normalización Garmin/Strava, validación o
   comparación de escrituras JSONL.

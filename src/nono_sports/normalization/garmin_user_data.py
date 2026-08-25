@@ -16,6 +16,11 @@ from nono_sports.normalization.equipment_utils import (
     number,
     optional_str,
 )
+from nono_sports.storage.incremental import (
+    build_file_fingerprint,
+    is_incremental_state_current,
+    state_counts,
+)
 from nono_sports.storage.source_normalized_store import (
     SourceNormalizedStore,
     SourceNormalizedWriteResult,
@@ -24,6 +29,13 @@ from nono_sports.storage.source_normalized_store import (
 SCHEMA_VERSION_ATHLETE = "nono.normalized_athlete.v1"
 SCHEMA_VERSION_EQUIPMENT = "nono.normalized_equipment.v1"
 SOURCE = "garmin_connect"
+REQUIRED_OUTPUTS = ("athletes.jsonl", "equipment.jsonl", "user_state.json")
+FINGERPRINT_PATTERNS = (
+    "athlete/*.json",
+    "devices/*.json",
+    "gear/gear.json",
+    "gear/stats/*.json",
+)
 
 
 class GarminUserDataNormalizationResult:
@@ -34,11 +46,13 @@ class GarminUserDataNormalizationResult:
         equipment: int,
         written: tuple[SourceNormalizedWriteResult, ...],
         normalized_root: str,
+        skipped: bool = False,
     ) -> None:
         self.athletes = athletes
         self.equipment = equipment
         self.written = written
         self.normalized_root = normalized_root
+        self.skipped = skipped
 
 
 def normalize_garmin_user_data(
@@ -50,6 +64,23 @@ def normalize_garmin_user_data(
     raw_root = garmin_connect_path(data_root, "raw")
     normalized_root = garmin_connect_path(data_root, "normalizado")
     manifest_index = _read_manifest_index(raw_root / "manifest.jsonl")
+    store = SourceNormalizedStore(normalized_root)
+    previous_state = _read_json(normalized_root / "user_state.json")
+    input_fingerprint = _garmin_user_data_fingerprint(raw_root)
+    if is_incremental_state_current(
+        previous_state,
+        input_fingerprint,
+        output_root=normalized_root,
+        required_outputs=REQUIRED_OUTPUTS,
+    ):
+        counts = state_counts(previous_state)
+        return GarminUserDataNormalizationResult(
+            athletes=int(counts.get("athletes") or 0),
+            equipment=int(counts.get("equipment") or 0),
+            written=(),
+            normalized_root=str(normalized_root),
+            skipped=True,
+        )
     athletes = _normalize_athletes(raw_root, manifest_index)
     equipment = _normalize_equipment(raw_root, manifest_index)
     state = {
@@ -60,6 +91,7 @@ def normalize_garmin_user_data(
             "settings": "raw/athlete/settings.json",
             "gear": "raw/gear/gear.json",
             "devices": "raw/devices/devices.json",
+            "input_fingerprint": input_fingerprint,
         },
         "outputs": {
             "athletes": "athletes.jsonl",
@@ -71,7 +103,6 @@ def normalize_garmin_user_data(
             "equipment": len(equipment),
         },
     }
-    store = SourceNormalizedStore(normalized_root)
     written = (
         store.write_jsonl("athletes.jsonl", athletes),
         store.write_jsonl("equipment.jsonl", equipment),
@@ -82,6 +113,14 @@ def normalize_garmin_user_data(
         equipment=len(equipment),
         written=written,
         normalized_root=str(normalized_root),
+    )
+
+
+def _garmin_user_data_fingerprint(raw_root: Path) -> dict[str, Any]:
+    return build_file_fingerprint(
+        raw_root,
+        FINGERPRINT_PATTERNS,
+        manifest_path=raw_root / "manifest.jsonl",
     )
 
 

@@ -15,6 +15,11 @@ from nono_sports.domain.activity import NormalizedActivity
 from nono_sports.domain.source import SourceReference
 from nono_sports.domain.stream import NormalizedStream
 from nono_sports.formats.track_xml import TrackPoint, parse_gpx_track_points
+from nono_sports.storage.incremental import (
+    build_file_fingerprint,
+    is_incremental_state_current,
+    state_counts,
+)
 from nono_sports.storage.manifest import RawManifestEntry
 from nono_sports.storage.raw_store import MANIFEST_FILENAME, RawWriteResult
 from nono_sports.storage.source_normalized_store import (
@@ -25,6 +30,12 @@ from nono_sports.storage.source_normalized_store import (
 SOURCE = "manual"
 SCHEMA_VERSION_ACTIVITY = "nono.normalized_activity.v1"
 SCHEMA_VERSION_STREAM = "nono.normalized_stream.v1"
+REQUIRED_OUTPUTS = (
+    "activities.jsonl",
+    "streams.jsonl",
+    "streams_index.jsonl",
+    "state.json",
+)
 
 SPORT_MAP = {
     "bike": ("cycling", "cycling", "endurance_distance"),
@@ -58,6 +69,7 @@ class ManualActivityNormalizationResult:
     streams_index: int
     written: tuple[SourceNormalizedWriteResult, ...]
     normalized_root: str
+    skipped: bool = False
 
 
 def import_manual_gpx_activity(
@@ -130,6 +142,23 @@ def normalize_manual_activities(
     normalized_root = manual_path(data_root, "normalizado")
     manifest_index = _read_manifest_index(raw_root / MANIFEST_FILENAME)
     store = SourceNormalizedStore(normalized_root)
+    previous_state = _read_json(normalized_root / "state.json")
+    input_fingerprint = _manual_activities_fingerprint(data_root)
+    if is_incremental_state_current(
+        previous_state,
+        input_fingerprint,
+        output_root=normalized_root,
+        required_outputs=REQUIRED_OUTPUTS,
+    ):
+        counts = state_counts(previous_state)
+        return ManualActivityNormalizationResult(
+            activities=int(counts.get("activities") or 0),
+            streams=int(counts.get("streams") or 0),
+            streams_index=int(counts.get("streams_index") or 0),
+            written=(),
+            normalized_root=str(normalized_root),
+            skipped=True,
+        )
 
     with (
         store.open_jsonl("activities.jsonl") as activities_writer,
@@ -159,6 +188,7 @@ def normalize_manual_activities(
         "inputs": {
             "raw_root": str(raw_root),
             "manifest": str(raw_root / MANIFEST_FILENAME),
+            "input_fingerprint": input_fingerprint,
         },
         "outputs": {
             "activities": "activities.jsonl",
@@ -184,6 +214,15 @@ def normalize_manual_activities(
         streams_index=streams_index_result.records_written,
         written=written,
         normalized_root=str(normalized_root),
+    )
+
+
+def _manual_activities_fingerprint(data_root: Path) -> dict[str, Any]:
+    raw_root = manual_path(data_root, "raw")
+    return build_file_fingerprint(
+        raw_root,
+        ("activities/*.gpx", MANIFEST_FILENAME),
+        manifest_path=raw_root / MANIFEST_FILENAME,
     )
 
 
@@ -541,6 +580,12 @@ def _read_manifest_index(path: Path) -> dict[str, dict[str, Any]]:
             if isinstance(payload, dict) and isinstance(payload.get("path"), str):
                 index[payload["path"]] = payload
     return index
+
+
+def _read_json(path: Path) -> Any:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _parse_datetime(value: Any) -> datetime | None:

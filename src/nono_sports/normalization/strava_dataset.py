@@ -17,12 +17,33 @@ from nono_sports.normalization.strava_activity import normalize_strava_activity
 from nono_sports.normalization.strava_athlete import normalize_strava_athlete
 from nono_sports.normalization.strava_equipment import normalize_strava_equipment
 from nono_sports.normalization.strava_stream import normalize_strava_stream
+from nono_sports.storage.incremental import (
+    build_file_fingerprint,
+    is_incremental_state_current,
+    state_counts,
+)
 from nono_sports.storage.source_normalized_store import (
     SourceNormalizedStore,
     SourceNormalizedWriteResult,
 )
 
 SOURCE = "strava"
+REQUIRED_OUTPUTS = (
+    "athletes.jsonl",
+    "equipment.jsonl",
+    "activities.jsonl",
+    "streams.jsonl",
+    "streams_index.jsonl",
+    "state.json",
+)
+FINGERPRINT_PATTERNS = (
+    "athlete/*.json",
+    "activities/*.json",
+    "gear/*.json",
+    "laps/*.json",
+    "segments/*.json",
+    "streams/*.json",
+)
 
 
 @dataclass(frozen=True)
@@ -34,6 +55,7 @@ class StravaNormalizationResult:
     streams_index: int
     written: tuple[SourceNormalizedWriteResult, ...]
     normalized_root: str
+    skipped: bool = False
 
 
 def normalize_strava_dataset(
@@ -46,6 +68,25 @@ def normalize_strava_dataset(
     normalized_root = strava_path(data_root, "normalizado")
     manifest_index = _read_manifest_index(raw_root / "manifest.jsonl")
     store = SourceNormalizedStore(normalized_root)
+    previous_state = _read_optional_json(normalized_root / "state.json")
+    input_fingerprint = _strava_dataset_fingerprint(raw_root)
+    if is_incremental_state_current(
+        previous_state,
+        input_fingerprint,
+        output_root=normalized_root,
+        required_outputs=REQUIRED_OUTPUTS,
+    ):
+        counts = state_counts(previous_state)
+        return StravaNormalizationResult(
+            athletes=int(counts.get("athletes") or 0),
+            equipment=int(counts.get("equipment") or 0),
+            activities=int(counts.get("activities") or 0),
+            streams=int(counts.get("streams") or 0),
+            streams_index=int(counts.get("streams_index") or 0),
+            written=(),
+            normalized_root=str(normalized_root),
+            skipped=True,
+        )
 
     athletes = _normalize_athletes(raw_root, manifest_index)
     equipment = _normalize_equipment(raw_root, manifest_index)
@@ -67,6 +108,7 @@ def normalize_strava_dataset(
         "inputs": {
             "raw_root": str(raw_root),
             "manifest": str(raw_root / "manifest.jsonl"),
+            "input_fingerprint": input_fingerprint,
         },
         "outputs": {
             "athletes": "athletes.jsonl",
@@ -101,6 +143,16 @@ def normalize_strava_dataset(
         streams_index=streams_index_result.records_written,
         written=tuple(written),
         normalized_root=str(normalized_root),
+    )
+
+
+def _strava_dataset_fingerprint(raw_root: Path) -> dict[str, Any]:
+    return build_file_fingerprint(
+        raw_root,
+        FINGERPRINT_PATTERNS,
+        manifest_path=raw_root / "manifest.jsonl",
+        exclude=lambda path: path.relative_to(raw_root).as_posix()
+        in {"activities/activities.json", "segments/starred.json"},
     )
 
 
@@ -460,6 +512,12 @@ def _read_manifest_index(path: Path) -> dict[str, dict[str, Any]]:
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _read_optional_json(path: Path) -> Any:
+    if not path.exists():
+        return {}
+    return _read_json(path)
 
 
 def _safe_filename(value: object) -> str:

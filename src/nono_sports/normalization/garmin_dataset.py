@@ -22,6 +22,11 @@ from nono_sports.normalization.garmin_stream import (
     normalize_garmin_stream,
     normalize_garmin_track_stream,
 )
+from nono_sports.storage.incremental import (
+    build_file_fingerprint,
+    is_incremental_state_current,
+    state_counts,
+)
 from nono_sports.storage.source_normalized_store import (
     SourceNormalizedStore,
     SourceNormalizedWriteResult,
@@ -30,6 +35,27 @@ from nono_sports.storage.source_normalized_store import (
 SOURCE = "garmin_connect"
 FIT_MESSAGES_USED_FOR_NORMALIZATION = frozenset(
     {"record", "hrv", "lap", "time_in_zone"}
+)
+REQUIRED_OUTPUTS = (
+    "activities.jsonl",
+    "streams.jsonl",
+    "streams_index.jsonl",
+    "laps.jsonl",
+    "splits.jsonl",
+    "typed_splits.jsonl",
+    "segment_candidates.jsonl",
+    "state.json",
+)
+FINGERPRINT_PATTERNS = (
+    "activities/*.json",
+    "activity_files/*.fit",
+    "activity_files/*.gpx",
+    "activity_files/*.tcx",
+    "fit_decoded/*.fitdecode.json",
+    "gear/activity_*.json",
+    "splits/*.json",
+    "typed_splits/*.json",
+    "weather/*.json",
 )
 
 
@@ -44,6 +70,7 @@ class GarminNormalizationResult:
     reused_activities: int
     written: tuple[SourceNormalizedWriteResult, ...]
     normalized_root: str
+    skipped: bool = False
 
 
 @dataclass(frozen=True)
@@ -84,6 +111,31 @@ def normalize_garmin_dataset(
     normalized_root = garmin_connect_path(data_root, "normalizado")
     manifest_index = _read_manifest_index(raw_root / "manifest.jsonl")
     previous_state = _read_json(normalized_root / "state.json")
+    input_fingerprint = _garmin_dataset_fingerprint(raw_root)
+    if (
+        not force
+        and not keep_intermediate_files
+        and is_incremental_state_current(
+            previous_state,
+            input_fingerprint,
+            output_root=normalized_root,
+            required_outputs=REQUIRED_OUTPUTS,
+        )
+    ):
+        counts = state_counts(previous_state)
+        activities = int(counts.get("activities") or 0)
+        return GarminNormalizationResult(
+            activities=activities,
+            streams=int(counts.get("streams") or 0),
+            laps=int(counts.get("laps") or 0),
+            splits=int(counts.get("splits") or 0),
+            typed_splits=int(counts.get("typed_splits") or 0),
+            processed_activities=0,
+            reused_activities=activities,
+            written=(),
+            normalized_root=str(normalized_root),
+            skipped=True,
+        )
     previous_inputs = _previous_activity_inputs(previous_state)
     previous_records = _read_previous_records(normalized_root)
     store = SourceNormalizedStore(normalized_root)
@@ -118,6 +170,7 @@ def normalize_garmin_dataset(
         "inputs": {
             "raw_root": str(raw_root),
             "manifest": str(raw_root / "manifest.jsonl"),
+            "input_fingerprint": input_fingerprint,
             "activities": activity_output.activity_inputs,
         },
         "outputs": {
@@ -159,6 +212,15 @@ def normalize_garmin_dataset(
         reused_activities=activity_output.reused_activities,
         written=tuple(written),
         normalized_root=str(normalized_root),
+    )
+
+
+def _garmin_dataset_fingerprint(raw_root: Path) -> dict[str, Any]:
+    return build_file_fingerprint(
+        raw_root,
+        FINGERPRINT_PATTERNS,
+        manifest_path=raw_root / "manifest.jsonl",
+        exclude=lambda path: path.name.endswith(".summaries.json"),
     )
 
 

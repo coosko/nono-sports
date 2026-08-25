@@ -14,9 +14,19 @@ from nono_sports.storage.consolidated_store import (
     ConsolidatedStore,
     ConsolidatedWriteResult,
 )
+from nono_sports.storage.incremental import (
+    build_file_fingerprint,
+    is_incremental_state_current,
+    state_counts,
+)
 
 SCHEMA_VERSION = "nono.consolidated_measurement.v1"
 SOURCE_LINK_SCHEMA_VERSION = "nono.measurement_source_link.v1"
+REQUIRED_OUTPUTS = (
+    "measurements.jsonl",
+    "measurement_sources.jsonl",
+    "measurements_state.json",
+)
 SOURCE_PRIORITY = {
     "garmin_connect": 1,
     "manual": 2,
@@ -35,6 +45,7 @@ class MeasurementConsolidationResult:
     measurement_sources: int
     written: tuple[ConsolidatedWriteResult, ...]
     consolidated_root: str
+    skipped: bool = False
 
 
 def build_consolidated_measurements(
@@ -43,6 +54,23 @@ def build_consolidated_measurements(
     generated_at: datetime | None = None,
 ) -> MeasurementConsolidationResult:
     generated_at = generated_at or datetime.now(UTC)
+    store = ConsolidatedStore(data_root)
+    input_fingerprint = _measurement_consolidation_fingerprint(data_root)
+    previous_state = _read_json(store.consolidated_root / "measurements_state.json")
+    if is_incremental_state_current(
+        previous_state,
+        input_fingerprint,
+        output_root=store.consolidated_root,
+        required_outputs=REQUIRED_OUTPUTS,
+    ):
+        counts = state_counts(previous_state)
+        return MeasurementConsolidationResult(
+            measurements=int(counts.get("measurements") or 0),
+            measurement_sources=int(counts.get("measurement_sources") or 0),
+            written=(),
+            consolidated_root=str(store.consolidated_root),
+            skipped=True,
+        )
     inputs = _load_normalized_measurements(data_root)
     groups = _group_measurements(inputs)
     consolidated = [_consolidated_measurement(group) for group in groups]
@@ -66,7 +94,8 @@ def build_consolidated_measurements(
         "inputs": {
             source: str(path)
             for source, path in _normalized_measurement_paths(data_root).items()
-        },
+        }
+        | {"input_fingerprint": input_fingerprint},
         "outputs": {
             "measurements": "measurements.jsonl",
             "measurement_sources": "measurement_sources.jsonl",
@@ -77,7 +106,6 @@ def build_consolidated_measurements(
             "measurement_sources": len(source_links),
         },
     }
-    store = ConsolidatedStore(data_root)
     written = [
         store.write_jsonl("measurements.jsonl", consolidated),
         store.write_jsonl("measurement_sources.jsonl", source_links),
@@ -88,6 +116,14 @@ def build_consolidated_measurements(
         measurement_sources=len(source_links),
         written=tuple(written),
         consolidated_root=str(store.consolidated_root),
+    )
+
+
+def _measurement_consolidation_fingerprint(data_root: Path) -> dict[str, Any]:
+    paths = _normalized_measurement_paths(data_root).values()
+    return build_file_fingerprint(
+        data_root,
+        (path.relative_to(data_root).as_posix() for path in paths),
     )
 
 
@@ -220,3 +256,9 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
             if isinstance(payload, dict):
                 records.append(payload)
     return records
+
+
+def _read_json(path: Path) -> Any:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))

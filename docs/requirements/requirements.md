@@ -87,6 +87,9 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
   original en `10_fuentes/manual/raw/activities/`, registrar manifiesto raw,
   normalizarse al contrato común de actividad/stream y deduplicarse frente a
   Strava/Garmin cuando representen la misma salida.
+- RDAT16: Los estados de normalización y consolidación deben registrar una
+  huella ligera de entradas en `inputs.input_fingerprint` para poder saber si
+  una salida derivada sigue vigente sin releer todos los datos.
 
 ## Requisitos no funcionales
 
@@ -108,6 +111,10 @@ Permitir que Nono disponga de una base de datos deportiva propia, trazable y amp
   `NONO_SPORT_DATA_ROOT`, siguiendo XDG en
   `~/.local/state/nono-sports/logs/operation_runs.jsonl`. En Drive solo deben
   quedar estados reproducibles del dataset, manifiestos y trazabilidad de datos.
+- RNF12: En ejecuciones diarias sin raw nuevo o modificado, las fases de
+  normalización y consolidación deben saltarse de forma trazable si su huella de
+  entradas coincide con la anterior y las salidas esperadas existen, reduciendo
+  I/O sobre Drive sin sacrificar corrección.
 
 ## Fuera de alcance de la v1
 

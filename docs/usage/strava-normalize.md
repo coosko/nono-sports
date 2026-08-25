@@ -29,10 +29,14 @@ Y escribe:
 10_fuentes/strava/normalizado/state.json
 ```
 
-Cada ejecución reescribe los JSONL desde los raw disponibles, por lo que es
-idempotente. La escritura de streams es línea a línea: no construye
-`streams.jsonl` completo en memoria y después genera `streams_index.jsonl`
-leyendo ese JSONL también en streaming.
+La primera ejecución genera los JSONL desde los raw disponibles y guarda una
+huella ligera de entradas en `normalizado/state.json`. Las siguientes
+ejecuciones son idempotentes: si el raw relevante no ha cambiado y las salidas
+esperadas existen, la fase se salta y devuelve `skipped=true` sin releer todos
+los datos de Drive. Si cambia el raw, reconstruye las salidas afectadas. La
+escritura de streams es línea a línea: no construye `streams.jsonl` completo en
+memoria y después genera `streams_index.jsonl` leyendo ese JSONL también en
+streaming.
 
 El comando añade un resumen operativo local en
 `~/.local/state/nono-sports/logs/operation_runs.jsonl`; ese log no forma parte

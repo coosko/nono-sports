@@ -16,6 +16,11 @@ from nono_sports.normalization.measurement_utils import (
     normalize_utc_timestamp,
     stable_measurement_id,
 )
+from nono_sports.storage.incremental import (
+    build_file_fingerprint,
+    is_incremental_state_current,
+    state_counts,
+)
 from nono_sports.storage.source_normalized_store import (
     SourceNormalizedStore,
     SourceNormalizedWriteResult,
@@ -23,6 +28,8 @@ from nono_sports.storage.source_normalized_store import (
 
 SOURCE = "garmin_connect"
 SCHEMA_VERSION = "nono.normalized_measurement.v1"
+REQUIRED_OUTPUTS = ("measurements.jsonl", "measurements_state.json")
+FINGERPRINT_PATTERNS = ("biometrics/*.json",)
 
 GARMIN_METRIC_FIELDS = {
     "weight": ("weight", "kg"),
@@ -44,6 +51,7 @@ class GarminMeasurementNormalizationResult:
     measurements: int
     written: tuple[SourceNormalizedWriteResult, ...]
     normalized_root: str
+    skipped: bool = False
 
 
 def normalize_garmin_measurements(
@@ -54,6 +62,22 @@ def normalize_garmin_measurements(
     generated_at = generated_at or datetime.now(UTC)
     raw_root = garmin_connect_path(data_root, "raw")
     normalized_root = garmin_connect_path(data_root, "normalizado")
+    store = SourceNormalizedStore(normalized_root)
+    previous_state = _read_optional_json(normalized_root / "measurements_state.json")
+    input_fingerprint = _garmin_measurements_fingerprint(raw_root)
+    if is_incremental_state_current(
+        previous_state,
+        input_fingerprint,
+        output_root=normalized_root,
+        required_outputs=REQUIRED_OUTPUTS,
+    ):
+        counts = state_counts(previous_state)
+        return GarminMeasurementNormalizationResult(
+            measurements=int(counts.get("measurements") or 0),
+            written=(),
+            normalized_root=str(normalized_root),
+            skipped=True,
+        )
     measurements = _normalize_raw_measurements(raw_root)
     measurements.sort(
         key=lambda item: (
@@ -69,6 +93,7 @@ def normalize_garmin_measurements(
         "inputs": {
             "raw_root": str(raw_root),
             "biometrics": str(raw_root / "biometrics"),
+            "input_fingerprint": input_fingerprint,
         },
         "outputs": {
             "measurements": "measurements.jsonl",
@@ -77,7 +102,6 @@ def normalize_garmin_measurements(
             "measurements": len(measurements),
         },
     }
-    store = SourceNormalizedStore(normalized_root)
     written = [
         store.write_jsonl("measurements.jsonl", measurements),
         store.write_json("measurements_state.json", state),
@@ -86,6 +110,14 @@ def normalize_garmin_measurements(
         measurements=len(measurements),
         written=tuple(written),
         normalized_root=str(normalized_root),
+    )
+
+
+def _garmin_measurements_fingerprint(raw_root: Path) -> dict[str, Any]:
+    return build_file_fingerprint(
+        raw_root,
+        FINGERPRINT_PATTERNS,
+        manifest_path=raw_root / "manifest.jsonl",
     )
 
 
@@ -189,3 +221,9 @@ def _normalize_value(metric: str, value: Any) -> float | None:
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _read_optional_json(path: Path) -> Any:
+    if not path.exists():
+        return {}
+    return _read_json(path)

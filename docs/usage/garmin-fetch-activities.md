@@ -137,6 +137,13 @@ normalizados y consolidados desde raw ya existente, incluyendo
 `athletes.jsonl`, `equipment.jsonl`, `measurements.jsonl` y actividades GPX
 manuales si existen.
 
+Las reconstrucciones offline y el flujo diario son incrementales por huella. Si
+los raw relevantes no han cambiado, las normalizaciones de actividades,
+mediciones, usuario y manual pueden devolver `skipped=true` y `0 files written`.
+Lo mismo aplica a la consolidación si sus normalizados de entrada siguen
+iguales. La primera ejecución tras actualizar a una versión con esta capacidad
+puede recalcular una vez para guardar `inputs.input_fingerprint`.
+
 ## Opciones
 
 ```bash

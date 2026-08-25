@@ -365,6 +365,9 @@ consolida y no conserva `raw/fit_decoded/*.fitdecode.json`.
 
 La reconstrucción offline está optimizada para memoria: los JSONL grandes se
 leen o escriben línea a línea y no debe cargarse `streams.jsonl` completo en RAM.
+También está optimizada para I/O: si los estados contienen
+`inputs.input_fingerprint`, no hay entradas modificadas y las salidas existen,
+las fases se saltan y el log operativo local registra `skipped=true`.
 
 ## Uso excepcional: descargar nueva actividad Strava
 
@@ -445,6 +448,8 @@ Este comando:
 - no genera `fit_decoded/*.fitdecode.json` en el flujo normal
 - no carga `normalizado/streams.jsonl` completo en memoria durante la
   normalización, consolidación o validación
+- evita releer y reescribir normalizados/consolidados si las huellas de entrada
+  no han cambiado desde la ejecución anterior
 
 No añadir `--max-activities` ni `--max-pages` en la automatización diaria: si
 una ejecución queda limitada artificialmente, una actividad reciente podria

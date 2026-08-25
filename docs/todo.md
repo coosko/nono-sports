@@ -10,13 +10,6 @@ No hay tareas de prioridad alta abiertas.
 
 ## Prioridad media
 
-- [ ] Optimizar `garmin sync` cuando no hay raw nuevo o modificado: evitar
-  reconstruir splits, typed splits, normalizados y consolidados completos si el
-  resultado no puede cambiar. La prioridad de memoria ya está resuelta; esta
-  tarea busca reducir tiempo e I/O sobre Drive.
-- [ ] Optimizar `strava sync --skip-fetch` sobre Drive: evitar lecturas masivas
-  de segmentos y actividades cuando no hay raw nuevo. La escritura de streams ya
-  es streaming, pero falta una estrategia incremental equivalente a Garmin.
 - [ ] Estudiar particionado de streams/normalizados por actividad y escritura
   local atómica antes de sincronizar a Drive si el volumen sigue creciendo o el
   I/O de rclone se convierte en cuello de botella.
@@ -82,6 +75,13 @@ No hay tareas de prioridad alta abiertas.
   `~/.local/state/nono-sports/logs/operation_runs.jsonl`, con fases, duración,
   conteos, salidas y errores para comandos de pipeline, manteniendo en Drive
   solo estados/checkpoints reproducibles del dataset.
+- [x] Optimizado `garmin sync` cuando no hay raw nuevo o modificado: las
+  normalizaciones de Garmin/manual y los consolidados saltan fases completas si
+  `inputs.input_fingerprint` no cambia y las salidas esperadas existen.
+- [x] Optimizado `strava sync --skip-fetch` sobre Drive: la normalización
+  Strava y la consolidación reutilizan salidas previas cuando el raw local no
+  cambia, evitando lecturas masivas innecesarias de actividades, streams,
+  segmentos y equipación.
 - [x] Retirado del backlog el preflight de memoria/swap tras resolver la causa
   estructural del OOM con procesamiento streaming.
 - [x] Eliminado `docs/planning/` por duplicar `roadmap`, `todo`,
