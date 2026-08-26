@@ -10,9 +10,6 @@ No hay tareas de prioridad alta abiertas.
 
 ## Prioridad media
 
-- [ ] Estudiar particionado de streams/normalizados por actividad y escritura
-  local atómica antes de sincronizar a Drive si el volumen sigue creciendo o el
-  I/O de rclone se convierte en cuello de botella.
 - [ ] Decidir fuente primaria por tipo de dato en la consolidación multi-fuente:
   por ejemplo Garmin/FIT para sensores y clasificación deportiva, Strava para
   segmentos/rutas sociales si siguen disponibles, manual para especificaciones

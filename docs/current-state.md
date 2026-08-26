@@ -197,5 +197,5 @@ Vigilar el comportamiento real de I/O en Drive tras la optimización
 incremental. Si vuelve a aparecer presión operativa, revisar primero
 `journalctl` y
 `~/.local/state/nono-sports/logs/operation_runs.jsonl`, y luego priorizar
-diagnóstico de Drive/rclone o separación de fases antes de añadir salvaguardas
-preventivas de memoria.
+diagnóstico de Drive/rclone antes de plantear cambios de arquitectura o
+salvaguardas preventivas de memoria.

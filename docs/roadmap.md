@@ -49,11 +49,6 @@ Objetivo:
 - mantener Strava como fuente histórica o secundaria mientras no haya acceso API
   operativo
 
-Líneas de trabajo:
-
-- estudiar separación de fases o escritura local atómica si Drive/rclone sigue
-  siendo cuello de botella
-
 Validación operativa ya realizada:
 
 - el 2026-08-25, `nono-sports-garmin-sync.service` arrancó por timer a las
