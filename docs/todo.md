@@ -79,6 +79,10 @@ No hay tareas de prioridad alta abiertas.
   Strava y la consolidación reutilizan salidas previas cuando el raw local no
   cambia, evitando lecturas masivas innecesarias de actividades, streams,
   segmentos y equipación.
+- [x] Validada en Nono la optimización incremental real: primera ejecución
+  `garmin sync --skip-fetch` sembrando huellas en 1:32.31, 325180 KB RSS y 0
+  swaps; segunda ejecución sin cambios con fases derivadas `skipped=true`, 0
+  ficheros escritos, 4.00 s, 60264 KB RSS y 0 swaps.
 - [x] Retirado del backlog el preflight de memoria/swap tras resolver la causa
   estructural del OOM con procesamiento streaming.
 - [x] Eliminado `docs/planning/` por duplicar `roadmap`, `todo`,

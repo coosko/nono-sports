@@ -39,7 +39,7 @@ Objetivo alcanzado:
 
 ## Fase 2. Robustez operativa en Nono
 
-Estado: fase actual.
+Estado: completada en su alcance actual, con seguimiento operativo continuo.
 
 Objetivo:
 
@@ -60,10 +60,14 @@ Validación operativa ya realizada:
   entradas y saltan trabajo completo cuando no hay raw ni normalizados
   modificados, reduciendo I/O sobre Drive en `garmin sync` y
   `strava sync --skip-fetch`
+- validación incremental real: el 2026-08-26, una primera ejecución
+  `garmin sync --skip-fetch` sembró huellas en 1:32.31 con 325180 KB RSS y una
+  segunda ejecución sin cambios saltó todas las fases derivadas en 4.00 s con
+  60264 KB RSS y 0 swaps
 
 ## Fase 3. Gobierno de fuentes conectadas
 
-Estado: siguiente bloque de control.
+Estado: seguimiento y contingencia.
 
 Objetivo:
 
@@ -84,7 +88,7 @@ Líneas de trabajo:
 
 ## Fase 4. Enriquecimiento del modelo deportivo
 
-Estado: pendiente de diseño e implementación incremental.
+Estado: siguiente bloque recomendado.
 
 Objetivo:
 

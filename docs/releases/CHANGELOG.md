@@ -94,6 +94,11 @@ Todas las versiones y entregables se documentan aquí.
   el 2026-08-25 a las 19:50:04 UTC y terminó a las 19:51:19 UTC con
   `status=0/SUCCESS`, 1min 15.028s wall clock, 46.775s CPU, 366.8M de pico de
   memoria y 2.4M de pico de swap.
+- Validación real incremental en Nono tras actualizar a `78c3f74`: primera
+  ejecución `garmin sync --skip-fetch` sembrando huellas en 1:32.31, 325180 KB
+  RSS y 0 swaps; segunda ejecución sin cambios con todas las fases derivadas
+  saltadas, `skipped=true`, 0 ficheros escritos, 4.00 s, 60264 KB RSS y 0
+  swaps.
 
 ## [0.3.0] - 2026-07-12
 

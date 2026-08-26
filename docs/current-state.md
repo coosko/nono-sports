@@ -101,6 +101,11 @@ Existe actualmente:
   optimización streaming: el 2026-08-25 arrancó por timer a las 19:50:04 UTC,
   terminó a las 19:51:19 UTC con `status=0/SUCCESS`, pico de memoria 366.8M y
   pico de swap 2.4M
+- validación real en Nono de la optimización incremental sobre `garmin sync
+  --skip-fetch`: tras actualizar al commit `78c3f74`, el primer run sembró
+  huellas en 1:32.31 con 325180 KB RSS y 0 swaps; el segundo run sin cambios
+  saltó todas las fases derivadas con `skipped=true`, escribió 0 ficheros,
+  terminó en 4.00 s, usó 60264 KB RSS y 0 swaps
 - resumen operativo local por ejecución en
   `~/.local/state/nono-sports/logs/operation_runs.jsonl` para comandos de
   pipeline, separado de los checkpoints reproducibles que viven en Drive bajo
@@ -188,14 +193,18 @@ Estado observado tras los fallos OOM de agosto de 2026:
   148.556 KB RSS; `garmin sync --skip-fetch` reconstruyó Garmin/manual y
   consolidado con 925 actividades Garmin, 1.175 actividades consolidadas y pico
   de 321.004 KB RSS, sin swaps.
+- Validación real en Nono tras la optimización incremental:
+  `scripts/check.py` pasó 168 tests; `nono_sports doctor` y
+  `nono_sports garmin doctor` dieron `status=ok`; una primera ejecución
+  offline sembró huellas y una segunda ejecución sin cambios saltó todas las
+  fases derivadas en 4.00 s, con 60264 KB RSS y 0 swaps.
 
 El código previo se conserva en `deprecated/initial-bootstrap/` solo como referencia histórica y no forma parte de la implementación vigente.
 
 ## Próximo objetivo
 
-Vigilar el comportamiento real de I/O en Drive tras la optimización
-incremental. Si vuelve a aparecer presión operativa, revisar primero
-`journalctl` y
-`~/.local/state/nono-sports/logs/operation_runs.jsonl`, y luego priorizar
-diagnóstico de Drive/rclone antes de plantear cambios de arquitectura o
-salvaguardas preventivas de memoria.
+Decidir la política de fuente primaria por tipo de dato en la consolidación
+multi-fuente. La robustez de memoria e I/O queda validada en Nono; si vuelve a
+aparecer presión operativa, revisar primero `journalctl` y
+`~/.local/state/nono-sports/logs/operation_runs.jsonl` antes de plantear
+cambios de arquitectura o salvaguardas preventivas de memoria.
